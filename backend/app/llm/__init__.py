@@ -13,4 +13,11 @@ def _anthropic_factory():
     return AnthropicProvider()
 
 
-register_provider("anthropic", _anthropic_factory)
+def _openai_embedding_factory():
+    from app.llm.openai_embedding_provider import OpenAIEmbeddingProvider
+
+    return OpenAIEmbeddingProvider()
+
+
+register_provider("anthropic", _anthropic_factory)  # completion
+register_provider("openai", _openai_embedding_factory)  # embedding (EMBEDDING_PROVIDER)

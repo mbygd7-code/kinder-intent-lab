@@ -32,6 +32,10 @@ dev = [
 anthropic = [
     "anthropic>=0.40",
 ]
+# 실 OpenAI 임베딩 provider (EMBEDDING_PROVIDER=openai). text-embedding-3-* → 1536차원.
+openai = [
+    "openai>=1.40",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
