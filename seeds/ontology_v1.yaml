@@ -1,0 +1,811 @@
+# Intent Ontology v1 시드 — domain → intent 2계층 (설계 문서 §5-9)
+# 정본 intent 7종(play_expand 등)은 설계 문서 출처, 나머지 56종은 2026-07-08 멀티에이전트 저작.
+# UNKNOWN은 domain 없음 (§5-8 미분류 pool). 수정 시 버전 규칙(minor/major)을 따를 것.
+version: onto-1.0
+change_type: major
+domains:
+- PLAY
+- OBSERVATION
+- DOCUMENT
+- VISUAL
+- COMMUNICATION
+- OPERATION
+- REFLECTION
+intents:
+- intent_id: play_expand
+  domain: PLAY
+  definition: 진행 중인 놀이의 장면이나 관찰 내용을 입력으로 받아, 그 놀이의 주제와 내용을 더 넓고 깊게 발전시킬 확장 아이디어를 제안한다.
+  positive_examples:
+  - 이 블록놀이 좀 더 키워볼 만한 거 없을까?
+  - 얘들이 요즘 공룡에 푹 빠졌는데 여기서 뭘 더 해볼 수 있을까?
+  negative_examples:
+  - 이 놀이 슬슬 마무리하고 다음엔 뭘 해주면 좋을까?
+  - 가게놀이 하는데 뭐 더 갖다주면 좋을까, 재료 같은 거?
+  confusable_with:
+  - play_transition_next_step
+  - play_revive_stalled
+  - doc_expand_text
+- intent_id: play_transition_next_step
+  domain: PLAY
+  definition: 현재 진행 중인 놀이의 흐름과 도달 지점을 입력으로 받아, 그 놀이에서 이어서 전개할 다음 단계 활동을 제안한다.
+  positive_examples:
+  - 다음엔 뭘 해주면 좋을까?
+  - 병원놀이 오늘 여기까지 했는데 내일은 뭘로 이어가지?
+  negative_examples:
+  - 이 놀이 더 크게 벌려볼 아이디어 없어?
+  - 애들이 놀이에 흥미를 잃었는데 어떻게 다시 끌어올리지?
+  confusable_with:
+  - play_expand
+  - play_flow_naturalize
+  - write_activity_followup
+- intent_id: play_flow_naturalize
+  domain: PLAY
+  definition: 계획된 놀이 활동들의 순서와 연결 상태를 입력으로 받아, 단계 사이의 전환이 매끄러워지도록 흐름을 다듬은 전개안을 제안한다.
+  positive_examples:
+  - 이 순서가 좀 뚝뚝 끊기는데 흐름 좀 매끄럽게 해줘
+  - 도입에서 바로 만들기로 넘어가니까 어색해, 연결 좀 자연스럽게
+  negative_examples:
+  - 이 알림장 문장 좀 자연스럽게 다듬어줘
+  - 이 놀이 다음 활동으로는 뭐가 좋을까?
+  confusable_with:
+  - text_naturalize
+  - play_transition_next_step
+  - doc_plan_draft
+- intent_id: play_material_suggest
+  domain: PLAY
+  definition: 진행 중인 놀이의 주제와 상황을 입력으로 받아, 그 놀이에 새로 투입하면 좋을 놀잇감·재료 목록을 추천한다.
+  positive_examples:
+  - 가게놀이 하는데 뭐 더 넣어주면 좋을까?
+  - 요즘 애들이 병원놀이에 푹 빠졌는데 새로 넣어줄 만한 재료 뭐 있을까?
+  negative_examples:
+  - 이 재료들 목록대로 주문 좀 넣어줘
+  - 공룡놀이 더 재밌게 발전시킬 아이디어 없어?
+  confusable_with:
+  - op_material_prepare
+  - play_environment_setup
+- intent_id: play_scenario_generate
+  domain: PLAY
+  definition: 놀이 주제나 유아의 관심사를 입력으로 받아, 상상놀이에 바로 쓸 수 있는 이야기 배경과 역할 상황이 담긴 시나리오를 생성한다.
+  positive_examples:
+  - 우주 탐험 역할놀이 상황극 하나 짜줘
+  - 얘들 소방관 놀이 하는데 출동하는 이야기 좀 만들어줘
+  negative_examples:
+  - 오늘 놀이한 거 이야기처럼 기록으로 써줘
+  - 이 역할놀이 다음엔 어떤 활동으로 넘어갈까?
+  confusable_with:
+  - play_expand
+  - visual_image_generate
+- intent_id: play_inquiry_question
+  domain: PLAY
+  definition: 진행 중인 놀이 장면을 입력으로 받아, 유아의 탐구와 사고를 자극할 교사 발문 목록을 생성한다.
+  positive_examples:
+  - 그림자 놀이 하는데 애들한테 뭐라고 물어보면 좋을까?
+  - 여기서 던질 만한 질문 몇 개만 뽑아줘
+  negative_examples:
+  - 학부모 만족도 설문 문항 좀 만들어줘
+  - 이 탐색놀이 확장할 활동 아이디어 좀 줘
+  confusable_with:
+  - play_revive_stalled
+  - play_expand
+- intent_id: play_level_adapt
+  domain: PLAY
+  definition: 기존 놀이 활동을 입력으로 받아, 유아의 연령과 발달 수준에 맞게 난이도와 방법을 조정한 변형안을 생성한다.
+  positive_examples:
+  - 이거 만 3세도 할 수 있게 좀 쉽게 바꿔줘
+  - 이 게임 우리 반 형님들한텐 너무 시시한데 좀 어렵게 해줄래?
+  negative_examples:
+  - 이 놀이 다음 단계로는 뭘 하면 좋을까?
+  - 이 가정통신문 어휘 수준 좀 쉽게 낮춰줘
+  confusable_with:
+  - play_expand
+  - play_revive_stalled
+- intent_id: play_revive_stalled
+  domain: PLAY
+  definition: 흥미가 식거나 전개가 막힌 놀이 상황을 입력으로 받아, 유아의 몰입을 되살릴 교사 개입 방법을 제안한다.
+  positive_examples:
+  - 애들이 며칠 만에 시큰둥해졌는데 어떻게 다시 불붙이지?
+  - 가게놀이가 손님이 없어서 영 안 굴러가, 뭘 해줘야 하나
+  negative_examples:
+  - 이 놀이 이제 마무리하고 다음엔 뭐 할까?
+  - 이 놀이 더 크게 확장하고 싶은데 아이디어 줘
+  confusable_with:
+  - play_expand
+  - play_material_suggest
+  - play_transition_next_step
+- intent_id: play_environment_setup
+  domain: PLAY
+  definition: 놀이 주제와 교실 여건을 입력으로 받아, 그 놀이가 잘 일어나도록 공간과 흥미 영역을 배치한 환경 구성안을 제안한다.
+  positive_examples:
+  - 역할놀이 영역 이번엔 어떻게 꾸며주지?
+  - 블록이랑 미술 영역 자리 바꿔볼까 하는데 배치 좀 짜줘
+  negative_examples:
+  - 가게놀이에 쓸 소품은 뭐가 필요할까?
+  - 이 활동 사진들 정리 좀 해줘
+  confusable_with:
+  - play_material_suggest
+  - visual_layout_refine
+- intent_id: obs_record_moment
+  domain: OBSERVATION
+  definition: 교사가 짧게 구술하거나 메모한 아이의 행동·말 장면을 입력받아 날짜·아동·상황 정보가 채워진 관찰 기록으로 저장한다.
+  positive_examples:
+  - 지호 방금 처음으로 가위질 성공했어, 이거 적어놔
+  - 방금 그 상황 관찰일지에 남겨줘
+  negative_examples:
+  - 이거 알림장에 써줘
+  - 지호 지난달 관찰 기록 좀 보여줘
+  confusable_with:
+  - doc_observation_record
+  - obs_capture_scene
+  - refl_self_journal
+- intent_id: obs_capture_scene
+  domain: OBSERVATION
+  definition: 교사가 지목한 지금 벌어지고 있는 놀이·활동 장면을 사진이나 영상으로 포착해 관찰 증거로 저장한다.
+  positive_examples:
+  - 지금 이 장면 좀 찍어놔
+  - 쌓기놀이 하는 거 영상으로 담아줘
+  negative_examples:
+  - 이 사진 정리 좀
+  - 방금 서아가 한 말 기록해둬
+  confusable_with:
+  - obs_record_moment
+  - obs_set_watchpoint
+- intent_id: obs_tag_children
+  domain: OBSERVATION
+  definition: 화면에 열려 있는 사진이나 관찰 기록에 등장하는 아이가 누구인지 지정받아 그 자료를 해당 아동의 프로필에 연결한다.
+  positive_examples:
+  - 이 사진 서준이랑 하윤이야
+  - 여기 나온 애들 태그 좀 해줘
+  negative_examples:
+  - 이 사진 하윤이 포트폴리오에 넣어줘
+  - 이 사진 무슨 발달영역이야?
+  confusable_with:
+  - visual_photo_organize
+  - op_workspace_organize
+- intent_id: obs_classify_development
+  domain: OBSERVATION
+  definition: 화면의 관찰 기록이나 포착된 장면의 내용을 분석해 해당하는 발달 영역과 누리과정 지표로 분류한다.
+  positive_examples:
+  - 이 기록 어느 영역에 넣으면 돼?
+  - 이거 의사소통 쪽으로 분류해줘
+  negative_examples:
+  - 이 기록 문장 좀 자연스럽게 다듬어줘
+  - 민서 발달이 또래보다 느린 건 아니지?
+  confusable_with:
+  - refl_milestone_check
+  - op_workspace_organize
+- intent_id: obs_summarize_child
+  domain: OBSERVATION
+  definition: 지정된 아이의 누적 관찰 기록과 사진을 모아 최근 행동·발달 흐름을 한눈에 볼 수 있는 요약으로 생성한다.
+  positive_examples:
+  - 요즘 도윤이 어떻게 지내?
+  - 이번 달 서아 관찰한 거 정리해줘
+  negative_examples:
+  - 도윤이 상담 때 쓸 자료로 만들어줘
+  - 서아 요즘 좀 달라지지 않았어?
+  confusable_with:
+  - refl_child_progress_review
+  - obs_detect_behavior_change
+  - doc_portfolio_comment
+- intent_id: obs_detect_behavior_change
+  domain: OBSERVATION
+  definition: 특정 아이 또는 반 전체의 관찰 데이터를 이전 시기와 비교해 달라진 행동 패턴이나 주의가 필요한 변화를 탐지해 보고한다.
+  positive_examples:
+  - 요즘 지우가 좀 달라진 것 같은데, 뭐 있어?
+  - 혼자 노는 시간이 부쩍 는 애 있나 봐줘
+  negative_examples:
+  - 지우 이번 달 기록 요약해줘
+  - 지우가 또 울면 바로 알려줘
+  confusable_with:
+  - refl_support_need_scan
+  - obs_summarize_child
+  - refl_child_progress_review
+- intent_id: obs_recommend_focus
+  domain: OBSERVATION
+  definition: 아이별 관찰 기록의 누적량과 공백을 근거로 다음에 누구를 어떤 장면에서 관찰하면 좋을지 관찰 대상을 추천한다.
+  positive_examples:
+  - 내일은 누굴 좀 봐야 하지?
+  - 관찰이 제일 부족한 애 누구야?
+  negative_examples:
+  - 다음엔 뭘 해주면 좋을까?
+  - 요즘 눈에 띄게 변한 애 있어?
+  confusable_with:
+  - refl_support_need_scan
+  - obs_set_watchpoint
+- intent_id: obs_set_watchpoint
+  domain: OBSERVATION
+  definition: 지정된 아이의 특정 행동이나 상황이 다시 나타나면 포착하거나 교사에게 알리도록 관찰 워치포인트를 설정한다.
+  positive_examples:
+  - 준우가 또 친구 물면 바로 알려줘
+  - 이번 주 서아 점심 얼마나 먹는지 좀 지켜봐줘
+  negative_examples:
+  - 내일 학부모 상담 까먹지 않게 알려줘
+  - 준우 요즘 무는 게 늘었어?
+  confusable_with:
+  - obs_capture_scene
+  - obs_recommend_focus
+- intent_id: obs_search_records
+  domain: OBSERVATION
+  definition: 아이·기간·활동 같은 조건을 받아 과거의 관찰 기록과 포착된 장면을 검색해 화면에 불러와 보여준다.
+  positive_examples:
+  - 하윤이 블록놀이 했던 기록 찾아줘
+  - 지난주 바깥놀이 때 찍은 거 어디 있지?
+  negative_examples:
+  - 하윤이 요즘 어때?
+  - 이 사진들 날짜별로 정리해줘
+  confusable_with:
+  - op_workspace_search
+  - obs_summarize_child
+- intent_id: text_naturalize
+  domain: DOCUMENT
+  definition: 화면에서 선택했거나 방금 작성한 기존 글을 입력으로, 내용과 사실은 그대로 유지하면서 어색하거나 딱딱한 표현을 매끄러운 문장으로 고쳐 쓴 수정본을 만든다.
+  positive_examples:
+  - 이거 좀 자연스럽게 만들어줘
+  - 문장이 너무 딱딱한데 좀 부드럽게 해줄래?
+  negative_examples:
+  - 이 사진 배치 좀 자연스럽게 해줘
+  - 여기 맞춤법 틀린 데 있나 봐줘
+  confusable_with:
+  - visual_naturalize
+  - doc_proofread
+  - play_flow_naturalize
+- intent_id: write_activity_followup
+  domain: DOCUMENT
+  definition: 방금 마친 활동의 사진·메모·관찰 내용을 입력으로, 활동이 어떻게 진행됐고 다음에 무엇으로 이어갈지를 담은 후속 기록 글을 새로 작성한다.
+  positive_examples:
+  - 오늘 물감놀이 한 거 후속 기록 좀 써줘
+  - 아까 그 블록 활동 이어서 기록 남겨야 되는데 초안 좀
+  negative_examples:
+  - 다음엔 뭘 해주면 좋을까?
+  - 오늘 찍은 활동 사진 정리 좀
+  confusable_with:
+  - refl_activity_review
+  - play_transition_next_step
+  - doc_plan_draft
+- intent_id: doc_observation_record
+  domain: DOCUMENT
+  definition: 교사가 말하거나 메모해 둔 특정 아이의 행동·말 관찰 내용을 입력으로, 격식을 갖춘 관찰 기록 문서를 작성한다.
+  positive_examples:
+  - 지우가 오늘 블록으로 성 만들었거든, 이거 관찰기록으로 써줘
+  - 얘가 오늘 처음으로 친구한테 먼저 말 걸었어, 기록 좀 남겨줘
+  negative_examples:
+  - 이 관찰기록 말투가 너무 평가처럼 들리는데 좀 다듬어줘
+  - 지난달 관찰기록 어디 있지? 찾아줘
+  confusable_with:
+  - obs_record_moment
+  - doc_portfolio_comment
+- intent_id: doc_notice_draft
+  domain: DOCUMENT
+  definition: 준비물·일정·안내 사항 같은 전달 내용을 입력으로, 학부모에게 보낼 알림장 글 초안을 작성한다.
+  positive_examples:
+  - 내일 견학 가니까 준비물 알림장 좀 써줘
+  - 다음 주 상담 주간 안내 나가야 돼, 알림장 초안 부탁해
+  negative_examples:
+  - 이 알림장 학부모들한테 지금 보내줘
+  - 방금 쓴 알림장 초안 너무 긴데 핵심만 남게 줄여줘
+  confusable_with:
+  - comm_draft_parent_notice
+  - comm_message_individual_parent
+  - op_notice_send
+- intent_id: doc_plan_draft
+  domain: DOCUMENT
+  definition: 활동 주제·기간·지난 계획 같은 정보를 입력으로, 주간·일일 계획안 문서의 초안을 작성한다.
+  positive_examples:
+  - 다음 주 주간계획안 좀 짜줘
+  - 봄 프로젝트로 이번 주 일일계획 초안 만들어줄래?
+  negative_examples:
+  - 이 계획안 문장 좀 자연스럽게 다듬어줘
+  - 이 다음 활동으로 뭐 하면 좋을까?
+  confusable_with:
+  - op_schedule_update
+  - play_transition_next_step
+- intent_id: doc_summarize
+  domain: DOCUMENT
+  definition: 선택한 긴 기록이나 문서를 입력으로, 핵심 내용만 남긴 더 짧은 요약문을 만든다.
+  positive_examples:
+  - 이거 너무 긴데 세 줄로 요약 좀
+  - 이번 달 관찰기록들 핵심만 추려줘
+  negative_examples:
+  - 이 사진들 잘 나온 것만 추려줘
+  - 이거 내용 좀 더 보태서 길게 써줘
+  confusable_with:
+  - obs_summarize_child
+  - refl_period_retrospective
+  - text_naturalize
+- intent_id: doc_expand_text
+  domain: DOCUMENT
+  definition: 짧은 메모나 몇 문장짜리 초안을 입력으로, 내용을 구체화하고 살을 붙여 더 상세한 완성 글로 확장한다.
+  positive_examples:
+  - 이 메모 가지고 한 문단으로 늘려줘
+  - 두 줄밖에 못 썼는데 여기에 살 좀 붙여줄래?
+  negative_examples:
+  - 이거 요약해서 짧게 만들어줘
+  - 이 놀이 더 확장하려면 뭘 하면 좋을까?
+  confusable_with:
+  - play_expand
+  - text_naturalize
+- intent_id: doc_proofread
+  domain: DOCUMENT
+  definition: 선택한 글을 입력으로, 맞춤법·띄어쓰기·오탈자를 찾아 바르게 고친 교정본을 만든다.
+  positive_examples:
+  - 맞춤법 좀 봐줘
+  - 여기 오타 있나 확인해서 고쳐줄래?
+  negative_examples:
+  - 문장이 어색한데 자연스럽게 고쳐줘
+  - 사진 순서 이게 맞나 확인 좀 해줘
+  confusable_with:
+  - text_naturalize
+  - doc_expand_text
+- intent_id: doc_portfolio_comment
+  domain: DOCUMENT
+  definition: 한 아이의 누적된 기록·사진을 입력으로, 포트폴리오에 들어갈 발달 종합 코멘트(총평)를 작성한다.
+  positive_examples:
+  - 지우 포트폴리오 총평 좀 써줘
+  - 이번 학기 애들 발달 코멘트 하나씩 써야 하는데 서준이 것부터
+  negative_examples:
+  - 지우 오늘 놀이 관찰한 거 기록으로 써줘
+  - 포트폴리오에 이 사진 넣어줘
+  confusable_with:
+  - obs_summarize_child
+  - refl_child_progress_review
+  - doc_observation_record
+- intent_id: visual_naturalize
+  domain: VISUAL
+  definition: 선택된 사진의 색감·노출·기울기·흔들림 같은 결함을 원본 분위기를 해치지 않는 선에서 자연스럽게 보정한 결과 사진을 만든다.
+  positive_examples:
+  - 이거 좀 자연스럽게 만들어줘
+  - 사진이 너무 어둡게 나왔네, 좀 살려줄 수 있어?
+  negative_examples:
+  - 이 문장 좀 자연스럽게 다듬어줘
+  - 뒤에 애들 얼굴 좀 흐리게 해줘
+  confusable_with:
+  - text_naturalize
+  - visual_layout_refine
+- intent_id: visual_layout_refine
+  domain: VISUAL
+  definition: 알림장·포트폴리오·놀이 보드 등 현재 화면에 놓인 사진과 텍스트 요소의 배치·정렬·간격을 다듬어 보기 좋은 레이아웃으로 재구성한다.
+  positive_examples:
+  - 알림장 사진 배치가 좀 어수선한데 정돈해줘
+  - 이 페이지 좀 보기 좋게 다듬어줄래?
+  negative_examples:
+  - 이 사진들 한 장으로 예쁘게 모아줘
+  - 이 사진 정리 좀
+  confusable_with:
+  - visual_decorate
+  - visual_photo_organize
+  - play_environment_setup
+- intent_id: visual_photo_organize
+  domain: VISUAL
+  definition: 업로드되거나 선택된 여러 장의 활동 사진을 활동·날짜·아동 기준으로 분류하고 중복·실패 컷을 정리해 정돈된 앨범 구조로 만든다.
+  positive_examples:
+  - 이 사진 정리 좀
+  - 오늘 찍은 거 활동별로 나눠줘
+  negative_examples:
+  - 이 중에 제일 잘 나온 것만 골라줘
+  - 포트폴리오 페이지 배치 좀 정리해줘
+  confusable_with:
+  - op_workspace_organize
+  - visual_photo_pick_best
+  - obs_tag_children
+- intent_id: visual_photo_pick_best
+  domain: VISUAL
+  definition: 여러 장의 후보 사진 가운데 초점·표정·구도 같은 품질과 쓰임새 적합성을 기준으로 쓸 만한 소수의 사진을 골라 추천한다.
+  positive_examples:
+  - 이 중에 제일 잘 나온 걸로 골라줘
+  - 알림장에 넣을 만한 거 두세 장만 뽑아줄래?
+  negative_examples:
+  - 흔들린 사진 다 빼고 폴더별로 정리해줘
+  - 이 사진 밝게 좀 살려줘
+  confusable_with:
+  - visual_photo_organize
+  - comm_share_media_with_parents
+- intent_id: visual_image_generate
+  domain: VISUAL
+  definition: 교사가 말한 주제나 설명을 입력으로 활동 자료·알림장·안내문에 쓸 새 삽화나 이미지를 생성한다.
+  positive_examples:
+  - 다음 주 주제가 가을인데 어울리는 그림 하나 만들어줘
+  - 물놀이 안내문에 넣을 귀여운 삽화 하나만
+  negative_examples:
+  - 가을 느낌 나게 알림장 글 좀 써줘
+  - 이 사진들로 가을 느낌 나는 한 장 만들어줘
+  confusable_with:
+  - visual_collage_compose
+  - visual_decorate
+  - play_scenario_generate
+- intent_id: visual_privacy_mask
+  domain: VISUAL
+  definition: 선택된 사진에서 공개하면 안 되는 아동 얼굴이나 개인정보가 드러난 영역을 찾아 흐림·스티커 처리한 공유 가능한 사진을 만든다.
+  positive_examples:
+  - 뒤에 다른 반 애들 얼굴 좀 가려줘
+  - 이거 올려도 되게 얼굴 처리 해줄래?
+  negative_examples:
+  - 이 사진 민준이만 나오게 잘라줘
+  - 사진이 너무 흐릿한데 선명하게 해줘
+  confusable_with:
+  - visual_crop_focus
+  - visual_decorate
+  - visual_naturalize
+- intent_id: visual_crop_focus
+  domain: VISUAL
+  definition: 선택된 사진에서 특정 아동이나 장면이 잘 보이도록 해당 부분을 잘라내거나 확대한 이미지를 만든다.
+  positive_examples:
+  - 여기서 서연이만 크게 나오게 잘라줘
+  - 가운데 만들기 하는 부분만 확대해줄래?
+  negative_examples:
+  - 옆에 지나가는 애 얼굴 좀 지워줘
+  - 사진 기울어진 것 좀 바로잡아줘
+  confusable_with:
+  - visual_privacy_mask
+  - visual_photo_pick_best
+- intent_id: visual_decorate
+  domain: VISUAL
+  definition: 선택된 사진이나 페이지 위에 프레임·스티커·날짜·이름표 같은 꾸밈 요소를 얹어 장식된 버전을 만든다.
+  positive_examples:
+  - 이 사진 생일 느낌 나게 꾸며줘
+  - 여기에 날짜랑 이름 스티커 좀 붙여줄래?
+  negative_examples:
+  - 사진 색감 좀 예쁘게 보정해줘
+  - 알림장 판 배치 좀 예쁘게 다듬어줘
+  confusable_with:
+  - visual_layout_refine
+  - visual_naturalize
+  - visual_collage_compose
+- intent_id: visual_collage_compose
+  domain: VISUAL
+  definition: 선택된 여러 장의 사진을 입력으로 한 장짜리 콜라주나 모음 컷 이미지를 합성해 만든다.
+  positive_examples:
+  - 오늘 사진들 한 장으로 모아줘
+  - 이 네 장 묶어서 알림장에 넣게 한 컷으로 만들어줄래?
+  negative_examples:
+  - 이 사진들 날짜별로 모아서 정리해줘
+  - 페이지에 있는 사진들 간격 좀 맞춰줘
+  confusable_with:
+  - visual_layout_refine
+  - visual_photo_organize
+  - visual_decorate
+- intent_id: comm_draft_parent_notice
+  domain: COMMUNICATION
+  definition: 화면의 활동 기록·일정 등 컨텍스트를 근거로 학급 학부모 전체에게 보낼 알림장·공지 초안을 작성한다.
+  positive_examples:
+  - 오늘 알림장 좀 써줘
+  - 내일 물놀이 준비물 공지 하나만
+  negative_examples:
+  - 지난주 알림장 뭐 보냈었지?
+  - 이 알림장 말투 좀 부드럽게 고쳐줘
+  confusable_with:
+  - doc_notice_draft
+  - comm_message_individual_parent
+  - op_notice_send
+- intent_id: comm_message_individual_parent
+  domain: COMMUNICATION
+  definition: 특정 아동에 관한 전달 사항을 그 아동의 학부모 한 가정에게 보내는 개별 메시지로 작성해 전송한다.
+  positive_examples:
+  - 지우 어머니한테 오늘 낮잠 못 잤다고 전해줘
+  - 이건 서준이네만 따로 알려야 할 것 같은데
+  negative_examples:
+  - 지우 어머니가 뭐라고 보내셨더라?
+  - 우리 반 전체에 견학 안내 보내줘
+  confusable_with:
+  - comm_draft_parent_notice
+  - comm_share_media_with_parents
+  - doc_notice_draft
+- intent_id: comm_share_media_with_parents
+  domain: COMMUNICATION
+  definition: 화면에서 지시된 사진·영상 등 미디어 자료를 가정에서 볼 수 있도록 학부모 채널에 공유한다.
+  positive_examples:
+  - 이 사진들 부모님들한테 보내줘
+  - 오늘 놀이 영상 가정에도 공유해줘
+  negative_examples:
+  - 이 사진 정리 좀
+  - 이 사진 지우 포트폴리오에 넣어줘
+  confusable_with:
+  - comm_message_individual_parent
+  - comm_share_with_colleague
+  - op_notice_send
+- intent_id: comm_share_with_colleague
+  domain: COMMUNICATION
+  definition: 현재 보고 있는 자료나 기록을 지정된 동료 교사·원장 등 원내 구성원에게 전달해 함께 볼 수 있게 공유한다.
+  positive_examples:
+  - 이거 옆 반 선생님한테도 보내줄래?
+  - 이 관찰기록 원장님께 공유 좀
+  negative_examples:
+  - 옆 반은 주간계획 어떻게 짰는지 보여줘
+  - 이거 학부모님들한테 보내줘
+  confusable_with:
+  - comm_share_media_with_parents
+  - op_document_export
+- intent_id: comm_present_to_children
+  domain: COMMUNICATION
+  definition: 화면의 사진·영상·자료를 아이들이 다 같이 볼 수 있도록 교실 대형 화면에 크게 띄워 표시한다.
+  positive_examples:
+  - 얘들아 이것 좀 봐
+  - 이 사진 애들 보게 크게 띄워줘
+  negative_examples:
+  - 어제 찍은 애들 사진 좀 보여줘
+  - 이 동영상 다음 주 활동 자료로 저장해줘
+  confusable_with:
+  - comm_share_media_with_parents
+  - obs_search_records
+- intent_id: comm_schedule_send
+  domain: COMMUNICATION
+  definition: 이미 작성된 알림·메시지에 발송 시각을 지정해 예약 발송으로 등록하거나 예약 시각을 변경한다.
+  positive_examples:
+  - 이 알림장 내일 아침에 나가게 해줘
+  - 발송 4시 반으로 예약 좀
+  negative_examples:
+  - 이거 지금 바로 보내줘
+  - 다음 주 견학 일정 캘린더에 잡아줘
+  confusable_with:
+  - op_notice_send
+  - op_schedule_update
+- intent_id: comm_translate_for_family
+  domain: COMMUNICATION
+  definition: 작성된 알림·메시지를 수신 가정의 언어에 맞게 번역한 발송용 버전으로 생성한다.
+  positive_examples:
+  - 이거 베트남어로도 하나 만들어줘
+  - 사라네는 영어로 보내야 하는데
+  negative_examples:
+  - 이 문장 좀 자연스럽게 다듬어줘
+  - 베트남어 인사말 활동 자료 찾아줘
+  confusable_with:
+  - text_naturalize
+  - op_notice_send
+- intent_id: comm_collect_parent_responses
+  domain: COMMUNICATION
+  definition: 발송한 알림·요청에 대한 학부모 회신을 수합해 집계·요약한 현황을 제시한다.
+  positive_examples:
+  - 소풍 간다는 집 몇 집이나 돼?
+  - 학부모 답장 온 것 좀 정리해줘
+  negative_examples:
+  - 참석 여부 물어보는 알림 보내줘
+  - 상담 신청 설문지 하나 만들어줘
+  confusable_with:
+  - comm_request_consent
+  - doc_summarize
+- intent_id: comm_request_consent
+  domain: COMMUNICATION
+  definition: 견학·사진 사용 등 동의가 필요한 사안의 동의 요청서를 대상 학부모에게 발송해 서명·동의 회신을 요청한다.
+  positive_examples:
+  - 현장학습 동의서 돌려야 해
+  - 사진 사용 동의 안 받은 집에 요청 보내줘
+  negative_examples:
+  - 동의서 양식 파일 어디 있지?
+  - 동의서 회신 다 왔는지 확인해줘
+  confusable_with:
+  - comm_draft_parent_notice
+  - op_notice_send
+  - comm_collect_parent_responses
+- intent_id: op_schedule_update
+  domain: OPERATION
+  definition: 발화와 화면 컨텍스트에서 파악한 활동·행사·시간 정보를 캘린더나 주간 계획안의 일정 항목으로 등록하거나 변경한다.
+  positive_examples:
+  - 내일 오후에 신체검사 일정 좀 잡아줘
+  - 비 온다는데 바깥놀이 목요일로 옮겨줘
+  negative_examples:
+  - 이번 주 일정 어떻게 되더라?
+  - 다음엔 뭘 해주면 좋을까?
+  confusable_with:
+  - op_schedule_check
+  - doc_plan_draft
+  - comm_schedule_send
+- intent_id: op_schedule_check
+  domain: OPERATION
+  definition: 캘린더·주간 계획안에서 지정된 기간이나 행사에 해당하는 일정 정보를 조회해 요약된 형태로 제시한다.
+  positive_examples:
+  - 오늘 뭐 있었더라?
+  - 다음 주 견학이 며칠이지?
+  negative_examples:
+  - 견학 일정 다음 주로 바꿔줘
+  - 지난주 견학 사진 좀 찾아줘
+  confusable_with:
+  - op_schedule_update
+  - op_material_prepare
+- intent_id: op_material_prepare
+  domain: OPERATION
+  definition: 예정된 활동·행사 정보를 바탕으로 필요한 준비물과 자료를 뽑아 준비 체크리스트를 생성한다.
+  positive_examples:
+  - 내일 미술활동 준비물 좀 뽑아줘
+  - 물놀이 하려면 뭐뭐 챙겨야 하지?
+  negative_examples:
+  - 물놀이 활동 계획안 좀 써줘
+  - 물놀이 내일 일정에 넣어줘
+  confusable_with:
+  - play_material_suggest
+  - doc_notice_draft
+  - op_schedule_check
+- intent_id: op_document_export
+  domain: OPERATION
+  definition: 화면에 열려 있거나 지정된 문서·자료를 PDF 등 파일로 내보내거나 인쇄 가능한 형태로 출력한다.
+  positive_examples:
+  - 이거 출력 좀 해줘
+  - 이번 달 포트폴리오 PDF로 뽑아줘
+  negative_examples:
+  - 포트폴리오 좀 예쁘게 만들어줘
+  - 이거 학부모들한테 보내줘
+  confusable_with:
+  - op_notice_send
+  - comm_share_with_colleague
+- intent_id: op_attendance_record
+  domain: OPERATION
+  definition: 발화에서 파악한 아이별 출결 상태(출석·결석·조퇴 등)를 출석부의 출결 기록으로 반영한다.
+  positive_examples:
+  - 지우 오늘 병결로 해줘
+  - 다온이 할머니가 데려가셔서 조퇴야
+  negative_examples:
+  - 지우 관찰기록 좀 찾아줘
+  - 지우가 요즘 좀 어떤 것 같아?
+  confusable_with:
+  - obs_record_moment
+  - op_schedule_update
+- intent_id: op_notice_send
+  domain: OPERATION
+  definition: 이미 작성된 알림장·공지·자료를 지정한 대상(학부모, 반 전체 등)에게 발송한다.
+  positive_examples:
+  - 알림장 이제 보내줘
+  - 아까 써놓은 가정통신문 학부모들한테 지금 발송해줘
+  negative_examples:
+  - 알림장 좀 써줘
+  - 이거 좀 자연스럽게 만들어줘
+  confusable_with:
+  - doc_notice_draft
+  - comm_draft_parent_notice
+  - comm_schedule_send
+- intent_id: op_workspace_organize
+  domain: OPERATION
+  definition: 선택되거나 지정된 워크스페이스 항목(사진·기록 등)을 아이별·날짜별·활동별 같은 기준에 따라 정렬·분류해 정돈한다.
+  positive_examples:
+  - 작업함에 쌓인 관찰기록이랑 자료들 아이별로 분류해서 정돈해줘
+  - 관찰기록 애들 이름별로 묶어줘
+  negative_examples:
+  - 흐린 사진들은 다 지워줘
+  - 지난달 활동 사진 어디 갔지?
+  confusable_with:
+  - visual_photo_organize
+  - op_workspace_delete
+  - obs_tag_children
+- intent_id: op_workspace_search
+  domain: OPERATION
+  definition: 발화의 조건(아이·기간·활동·자료 유형 등)에 맞는 항목을 워크스페이스에서 검색해 결과 목록으로 제시한다.
+  positive_examples:
+  - 작년 운동회 계획안 파일 어디 있지?
+  - 지난달에 만든 가정통신문 파일 좀 띄워줘
+  negative_examples:
+  - 이 사진들 날짜별로 정리해줘
+  - 다음 주 견학이 며칠이지?
+  confusable_with:
+  - obs_search_records
+  - visual_photo_pick_best
+- intent_id: op_workspace_delete
+  domain: OPERATION
+  definition: 지정되거나 조건에 맞는 워크스페이스 항목을 삭제하거나 휴지통으로 이동해 목록에서 제거한다.
+  positive_examples:
+  - 흔들린 사진들 싹 지워줘
+  - 이건 잘못 올렸어, 없애줘
+  negative_examples:
+  - 이 사진들 좀 보기 좋게 정리해줘
+  - 이 문단 지우고 다시 써줘
+  confusable_with:
+  - op_workspace_organize
+  - visual_photo_organize
+- intent_id: refl_activity_review
+  domain: REFLECTION
+  definition: 완료된 특정 활동의 사진·관찰 기록·계획안을 근거로 그 활동의 잘된 점과 아쉬운 점을 정리한 평가 요약을 생성한다.
+  positive_examples:
+  - 오늘 물감놀이 어땠는지 좀 정리해줘
+  - 아까 그 바깥놀이 평가 좀 해줄래?
+  negative_examples:
+  - 다음 주 물감놀이 계획안 짜줘
+  - 이 활동 사진 알림장에 올려줘
+  confusable_with:
+  - write_activity_followup
+  - refl_self_journal
+  - refl_improvement_suggest
+- intent_id: refl_child_progress_review
+  domain: REFLECTION
+  definition: 특정 아이의 누적 관찰 기록과 포트폴리오를 모아 이전 시기 대비 발달 변화 추이를 정리한 리뷰를 생성한다.
+  positive_examples:
+  - 서준이 지난달이랑 비교하면 많이 컸나?
+  - 민지 기록 모아서 어떻게 변했는지 봐줘
+  negative_examples:
+  - 서준이 오늘 블록 쌓은 거 관찰기록으로 남겨줘
+  - 민지 포트폴리오에 이 사진 넣어줘
+  confusable_with:
+  - obs_summarize_child
+  - refl_milestone_check
+  - doc_portfolio_comment
+- intent_id: refl_milestone_check
+  domain: REFLECTION
+  definition: 아이의 현재 관찰 기록을 연령별 표준 발달지표와 대조하여 발달 영역별 도달 여부를 정리한 점검 결과를 생성한다.
+  positive_examples:
+  - 하윤이 5세 발달 기준으로 보면 어때?
+  - 얘 언어 쪽 또래 수준 맞나 봐줘
+  negative_examples:
+  - 하윤이 작년보다 얼마나 늘었는지 봐줘
+  - 연령별 발달지표 표 좀 띄워줘
+  confusable_with:
+  - refl_child_progress_review
+  - obs_classify_development
+- intent_id: refl_goal_alignment_check
+  domain: REFLECTION
+  definition: 주간 계획안이나 교사가 세운 목표를 실제 활동·관찰 기록과 대조하여 달성된 항목과 누락된 항목을 정리한 점검표를 생성한다.
+  positive_examples:
+  - 이번 주 계획대로 다 했나 봐줘
+  - 지난달 목표 중에 못 한 게 뭐야?
+  negative_examples:
+  - 다음 주 주간계획안 좀 짜줘
+  - 이번 주에 뭐 했는지 학부모한테 보내줘
+  confusable_with:
+  - refl_activity_review
+  - refl_period_retrospective
+- intent_id: refl_self_journal
+  domain: REFLECTION
+  definition: 교사가 남긴 짧은 메모나 구두 소감을 입력으로 받아 그날의 수업 운영에 대한 자기 성찰 일지 초안을 작성한다.
+  positive_examples:
+  - 오늘 좀 정신없었는데, 회고 일지 초안 좀 써줘
+  - 방금 말한 느낌 그대로 성찰일지로 만들어줘
+  negative_examples:
+  - 오늘 찍은 사진 정리 좀
+  - 오늘 있었던 일 알림장으로 정리해줘
+  confusable_with:
+  - obs_record_moment
+  - refl_activity_review
+  - write_activity_followup
+- intent_id: refl_teaching_pattern_insight
+  domain: REFLECTION
+  definition: 교사 자신의 누적 활동 운영·상호작용 기록을 분석하여 반복되는 운영 습관이나 영역·아이별 치우침을 짚어주는 인사이트를 생성한다.
+  positive_examples:
+  - 나 요즘 미술만 너무 많이 한 것 같지 않아?
+  - 내가 어떤 애들이랑 상호작용이 적었는지 봐줘
+  negative_examples:
+  - 우리 반 애들이 요즘 뭘 제일 좋아해?
+  - 오늘 하루 소감 일지로 좀 써줘
+  confusable_with:
+  - refl_improvement_suggest
+  - refl_period_retrospective
+- intent_id: refl_improvement_suggest
+  domain: REFLECTION
+  definition: 활동 평가나 회고에서 드러난 아쉬운 점을 바탕으로 다음 실행에 적용할 구체적인 개선 방안 목록을 제안한다.
+  positive_examples:
+  - 다음엔 뭘 바꾸면 좋을까?
+  - 이 활동 다음번엔 어떻게 하면 더 나을까?
+  negative_examples:
+  - 다음 주에 뭐 하고 놀지 새 활동 추천해줘
+  - 이 문장 좀 자연스럽게 고쳐줘
+  confusable_with:
+  - play_transition_next_step
+  - refl_activity_review
+  - refl_teaching_pattern_insight
+- intent_id: refl_support_need_scan
+  domain: REFLECTION
+  definition: 학급 전체의 누적 관찰 데이터를 훑어 추가 관찰이나 지원이 필요한 아이와 발달 영역을 찾아 목록으로 제시한다.
+  positive_examples:
+  - 요즘 좀 신경 써야 할 애 있나 봐줘
+  - 언어 쪽 지원이 더 필요해 보이는 애들 좀 추려줘
+  negative_examples:
+  - 서준이 발달 어떻게 변했는지 리뷰해줘
+  - 우리 반 이번 주 출석 현황 보여줘
+  confusable_with:
+  - obs_recommend_focus
+  - obs_detect_behavior_change
+- intent_id: refl_period_retrospective
+  domain: REFLECTION
+  definition: 선택한 기간의 학급 활동·관찰 기록 전체를 모아 한 주·한 달·한 학기 단위의 회고 리포트를 생성한다.
+  positive_examples:
+  - 이번 달 우리 반 어땠는지 정리해줘
+  - 1학기 마무리 회고 리포트 만들어줘
+  negative_examples:
+  - 오늘 미술활동 하나만 평가해줘
+  - 이번 달 알림장 모아서 학부모 소식지 만들어줘
+  confusable_with:
+  - doc_summarize
+  - refl_activity_review
+  - refl_goal_alignment_check
+- intent_id: UNKNOWN
+  domain: null
+  definition: 정의된 어떤 intent로도 분류할 수 없는 발화로, 미분류 pool로 보내 주간 클러스터링 대상이 되게 한다.
+  positive_examples:
+  - 음… 그냥 뭔가 좀 해줘
+  - 아 몰라, 이거 어떻게 안 되나
+  negative_examples:
+  - 이 사진 정리 좀
+  - 알림장 좀 써줘
+  confusable_with: []

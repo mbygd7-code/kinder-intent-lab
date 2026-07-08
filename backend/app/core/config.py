@@ -61,6 +61,11 @@ class GrowthConfig(_Section):
     default_pack_items: int
 
 
+class OntologyConfig(_Section):
+    min_intents: int
+    min_examples_per_side: int
+
+
 class LabelAggregatorConfig(_Section):
     min_label_functions: int
     aggregate_confidence_min: float
@@ -96,6 +101,7 @@ class ExperimentsConfig(_Section):
     decision: DecisionConfig
     fast_update: FastUpdateConfig
     growth: GrowthConfig
+    ontology: OntologyConfig
     label_aggregator: LabelAggregatorConfig
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig
