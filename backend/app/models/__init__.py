@@ -18,7 +18,12 @@ from app.models.foundry import (
 )
 from app.models.governance import GovernanceEvent, OntologyVersion
 from app.models.gym import ChallengePack, GymSession
-from app.models.persona import PersonaCluster, PopulationPrior, TeacherPrior
+from app.models.persona import (
+    PersonaCluster,
+    PersonaStateVersion,
+    PopulationPrior,
+    TeacherPrior,
+)
 
 __all__ = [
     "ArenaRun",
@@ -37,6 +42,7 @@ __all__ = [
     "GymSession",
     "OntologyVersion",
     "PersonaCluster",
+    "PersonaStateVersion",
     "PopulationPrior",
     "SituationFrame",
     "Source",

@@ -136,8 +136,12 @@ def test_gate_fails_with_low_kappa(db_session) -> None:
 
 
 def test_judge_reject_rate_within_bound(db_session) -> None:
-    """합성 파이프라인은 reject율을 judge_reject_max 아래로 유지한다."""
-    report = _run(db_session, 50).report
+    """합성 파이프라인은 reject율(~0.11)을 judge_reject_max(0.25) 아래로 유지한다.
+
+    파일럿은 scenario_id가 uuid라 실행마다 판정이 달라진다(합성 provider가 해시 기반).
+    작은 n에서는 분산이 커 꼬리에서 0.25를 넘을 수 있으므로 표본을 크게 잡아 안정화한다.
+    """
+    report = _run(db_session, 200).report
     assert report.judge_reject_rate <= CFG.foundry.judge_reject_max
 
 
