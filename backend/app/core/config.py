@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "experiments.yaml"
@@ -66,6 +66,12 @@ class OntologyConfig(_Section):
     min_examples_per_side: int
 
 
+class LLMConfig(_Section):
+    max_retries: int = Field(ge=0)
+    timeout_s: float = Field(ge=0)
+    retry_backoff_s: float = Field(ge=0)
+
+
 class LabelAggregatorConfig(_Section):
     min_label_functions: int
     aggregate_confidence_min: float
@@ -102,6 +108,7 @@ class ExperimentsConfig(_Section):
     fast_update: FastUpdateConfig
     growth: GrowthConfig
     ontology: OntologyConfig
+    llm: LLMConfig
     label_aggregator: LabelAggregatorConfig
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig

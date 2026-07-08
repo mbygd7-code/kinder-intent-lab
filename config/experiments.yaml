@@ -40,6 +40,11 @@ ontology:
   min_intents: 60                 # v1 시드 최소 intent 수 (UNKNOWN 제외)
   min_examples_per_side: 2        # intent당 positive/negative 예시 최소 수
 
+llm:                               # LLM 호출 정책 (벤더 무관 — provider는 env로 주입)
+  max_retries: 2                  # 일시 오류·타임아웃 시 추가 재시도 횟수
+  timeout_s: 30.0                 # 호출 1회 타임아웃(초)
+  retry_backoff_s: 0.5            # 재시도 간 백오프 기준(초, attempt에 비례)
+
 label_aggregator:
   min_label_functions: 2          # 독립 labeling 신호 최소 수
   aggregate_confidence_min: 0.60
