@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "experiments.yaml"
@@ -113,6 +113,31 @@ class LatencyConfig(_Section):
     useful_response_rate_min: float
 
 
+class CampaignConfig(_Section):
+    window_batches: int
+    consensus_drop_max: float
+    reject_rise_max: float
+    unit_cost_rise_ratio: float
+    domain_weights: dict[str, float]
+
+    @field_validator("domain_weights")
+    @classmethod
+    def _weights_normalized(cls, v: dict[str, float]) -> dict[str, float]:
+        """배분 가중치는 (0,1] 범위이고 합=1이어야 한다 (구조 무결성 가드, 실험 임계값 아님).
+
+        도메인 '이름' 정합(정본 7개 여부)은 config가 ontology에 의존하지 않도록
+        campaign 모듈(prepare 단계)에서 loud-fail로 검증한다.
+        """
+        if not v:
+            raise ValueError("domain_weights가 비어 있음")
+        if any(not (0.0 < w <= 1.0) for w in v.values()):
+            raise ValueError("domain_weights 값은 (0,1] 범위여야 함")
+        total = sum(v.values())
+        if abs(total - 1.0) > 1e-6:
+            raise ValueError(f"domain_weights 합이 1이 아님: {total}")
+        return v
+
+
 class ExperimentsConfig(_Section):
     foundry: FoundryConfig
     brain: BrainConfig
@@ -128,6 +153,7 @@ class ExperimentsConfig(_Section):
     visual_semantics: VisualSemanticsConfig
     arena: ArenaConfig
     latency: LatencyConfig
+    campaign: CampaignConfig
 
 
 def load_config(path: Path | None = None) -> ExperimentsConfig:

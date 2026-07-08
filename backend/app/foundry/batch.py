@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 
 from sqlalchemy import select
@@ -38,6 +38,12 @@ Scenario = tuple[str, str, str]  # (scenario_id, frame_id, source_id)
 def slot_dedup_hash(run_id: str, slot_index: int) -> str:
     """슬롯(run_id, index)의 결정론적 dedup_hash — 재시작 시 완료 슬롯 식별."""
     return "DH_" + hashlib.sha256(f"{run_id}|{slot_index}".encode()).hexdigest()[:38]
+
+
+def existing_slot_hashes(session: Session, run_id: str, n: int) -> set[str]:
+    """run_id의 0..n-1 슬롯 중 이미 생성된 슬롯의 dedup_hash 집합 (재시작 멱등의 근거)."""
+    hashes = [slot_dedup_hash(run_id, i) for i in range(n)]
+    return set(session.scalars(select(Episode.dedup_hash).where(Episode.dedup_hash.in_(hashes))))
 
 
 def prepare_scenarios(
@@ -70,10 +76,12 @@ def prepare_scenarios(
 class BatchCost:
     batch_index: int
     attempted: int   # 시도한 슬롯 수 (created + failed) — 단가 분모
-    created: int     # 실제 적재된 에피소드
+    created: int     # 실제 적재된 에피소드 (accept + reject 모두; 실패·스킵 제외)
     failed: int
     tokens: int      # 배치 윈도의 모든 LLM 토큰 (실패분 포함 = 낭비 포함)
     cost_usd: float
+    rejected: int    # created 중 Judge가 reject한 수 (품질 지표; T2.5)
+    consensus_sum: float  # accept된 에피소드의 합의도 합 (평균 분자; T2.5)
 
     def unit_tokens(self) -> float:
         """시도당 토큰 — 실패로 낭비된 호출까지 반영(전량 실패 배치가 0으로 오보고되지 않게)."""
@@ -81,6 +89,18 @@ class BatchCost:
 
     def unit_cost(self) -> float:
         return self.cost_usd / self.attempted if self.attempted else 0.0
+
+    def accepted(self) -> int:
+        return self.created - self.rejected
+
+    def reject_rate(self) -> float:
+        """created 대비 reject 비율 (Pilot judge_reject_rate와 같은 모집단)."""
+        return self.rejected / self.created if self.created else 0.0
+
+    def mean_consensus(self) -> float:
+        """accept분 평균 합의도 (Pilot mean_consensus와 같은 모집단)."""
+        acc = self.accepted()
+        return self.consensus_sum / acc if acc else 0.0
 
 
 @dataclass
@@ -110,9 +130,11 @@ class BatchReport:
             "batches": [
                 {
                     "batch_index": b.batch_index, "attempted": b.attempted, "created": b.created,
-                    "failed": b.failed, "tokens": b.tokens,
+                    "failed": b.failed, "rejected": b.rejected, "tokens": b.tokens,
                     "unit_tokens": round(b.unit_tokens(), 2),
                     "unit_cost_usd": round(b.unit_cost(), 6),
+                    "reject_rate": round(b.reject_rate(), 4),
+                    "mean_consensus": round(b.mean_consensus(), 4),
                 }
                 for b in self.batches
             ],
@@ -136,8 +158,14 @@ def run_batch(
     personas: list[str] | None = None,
     batch_size: int | None = None,
     model: str = "batch",
+    on_checkpoint: Callable[[BatchCost, BatchReport], bool] | None = None,
 ) -> BatchReport:
-    """n개 슬롯을 batch_size씩 생성·커밋한다. 완료 슬롯은 스킵(재시작 멱등), 실패는 격리."""
+    """n개 슬롯을 batch_size씩 생성·커밋한다. 완료 슬롯은 스킵(재시작 멱등), 실패는 격리.
+
+    on_checkpoint: 배치 커밋 직후 (방금 배치의 BatchCost, 누적 BatchReport)로 호출된다.
+    False를 반환하면 루프를 중단한다 — 캠페인 품질 게이트의 자동 중단 훅 (T2.5). 체크포인트는
+    이미 커밋됐으므로 중단해도 다음 실행에서 완료 슬롯을 스킵하고 이어갈 수 있다.
+    """
     if not scenarios:
         raise ValueError("scenarios가 비어 있습니다 (prepare_scenarios 먼저)")
     personas = personas or _DEFAULT_PERSONAS
@@ -145,11 +173,7 @@ def run_batch(
     ontology_version = load_ontology().version
 
     slot_hashes = {i: slot_dedup_hash(run_id, i) for i in range(n)}
-    existing = set(
-        session.scalars(
-            select(Episode.dedup_hash).where(Episode.dedup_hash.in_(list(slot_hashes.values())))
-        )
-    )
+    existing = existing_slot_hashes(session, run_id, n)
     todo = [i for i in range(n) if slot_hashes[i] not in existing]
 
     call_log: list = []
@@ -166,6 +190,8 @@ def run_batch(
             batch_pairs: list = []
             created_here = 0
             failed_here = 0
+            rejected_here = 0
+            consensus_sum_here = 0.0
             for i in chunk:
                 scenario_id, _f, _s = scenarios[i % len(scenarios)]
                 persona = personas[i % len(personas)]
@@ -196,21 +222,27 @@ def run_batch(
                     continue
                 batch_pairs.extend(gen.pairs)
                 created_here += 1
+                if gen.accepted:
+                    consensus_sum_here += gen.consensus_score
+                else:
+                    rejected_here += 1
 
             record_confusion_edges(session, batch_pairs)
             session.commit()  # 체크포인트 — 여기까지는 재시작 시 스킵된다
 
             report.failed += failed_here
             new_calls = call_log[batch_log_start:]
-            report.batches.append(
-                BatchCost(
-                    batch_index=batch_index, attempted=created_here + failed_here,
-                    created=created_here, failed=failed_here,
-                    tokens=sum(c.total_tokens for c in new_calls),
-                    cost_usd=sum(c.cost_usd for c in new_calls),
-                )
+            batch_cost = BatchCost(
+                batch_index=batch_index, attempted=created_here + failed_here,
+                created=created_here, failed=failed_here,
+                tokens=sum(c.total_tokens for c in new_calls),
+                cost_usd=sum(c.cost_usd for c in new_calls),
+                rejected=rejected_here, consensus_sum=consensus_sum_here,
             )
+            report.batches.append(batch_cost)
             report.created += created_here
+            if on_checkpoint is not None and on_checkpoint(batch_cost, report) is False:
+                break  # 품질 게이트 자동 중단 — 체크포인트는 커밋됨
     finally:
         llm_client._recorder = prev_recorder  # noqa: SLF001
 
