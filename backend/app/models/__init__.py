@@ -7,7 +7,13 @@ from app.models.arena import ArenaRun
 from app.models.base import Base
 from app.models.brain import BrainNode, BrainVersion, ConfusionEdge
 from app.models.episodes import Episode, Evidence
-from app.models.foundry import AtlasEntry, CanonicalScenario, SituationFrame, Source
+from app.models.foundry import (
+    AtlasEntry,
+    CanonicalScenario,
+    SituationFrame,
+    Source,
+    SourceDocument,
+)
 from app.models.governance import GovernanceEvent, OntologyVersion
 from app.models.gym import ChallengePack, GymSession
 from app.models.persona import PersonaCluster, PopulationPrior, TeacherPrior
@@ -30,5 +36,6 @@ __all__ = [
     "PopulationPrior",
     "SituationFrame",
     "Source",
+    "SourceDocument",
     "TeacherPrior",
 ]

@@ -1,5 +1,6 @@
-"""Foundry 테이블 (S1~S5): sources, situation_frames, atlas_entries, canonical_scenarios."""
-from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Integer, Text, text
+"""Foundry 테이블 (S1~S5): sources, source_documents, situation_frames, atlas_entries,
+canonical_scenarios."""
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +29,22 @@ class Source(Base):
         Text, nullable=False, server_default=text("'PENDING'")
     )
     governance_meta = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+
+
+class SourceDocument(Base):
+    """소스 원문 — ALLOW 소스만 저장 가능 (절대 규칙 7).
+
+    앱 가드(store_raw_document)와 DB 트리거(마이그레이션 0003)가 이중으로 강제한다.
+    """
+    __tablename__ = "source_documents"
+    __table_args__ = (Index("idx_source_documents_source", "source_id"),)
+
+    doc_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("sources.source_id"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
