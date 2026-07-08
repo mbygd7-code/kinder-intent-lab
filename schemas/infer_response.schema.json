@@ -22,7 +22,7 @@
           "score": {"type": "number", "minimum": 0, "maximum": 1},
           "risk_tier": {"type": "string", "enum": ["LOW", "MED", "HIGH", "CRITICAL"]},
           "requires_confirmation": {"type": "boolean"},
-          "evidence": {"type": "array", "items": {"type": "object", "required": ["signal", "detail"]}},
+          "evidence": {"type": "array", "items": {"type": "object", "required": ["signal", "detail"], "properties": {"signal": {"type": "string"}, "detail": {"type": "string"}}}},
           "proposed_action": {
             "type": "object",
             "required": ["action_type"],
@@ -66,7 +66,7 @@
     "fallback_used": {"type": "boolean"}
   },
   "allOf": [
-    {"if": {"properties": {"is_multi_intent": {"const": true}}}, "then": {"properties": {"intent_plan": {"type": "object"}}}},
+    {"if": {"properties": {"is_multi_intent": {"const": true}}}, "then": {"properties": {"intent_plan": {"type": "object"}}, "required": ["intent_plan"]}},
     {"if": {"properties": {"is_multi_intent": {"const": false}}}, "then": {"properties": {"intent_plan": {"type": "null"}}}}
   ]
 }

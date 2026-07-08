@@ -17,7 +17,7 @@
       }
     },
     "strategy": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["A_DATA_COVERAGE", "B_HUMAN_EVIDENCE", "C_CONFUSION", "D_MODEL"]}},
-    "target_edges": {"type": "array", "items": {"type": "object", "required": ["from_true", "to_predicted"]}},
+    "target_edges": {"type": "array", "items": {"type": "object", "required": ["from_true", "to_predicted"], "properties": {"from_true": {"type": "string"}, "to_predicted": {"type": "string"}}}},
     "items": {"type": "integer", "minimum": 1},
     "difficulty_curve": {"type": "string", "enum": ["easy", "medium", "medium_to_hard", "hard", "adversarial"]},
     "persona_mix": {"type": "array", "items": {"type": "string"}},

@@ -15,7 +15,11 @@
     "evidence_runs": {"type": "array", "items": {"type": "string"}},
     "contrast_exemplars": {
       "type": "array",
-      "items": {"type": "object", "required": ["utterance", "true_intent"]}
+      "items": {
+        "type": "object",
+        "required": ["utterance", "true_intent"],
+        "properties": {"utterance": {"type": "string"}, "true_intent": {"type": "string"}}
+      }
     },
     "last_updated": {"type": "integer"}
   }

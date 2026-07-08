@@ -1,0 +1,13 @@
+{
+  "edge_id": "CE_0331",
+  "from_true": "visual_naturalize",
+  "to_predicted": "text_naturalize",
+  "confusion_rate": 0.34,
+  "state": "hypothesized",
+  "origin": "SKEPTIC",
+  "evidence_runs": ["AR_2026_27"],
+  "contrast_exemplars": [
+    {"utterance": "이거 좀 자연스럽게 만들어줘", "true_intent": "visual_naturalize"}
+  ],
+  "last_updated": 1783850000
+}

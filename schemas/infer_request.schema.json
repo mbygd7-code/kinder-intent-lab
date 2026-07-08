@@ -68,7 +68,7 @@
         "derived_summary": {"type": "object"}
       }
     },
-    "recent_actions": {"type": "array", "maxItems": 10, "items": {"type": "object", "required": ["action", "ts"]}},
+    "recent_actions": {"type": "array", "maxItems": 10, "items": {"type": "object", "required": ["action", "ts"], "properties": {"action": {"type": "string"}, "ts": {"type": "integer"}}}},
     "teacher_context": {
       "type": "object",
       "required": ["teacher_ref"],

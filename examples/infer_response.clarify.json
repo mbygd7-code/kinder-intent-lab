@@ -1,0 +1,36 @@
+{
+  "request_id": "REQ_GYM_000004",
+  "schema_version": "core-1.0",
+  "model_version": "v0.21",
+  "ontology_version": "onto-1.0",
+  "intent_candidates": [
+    {
+      "intent_id": "visual_naturalize",
+      "domain": "VISUAL",
+      "score": 0.41,
+      "risk_tier": "LOW",
+      "requires_confirmation": false
+    },
+    {
+      "intent_id": "text_naturalize",
+      "domain": "DOCUMENT",
+      "score": 0.38,
+      "risk_tier": "LOW",
+      "requires_confirmation": false
+    }
+  ],
+  "top_intent": "visual_naturalize",
+  "confidence": 0.41,
+  "margin": 0.03,
+  "is_multi_intent": false,
+  "intent_plan": null,
+  "decision": "clarify",
+  "clarification": {
+    "question": "사진을 자연스럽게 보정할까요, 글을 자연스럽게 다듬을까요?",
+    "options": [
+      {"label": "사진 보정", "intent_id": "visual_naturalize"},
+      {"label": "글 다듬기", "intent_id": "text_naturalize"}
+    ]
+  },
+  "persona_state_version": "ps-2026-07-01"
+}

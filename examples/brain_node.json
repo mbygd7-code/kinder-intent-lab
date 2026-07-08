@@ -1,0 +1,12 @@
+{
+  "node_id": "N_visual_naturalize",
+  "intent_id": "visual_naturalize",
+  "region": "VISUAL",
+  "definition_ref": "onto-1.0#visual_naturalize",
+  "exemplars": {"count": 214, "index": "emb-idx-visual-01", "diversity": 0.44},
+  "counter_exemplars": [{"against": "text_naturalize", "count": 12}],
+  "evidence_stats": {"synthetic": 8400, "weak_behavioral": 120, "human_confirmed": 32, "gold": 9, "expert": 3},
+  "performance": {"heldout_accuracy": 0.41, "calibration_ece": 0.18, "last_arena_run": "AR_2026_27"},
+  "coverage": {"scenario_coverage": 0.35, "persona_entropy": 0.52, "atlas_ambiguity": "HIGH"},
+  "pending_evaluation": false
+}

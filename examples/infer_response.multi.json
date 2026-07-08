@@ -1,0 +1,33 @@
+{
+  "request_id": "REQ_GYM_000003",
+  "schema_version": "core-1.0",
+  "model_version": "v0.21",
+  "ontology_version": "onto-1.0",
+  "intent_candidates": [
+    {
+      "intent_id": "play_expand",
+      "domain": "PLAY",
+      "score": 0.48,
+      "risk_tier": "LOW",
+      "requires_confirmation": false
+    },
+    {
+      "intent_id": "doc_record",
+      "domain": "DOCUMENT",
+      "score": 0.44,
+      "risk_tier": "LOW",
+      "requires_confirmation": false
+    }
+  ],
+  "top_intent": "play_expand",
+  "confidence": 0.48,
+  "margin": 0.04,
+  "is_multi_intent": true,
+  "intent_plan": {
+    "intents": ["play_expand", "doc_record"],
+    "relation": "sequential",
+    "execution_order": ["play_expand", "doc_record"]
+  },
+  "decision": "suggest",
+  "persona_state_version": "ps-2026-07-01"
+}

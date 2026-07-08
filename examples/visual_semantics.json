@@ -1,0 +1,12 @@
+{
+  "schema_version": "vs-1.0",
+  "extractor_version": "vsx-0.3.1",
+  "scene_type": ["INDOOR_CLASSROOM"],
+  "activity_types": ["NATURE_SORTING"],
+  "materials": ["LEAF", "TRAY"],
+  "observed_actions": ["SORT", "COMPARE"],
+  "interaction_pattern": ["PEER_COLLABORATIVE"],
+  "group_size_band": "SMALL_GROUP",
+  "spatial_pattern": ["OBJECT_GROUPING"],
+  "identity_removed": true
+}

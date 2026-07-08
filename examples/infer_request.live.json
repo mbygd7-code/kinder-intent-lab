@@ -1,0 +1,26 @@
+{
+  "request_id": "REQ_LIVE_000002",
+  "schema_version": "core-1.0",
+  "mode": "live",
+  "session": {
+    "session_id": "LS_000021",
+    "surface_type": "workspace",
+    "conversation_history": [
+      {"role": "teacher", "text": "이 사진 정리 좀", "ts": 1783851000},
+      {"role": "brain", "shown_intent": "doc_organize_photos", "accepted": true, "ts": 1783851002}
+    ]
+  },
+  "prompt": {"text": "이것도 같이 해줘", "lang": "ko", "input_method": "voice"},
+  "workspace_context": {
+    "objects": [
+      {"object_id": "OBJ_010", "type": "photo", "selected": false}
+    ],
+    "selection": []
+  },
+  "recent_actions": [
+    {"action": "open_album", "ts": 1783850990},
+    {"action": "select_photo", "ts": 1783850995}
+  ],
+  "teacher_context": {"teacher_ref": "TR_014"},
+  "runtime_extension": {"timeout_ms": 1500, "max_candidates": 5, "allowed_intents": null}
+}

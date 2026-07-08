@@ -1,0 +1,11 @@
+{
+  "evidence_id": "EV_0918822",
+  "episode_id": "EP_00018423",
+  "intent_id": "play_expand",
+  "polarity": "supports",
+  "strength": 0.8,
+  "evidence_type": "HUMAN_CORRECTION",
+  "actor": {"actor_type": "TEACHER_TRAINER", "trainer_ref": "TR_031", "reliability": 0.87},
+  "context": {"gym_mode": "correction_drill", "challenge_pack": "CP_0042", "adversarial": false},
+  "created_at": 1783850060
+}

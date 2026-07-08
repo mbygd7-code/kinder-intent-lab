@@ -1,0 +1,26 @@
+{
+  "episode_id": "EP_00018423",
+  "ontology_version": "onto-1.0",
+  "lang": "ko",
+  "dataset_split": "TRAIN",
+  "reliability_tier": "SILVER",
+  "label_state": "LABELED",
+  "origin_channel": "FOUNDRY_SYNTHETIC",
+  "episode_creator_type": "FOUNDRY_PIPELINE",
+  "primary_subject_type": "SIMULATED_TEACHER",
+  "scenario_id": "CS_04412",
+  "teacher_prompt": "다음엔 뭘 해주면 좋을까?",
+  "persona_lens_used": "P_hypo_3",
+  "label_distribution": {
+    "play_expand": 0.57,
+    "play_transition_next_step": 0.25,
+    "write_activity_followup": 0.1,
+    "UNKNOWN": 0.08
+  },
+  "consensus": 0.71,
+  "disagreement_pairs": [["play_expand", "play_transition_next_step"]],
+  "evidence_refs": ["EV_0918822"],
+  "human_review": null,
+  "dedup_hash": "e3b0c44298",
+  "created_at": 1783850000
+}

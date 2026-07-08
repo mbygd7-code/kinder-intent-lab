@@ -1,0 +1,50 @@
+{
+  "request_id": "REQ_GYM_000001",
+  "schema_version": "core-1.0",
+  "mode": "gym",
+  "session": {
+    "session_id": "GS_000317",
+    "surface_type": "workspace",
+    "conversation_history": [
+      {"role": "teacher", "text": "얘들아 이것 좀 봐", "ts": 1783850000}
+    ]
+  },
+  "prompt": {"text": "다음엔 뭘 해주면 좋을까?", "lang": "ko", "input_method": "typed"},
+  "workspace_context": {
+    "objects": [
+      {
+        "object_id": "OBJ_001",
+        "type": "photo",
+        "bbox": [120, 80, 480, 360],
+        "selected": true,
+        "text_preview": "나뭇잎 분류 활동 사진",
+        "created_at": 1783849000,
+        "modified_at": 1783849500,
+        "visual_semantics": {
+          "schema_version": "vs-1.0",
+          "extractor_version": "vsx-0.3.1",
+          "scene_type": ["INDOOR_CLASSROOM"],
+          "activity_types": ["NATURE_SORTING"],
+          "materials": ["LEAF", "TRAY"],
+          "observed_actions": ["SORT", "COMPARE"],
+          "interaction_pattern": ["PEER_COLLABORATIVE"],
+          "group_size_band": "SMALL_GROUP",
+          "spatial_pattern": ["OBJECT_GROUPING"],
+          "identity_removed": true
+        }
+      }
+    ],
+    "selection": ["OBJ_001"],
+    "derived_summary": {}
+  },
+  "recent_actions": [
+    {"action": "move_object", "ts": 1783849990}
+  ],
+  "teacher_context": {"teacher_ref": "TR_031", "profile": {}},
+  "gym_extension": {
+    "scenario_id": "CS_04412",
+    "challenge_pack": "CP_0042",
+    "difficulty": "medium",
+    "training_strategy": "C_CONFUSION"
+  }
+}

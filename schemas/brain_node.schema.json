@@ -14,7 +14,7 @@
       "type": "object",
       "properties": {"count": {"type": "integer"}, "index": {"type": "string"}, "diversity": {"type": "number"}}
     },
-    "counter_exemplars": {"type": "array", "items": {"type": "object", "required": ["against", "count"]}},
+    "counter_exemplars": {"type": "array", "items": {"type": "object", "required": ["against", "count"], "properties": {"against": {"type": "string"}, "count": {"type": "integer"}}}},
     "evidence_stats": {
       "type": "object",
       "properties": {

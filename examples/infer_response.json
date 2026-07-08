@@ -1,0 +1,44 @@
+{
+  "request_id": "REQ_GYM_000001",
+  "schema_version": "core-1.0",
+  "model_version": "v0.21",
+  "ontology_version": "onto-1.0",
+  "latency_ms": 412,
+  "intent_candidates": [
+    {
+      "intent_id": "play_expand",
+      "domain": "PLAY",
+      "score": 0.57,
+      "risk_tier": "LOW",
+      "requires_confirmation": false,
+      "evidence": [{"signal": "workspace", "detail": "선택된 사진이 NATURE_SORTING 활동"}],
+      "proposed_action": {
+        "action_type": "suggest_activity_expansion",
+        "target_objects": ["OBJ_001"],
+        "params": {},
+        "preview_available": true,
+        "undoable": true
+      }
+    },
+    {
+      "intent_id": "play_transition_next_step",
+      "domain": "PLAY",
+      "score": 0.25,
+      "risk_tier": "LOW",
+      "requires_confirmation": false
+    }
+  ],
+  "top_intent": "play_expand",
+  "confidence": 0.57,
+  "margin": 0.32,
+  "is_multi_intent": false,
+  "intent_plan": null,
+  "decision": "suggest",
+  "clarification": null,
+  "abstain_reason": null,
+  "compute_elapsed_ms": 388,
+  "remaining_budget_ms": 1112,
+  "persona_state_version": "ps-2026-07-01",
+  "persona_snapshot_hash": "a1b2c3d4",
+  "fallback_used": false
+}

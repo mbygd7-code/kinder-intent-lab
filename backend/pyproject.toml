@@ -24,6 +24,7 @@ dev = [
     "pytest>=8.0",
     "httpx>=0.27",
     "ruff>=0.5",
+    "jsonschema>=4.18",
 ]
 
 [tool.setuptools.packages.find]
