@@ -1,8 +1,8 @@
-# Kinder Intent Brain Foundry & Growth System v1.1
+# Kinder Intent Brain Foundry & Growth System v1.2
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | DRAFT v1.1 |
+| 상태 | DRAFT v1.2 |
 | 지위 | **Kinder Intent Lab의 제1 설계 문서** — 킨더버스와 분리된 독립 실험실 설계 |
 | 범위 밖 | 킨더버스 **live rollout** API·서빙 (0%) → PARTIAL HOLD 문서 `/docs/06-runtime-integration/kinder-intent-runtime-spec-v0.1.md`(v0.2). 단, **Shadow 0a(Distribution Capture)/0b(Shadow Inference)는 거버넌스 조건 충족 시 조기 병행 가능**(동 문서 §2) — 실사용 언어가 Atlas·OOD 검증에 조기 공급되는 플라이휠 |
 | 후속 문서 | ② 어노테이션 가이드 · ③ 위험 등급표 + 지표 정의 |
@@ -11,6 +11,7 @@
 
 | 버전 | 일자 | 변경 요약 |
 |---|---|---|
+| v1.2 | 2026-07-08 | §3-4에 두 번째 DB constraint `gold_requires_labeled` 추가: `reliability_tier=GOLD ⇒ label_state=LABELED` (§3-3의 스키마 강제). 앱 레벨 가드(promote_tier)를 우회하는 statement 레벨 쓰기가 T1.3 교차 검증에서 실증되어 물리 백스톱으로 승격 — 마이그레이션 0002. 사용자 승인 |
 | v1.1 | 2026-07-08 | 개발총괄 2차 리뷰 전파: 범위 선언에서 Shadow 전면 보류 해제→0a/0b 조기 병행(헤더·§0-2·§10-2), evidence에 `WEAK_BEHAVIORAL`·`DOMAIN_RULE` 추가 + 서열 고정 폐지(§3-1), episode 스키마 3축 provenance(`origin_channel`/`episode_creator_type`/`primary_subject_type`) + `dataset_split` + `label_state`(§3-2), tier에서 SYNTHETIC 제외·UNVERIFIED 추가(§3-3), constraint 재정의(§3-4), Label State Machine + Aggregator 신설(§3-6), S5 canonical scenario에 `visual_semantics` 통제 어휘 필드(§1-S5), Arena replay 무결성·KTIB extractor 버전 고정(§8-2), End-to-End Trace 신설(§6-7), config 추가(§10-1) |
 | v1.0 | 2026-07-08 | 최초 작성 |
 
@@ -385,6 +386,16 @@ requires
 ```
 
 LLM이 상상한 교사 의도가 벤치마크 정답으로 둔갑하는 경로를 물리적으로 차단한다. KTIB(§8)는 `BENCHMARK_HOLDOUT`만 읽는다.
+
+- **DB constraint (v1.2 추가, `gold_requires_labeled`):**
+
+```text
+reliability_tier = GOLD
+requires
+  label_state = LABELED
+```
+
+§3-3("GOLD = 인간 검수 2인 일치, 확정 라벨 보유")의 스키마 강제. 앱 레벨 가드(promote_tier)를 우회하는 statement 레벨 쓰기(bulk UPDATE/INSERT)까지 차단하는 백스톱 — 마이그레이션 0002.
 
 ### 3-5. Evidence Diversity — 노드 밀도의 정의
 

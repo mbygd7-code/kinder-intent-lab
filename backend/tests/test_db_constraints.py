@@ -6,7 +6,7 @@
 3. 모델(app/models)과 마이그레이션 스키마 동기
 """
 import pytest
-from sqlalchemy import inspect
+from sqlalchemy import insert, inspect, update
 from sqlalchemy.exc import IntegrityError
 
 from app.models import Base, Episode
@@ -123,6 +123,41 @@ def test_promote_to_gold_allowed_when_labeled(db_session) -> None:
     promote_tier(ep, "GOLD")
     db_session.flush()
     assert ep.reliability_tier == "GOLD"
+
+
+def test_gold_backstop_blocks_statement_level_update(db_session) -> None:
+    """앱 가드를 우회하는 statement 레벨 UPDATE도 DB CHECK가 차단 (마이그레이션 0002)."""
+    ep = _episode(episode_id="EP_AC2_STMT_UPD", label_state="REVIEW_REQUIRED")
+    db_session.add(ep)
+    db_session.flush()
+    with pytest.raises(IntegrityError, match="gold_requires_labeled"):
+        db_session.execute(
+            update(Episode)
+            .where(Episode.episode_id == "EP_AC2_STMT_UPD")
+            .values(reliability_tier="GOLD")
+        )
+
+
+def test_gold_backstop_blocks_statement_level_insert(db_session) -> None:
+    """before_flush 리스너가 못 보는 bulk INSERT도 DB CHECK가 차단 (마이그레이션 0002)."""
+    with pytest.raises(IntegrityError, match="gold_requires_labeled"):
+        db_session.execute(
+            insert(Episode),
+            [
+                dict(
+                    episode_id="EP_AC2_STMT_INS",
+                    ontology_version="onto-1.0",
+                    dataset_split="TRAIN",
+                    reliability_tier="GOLD",
+                    label_state="REVIEW_REQUIRED",
+                    origin_channel="FOUNDRY_SYNTHETIC",
+                    episode_creator_type="FOUNDRY_PIPELINE",
+                    primary_subject_type="SIMULATED_TEACHER",
+                    teacher_prompt="다음엔 뭘 해주면 좋을까?",
+                    label_distribution={"play_expand": 1.0},
+                )
+            ],
+        )
 
 
 def test_invalid_tier_name_rejected(db_session) -> None:

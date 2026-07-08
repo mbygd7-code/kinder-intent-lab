@@ -44,6 +44,11 @@ class Episode(Base):
             "AND origin_channel NOT IN ('FOUNDRY_SYNTHETIC','FOUNDRY_AUGMENTED'))",
             name="benchmark_integrity",
         ),
+        # §3-3 백스톱: GOLD = 확정 라벨 보유 (마이그레이션 0002, §3-4 v1.2)
+        CheckConstraint(
+            "reliability_tier <> 'GOLD' OR label_state = 'LABELED'",
+            name="gold_requires_labeled",
+        ),
         Index("idx_episodes_split", "dataset_split"),
         Index("idx_episodes_state", "label_state"),
     )
