@@ -86,6 +86,10 @@ class Evidence(Base):
         CheckConstraint("polarity IN ('supports','refutes')"),
         CheckConstraint("strength BETWEEN 0 AND 1"),
         CheckConstraint(
+            "reliability IS NULL OR reliability BETWEEN 0 AND 1",
+            name="evidence_reliability_range",
+        ),
+        CheckConstraint(
             "evidence_type IN ('SYNTHETIC_CONSENSUS','WEAK_BEHAVIORAL','DOMAIN_RULE',"
             "'HUMAN_CORRECTION','HUMAN_CONFIRMATION','EXPERT_REVIEW')"
         ),
