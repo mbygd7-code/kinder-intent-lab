@@ -1,0 +1,61 @@
+# Kinder Intent Lab — 실험 파라미터 (단일 진실 원천)
+# 규칙: 이 파일 밖(코드)에 임계값 리터럴 금지 (CLAUDE.md 절대 규칙 1).
+# 전부 초기 제안값 — Arena zero-shot 베이스라인 측정 후 재설정한다.
+
+foundry:
+  dedup_similarity: 0.92          # S6 발화 중복 폐기 기준 (임베딩 코사인)
+  paraphrase_max: 0.90            # S4 원문 잔존 판정 (TRANSFORM_ONLY 가드)
+  scenario_variants: 4            # S5 frame당 workspace 변형 수
+  extract_min: 0.60               # S3 extraction_confidence 사람 검토 기준
+  consensus_min: 0.70             # Pilot 게이트
+  judge_reject_max: 0.25          # 초과 시 스케일 중단
+  pilot_kappa_min: 0.65           # Pilot 500 사람 스팟 검수
+
+brain:
+  retrieval_top_k: 20
+  exemplar_min_dist: 0.15         # exemplar 중복 방지 최소 임베딩 거리
+  persona_prior_cap: 0.20         # prior가 점수를 바꿀 수 있는 최대 비율
+  persona_warmup: 5               # 개인 prior 분기 전 최소 교정 수
+
+decision:                          # Gym에서도 동일 정책 엔진 사용 (runtime 문서 §4)
+  clarify_margin: 0.15
+  clarify_confidence: 0.40
+  abstain_score: 0.25
+  execute_confidence: 0.75        # Stage 3 전용 (현 단계 미사용)
+  execute_margin: 0.25
+  clarify_per_utterance_max: 1
+  clarify_per_session_max: 3
+
+fast_update:
+  fast_min_samples: 20            # experimental — 확정값 아님
+  fast_delta_cap: 0.05            # experimental — 확정값 아님
+  weekly_decay: 0.98
+
+growth:
+  confusion_trigger: 0.25         # C형 강화 발동 edge 기준
+  gold_low_threshold: 100         # B형 강화 발동 기준
+  default_pack_items: 20
+
+label_aggregator:
+  min_label_functions: 2          # 독립 labeling 신호 최소 수
+  aggregate_confidence_min: 0.60
+  conflict_max: 0.30
+  evidence_type_weights: empirical  # 고정 서열 금지 — 실측 신뢰도로 갱신
+
+version_gate:
+  min_new_gold: 200
+  promote_rule: global_up_and_no_region_regression_and_no_critical_worse
+
+visual_semantics:
+  vocabulary_version: vs-1.0
+  ktib_extractor_pinned: true     # KTIB 재추출 금지 (문서 §8-2)
+
+arena:
+  schedule: weekly
+  ood_score_threshold: 0.25       # OOD 판정 (전 후보 score 미만)
+
+latency:                           # 0b shadow는 비동기라 미적용. live 목표값(참고용, PARTIAL HOLD)
+  live_p50_ms: 600
+  live_p95_ms: 1200
+  client_deadline_ms: 1500
+  useful_response_rate_min: 0.95

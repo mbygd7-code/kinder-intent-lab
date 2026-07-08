@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/infer_request.schema.json",
+  "title": "InferRequest",
+  "description": "Envelope + IntentCoreInput + mode별 extension (Single Intent Core Contract). 훈련 메타데이터는 Core에 넣지 않는다 — gym_extension에만.",
+  "type": "object",
+  "required": ["request_id", "schema_version", "mode", "session", "prompt", "workspace_context", "recent_actions", "teacher_context"],
+  "properties": {
+    "request_id": {"type": "string"},
+    "schema_version": {"type": "string"},
+    "mode": {"type": "string", "enum": ["live", "shadow", "gym"]},
+    "session": {
+      "type": "object",
+      "required": ["session_id", "surface_type", "conversation_history"],
+      "properties": {
+        "session_id": {"type": "string"},
+        "surface_type": {"type": "string"},
+        "conversation_history": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "required": ["role", "ts"],
+            "properties": {
+              "role": {"type": "string", "enum": ["teacher", "brain"]},
+              "text": {"type": "string"},
+              "shown_intent": {"type": "string"},
+              "accepted": {"type": "boolean"},
+              "ts": {"type": "integer"}
+            }
+          }
+        }
+      }
+    },
+    "prompt": {
+      "type": "object",
+      "required": ["text", "lang"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "lang": {"type": "string"},
+        "input_method": {"type": "string", "enum": ["typed", "voice"]}
+      }
+    },
+    "workspace_context": {
+      "type": "object",
+      "required": ["objects", "selection"],
+      "properties": {
+        "objects": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "required": ["object_id", "type"],
+            "properties": {
+              "object_id": {"type": "string"},
+              "type": {"type": "string"},
+              "bbox": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+              "selected": {"type": "boolean"},
+              "text_preview": {"type": "string", "maxLength": 200},
+              "created_at": {"type": "integer"},
+              "modified_at": {"type": "integer"},
+              "relations": {"type": "array"},
+              "visual_semantics": {"$ref": "kinder://schemas/visual_semantics.schema.json"}
+            }
+          }
+        },
+        "selection": {"type": "array", "items": {"type": "string"}},
+        "derived_summary": {"type": "object"}
+      }
+    },
+    "recent_actions": {"type": "array", "maxItems": 10, "items": {"type": "object", "required": ["action", "ts"]}},
+    "teacher_context": {
+      "type": "object",
+      "required": ["teacher_ref"],
+      "properties": {
+        "teacher_ref": {"type": "string"},
+        "profile": {"type": "object"}
+      }
+    },
+    "runtime_extension": {
+      "type": "object",
+      "properties": {
+        "timeout_ms": {"type": "integer"},
+        "max_candidates": {"type": "integer"},
+        "allowed_intents": {"type": ["array", "null"], "items": {"type": "string"}}
+      }
+    },
+    "gym_extension": {
+      "type": "object",
+      "properties": {
+        "scenario_id": {"type": "string"},
+        "challenge_pack": {"type": "string"},
+        "target_confusion": {"type": "array"},
+        "difficulty": {"type": "string"},
+        "training_strategy": {"type": "string"}
+      }
+    },
+    "shadow_extension": {
+      "type": "object",
+      "properties": {"capture_batch_id": {"type": "string"}}
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"mode": {"const": "live"}}}, "then": {"not": {"required": ["gym_extension"]}}},
+    {"if": {"properties": {"mode": {"const": "shadow"}}}, "then": {"not": {"required": ["gym_extension"]}}}
+  ]
+}

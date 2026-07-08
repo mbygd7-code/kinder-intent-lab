@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/evidence.schema.json",
+  "title": "Evidence",
+  "type": "object",
+  "required": ["evidence_id", "episode_id", "intent_id", "polarity", "strength", "evidence_type", "actor", "created_at"],
+  "properties": {
+    "evidence_id": {"type": "string", "pattern": "^EV_"},
+    "episode_id": {"type": "string", "pattern": "^EP_"},
+    "intent_id": {"type": "string"},
+    "polarity": {"type": "string", "enum": ["supports", "refutes"]},
+    "strength": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence_type": {"type": "string", "enum": ["SYNTHETIC_CONSENSUS", "WEAK_BEHAVIORAL", "DOMAIN_RULE", "HUMAN_CORRECTION", "HUMAN_CONFIRMATION", "EXPERT_REVIEW"]},
+    "actor": {
+      "type": "object",
+      "required": ["actor_type"],
+      "properties": {
+        "actor_type": {"type": "string", "enum": ["LLM_ANALYST", "DOMAIN_EXPERT", "TEACHER_TRAINER", "STAFF_TRAINER", "BEHAVIOR_SIGNAL", "RULE_ENGINE"]},
+        "trainer_ref": {"type": ["string", "null"]},
+        "reliability": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "gym_mode": {"type": ["string", "null"]},
+        "challenge_pack": {"type": ["string", "null"]},
+        "adversarial": {"type": "boolean", "default": false},
+        "source": {"type": ["string", "null"]}
+      }
+    },
+    "created_at": {"type": "integer"}
+  }
+}

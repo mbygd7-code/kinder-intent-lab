@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/visual_semantics.schema.json",
+  "title": "VisualSemantics",
+  "description": "통제 어휘 기반 비식별 시각 의미 descriptor. 자유 서술 금지. Gym(합성)과 Live(Gateway)가 동일 스키마 사용.",
+  "type": "object",
+  "required": ["schema_version", "extractor_version", "identity_removed"],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^vs-"},
+    "extractor_version": {"type": "string"},
+    "scene_type": {"type": "array", "items": {"type": "string", "enum": ["INDOOR_CLASSROOM", "OUTDOOR_YARD", "HALLWAY", "GYM_ROOM", "ART_CORNER", "READING_CORNER", "UNKNOWN"]}},
+    "activity_types": {"type": "array", "items": {"type": "string", "enum": ["NATURE_SORTING", "BLOCK_PLAY", "ROLE_PLAY", "DRAWING_PAINTING", "BOOK_READING", "MUSIC_MOVEMENT", "SAND_WATER_PLAY", "BOARD_GAME", "FREE_PLAY", "MEAL_SNACK", "CIRCLE_TIME", "UNKNOWN"]}},
+    "materials": {"type": "array", "items": {"type": "string", "enum": ["LEAF", "TRAY", "BLOCK", "PAPER", "CRAYON", "PAINT", "BOOK", "SAND", "WATER", "FABRIC", "RECYCLED", "TOY_FIGURE", "UNKNOWN"]}},
+    "observed_actions": {"type": "array", "items": {"type": "string", "enum": ["SORT", "COMPARE", "STACK", "DRAW", "CUT", "POUR", "OBSERVE", "TALK", "SHARE", "BUILD", "PRETEND", "UNKNOWN"]}},
+    "interaction_pattern": {"type": "array", "items": {"type": "string", "enum": ["SOLO", "PEER_PARALLEL", "PEER_COLLABORATIVE", "TEACHER_GUIDED", "GROUP_CIRCLE", "UNKNOWN"]}},
+    "group_size_band": {"type": "string", "enum": ["INDIVIDUAL", "PAIR", "SMALL_GROUP", "LARGE_GROUP", "UNKNOWN"]},
+    "spatial_pattern": {"type": "array", "items": {"type": "string", "enum": ["OBJECT_GROUPING", "SCATTERED", "LINED_UP", "CENTERED", "UNKNOWN"]}},
+    "identity_removed": {"type": "boolean", "const": true}
+  },
+  "additionalProperties": false
+}

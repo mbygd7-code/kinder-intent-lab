@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/episode.schema.json",
+  "title": "IntentEpisode",
+  "type": "object",
+  "required": ["episode_id", "ontology_version", "lang", "dataset_split", "reliability_tier", "label_state", "origin_channel", "episode_creator_type", "primary_subject_type", "teacher_prompt", "label_distribution", "created_at"],
+  "properties": {
+    "episode_id": {"type": "string", "pattern": "^EP_"},
+    "ontology_version": {"type": "string"},
+    "lang": {"type": "string", "enum": ["ko"]},
+    "dataset_split": {"type": "string", "enum": ["TRAIN", "VALIDATION", "TEST", "BENCHMARK_HOLDOUT"]},
+    "reliability_tier": {"type": "string", "enum": ["UNVERIFIED", "BRONZE", "SILVER", "GOLD"]},
+    "label_state": {"type": "string", "enum": ["UNLABELED", "EVIDENCE_ACCUMULATING", "AGGREGATION_READY", "LABEL_CANDIDATE", "REVIEW_REQUIRED", "LABELED", "REJECTED"]},
+    "origin_channel": {"type": "string", "enum": ["FOUNDRY_SYNTHETIC", "FOUNDRY_AUGMENTED", "GYM_HUMAN", "EXPERT_AUTHORED", "PRODUCTION_SHADOW", "OFFICIAL_CORPUS", "COMMUNITY_DERIVED"]},
+    "episode_creator_type": {"type": "string", "enum": ["FOUNDRY_PIPELINE", "GYM_SESSION", "SHADOW_CONVERTER", "HUMAN_ANNOTATOR"]},
+    "primary_subject_type": {"type": "string", "enum": ["TEACHER", "SIMULATED_TEACHER"]},
+    "scenario_id": {"type": ["string", "null"]},
+    "teacher_prompt": {"type": "string", "minLength": 1},
+    "persona_lens_used": {"type": ["string", "null"]},
+    "label_distribution": {
+      "type": "object",
+      "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1},
+      "minProperties": 1
+    },
+    "consensus": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "disagreement_pairs": {"type": "array", "items": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 2}},
+    "evidence_refs": {"type": "array", "items": {"type": "string", "pattern": "^EV_"}},
+    "human_review": {
+      "type": ["object", "null"],
+      "properties": {
+        "reviewers": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+        "agreement_kappa": {"type": "number"}
+      },
+      "required": ["reviewers", "agreement_kappa"]
+    },
+    "dedup_hash": {"type": "string"},
+    "created_at": {"type": "integer"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"dataset_split": {"const": "BENCHMARK_HOLDOUT"}}},
+      "then": {
+        "properties": {
+          "reliability_tier": {"const": "GOLD"},
+          "label_state": {"const": "LABELED"},
+          "origin_channel": {"enum": ["GYM_HUMAN", "EXPERT_AUTHORED", "PRODUCTION_SHADOW", "OFFICIAL_CORPUS", "COMMUNITY_DERIVED"]}
+        }
+      }
+    }
+  ]
+}

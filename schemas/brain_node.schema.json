@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/brain_node.schema.json",
+  "title": "BrainNode",
+  "description": "노드 자동 생성 금지 — 생성은 governance_events를 남기는 승인 플로우로만. brightness(performance.heldout_accuracy)는 Arena만 갱신.",
+  "type": "object",
+  "required": ["node_id", "intent_id", "region", "definition_ref"],
+  "properties": {
+    "node_id": {"type": "string", "pattern": "^N_"},
+    "intent_id": {"type": "string"},
+    "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+    "definition_ref": {"type": "string"},
+    "exemplars": {
+      "type": "object",
+      "properties": {"count": {"type": "integer"}, "index": {"type": "string"}, "diversity": {"type": "number"}}
+    },
+    "counter_exemplars": {"type": "array", "items": {"type": "object", "required": ["against", "count"]}},
+    "evidence_stats": {
+      "type": "object",
+      "properties": {
+        "synthetic": {"type": "integer"},
+        "weak_behavioral": {"type": "integer"},
+        "human_confirmed": {"type": "integer"},
+        "gold": {"type": "integer"},
+        "expert": {"type": "integer"}
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "heldout_accuracy": {"type": ["number", "null"]},
+        "calibration_ece": {"type": ["number", "null"]},
+        "last_arena_run": {"type": ["string", "null"]}
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "scenario_coverage": {"type": "number"},
+        "persona_entropy": {"type": "number"},
+        "atlas_ambiguity": {"type": "string", "enum": ["LOW", "MED", "HIGH"]}
+      }
+    },
+    "pending_evaluation": {"type": "boolean", "default": false}
+  }
+}

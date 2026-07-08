@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/confusion_edge.schema.json",
+  "title": "ConfusionEdge",
+  "description": "방향성 edge: P(pred=to_predicted | true=from_true). 상태 기계: hypothesized(Skeptic) → observed(Gym) → confirmed(Arena).",
+  "type": "object",
+  "required": ["edge_id", "from_true", "to_predicted", "state"],
+  "properties": {
+    "edge_id": {"type": "string", "pattern": "^CE_"},
+    "from_true": {"type": "string"},
+    "to_predicted": {"type": "string"},
+    "confusion_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "state": {"type": "string", "enum": ["hypothesized", "observed", "confirmed"]},
+    "origin": {"type": "string", "enum": ["SKEPTIC", "CONSENSUS_DISAGREEMENT", "GYM_CORRECTION", "ARENA_MATRIX"]},
+    "evidence_runs": {"type": "array", "items": {"type": "string"}},
+    "contrast_exemplars": {
+      "type": "array",
+      "items": {"type": "object", "required": ["utterance", "true_intent"]}
+    },
+    "last_updated": {"type": "integer"}
+  }
+}

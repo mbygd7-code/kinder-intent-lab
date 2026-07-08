@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/challenge_pack.schema.json",
+  "title": "ChallengePack",
+  "type": "object",
+  "required": ["pack_id", "origin", "strategy", "items", "delivery_modes"],
+  "properties": {
+    "pack_id": {"type": "string", "pattern": "^CP_"},
+    "origin": {
+      "type": "object",
+      "required": ["trigger"],
+      "properties": {
+        "trigger": {"type": "string", "enum": ["observatory_click", "scheduled", "version_gate_campaign"]},
+        "node": {"type": ["string", "null"]},
+        "region": {"type": ["string", "null"]},
+        "diagnosis": {"type": "array", "items": {"type": "string", "enum": ["COVERAGE_LOW", "GOLD_LOW", "CONFUSION_HIGH", "PERSONA_DIVERSITY_LOW", "AMBIGUOUS_LANGUAGE_HIGH", "PERFORMANCE_DROP"]}}
+      }
+    },
+    "strategy": {"type": "array", "minItems": 1, "items": {"type": "string", "enum": ["A_DATA_COVERAGE", "B_HUMAN_EVIDENCE", "C_CONFUSION", "D_MODEL"]}},
+    "target_edges": {"type": "array", "items": {"type": "object", "required": ["from_true", "to_predicted"]}},
+    "items": {"type": "integer", "minimum": 1},
+    "difficulty_curve": {"type": "string", "enum": ["easy", "medium", "medium_to_hard", "hard", "adversarial"]},
+    "persona_mix": {"type": "array", "items": {"type": "string"}},
+    "delivery_modes": {"type": "array", "items": {"type": "string", "enum": ["guess_my_intent", "choose_right_meaning", "screen_context_challenge", "correction_drill", "persona_contrast", "break_the_brain"]}},
+    "expected_yield": {"type": "object"}
+  }
+}
