@@ -10,6 +10,7 @@ from app.models.episodes import Episode, Evidence
 from app.models.foundry import (
     AtlasEntry,
     CanonicalScenario,
+    FailedEpisode,
     SituationFrame,
     Source,
     SourceDocument,
@@ -29,6 +30,7 @@ __all__ = [
     "ConfusionEdge",
     "Episode",
     "Evidence",
+    "FailedEpisode",
     "GovernanceEvent",
     "GymSession",
     "OntologyVersion",

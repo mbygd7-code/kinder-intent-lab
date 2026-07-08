@@ -11,19 +11,15 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from app.aggregator.aggregator import EvidenceSignal, aggregate, recommend_tier
 from app.core.config import ExperimentsConfig
 from app.core.ontology import load_ontology
+from app.foundry.episode_builder import generate_episode
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
 from app.foundry.stages.s2_governance import govern_source, store_raw_document
 from app.foundry.stages.s3_extractor import FrameInput, build_situation_frame
 from app.foundry.stages.s4_language_miner import cosine_similarity
 from app.foundry.stages.s5_situation_builder import build_scenarios
-from app.foundry.stages.s6_simulator import simulate
-from app.foundry.stages.s7_analyst import analyze
-from app.foundry.stages.s8_skeptic import ConfusionPair, challenge, record_confusion_edges
-from app.foundry.stages.s9_judge import judge
-from app.foundry.stages.s10_consensus import build_consensus
+from app.foundry.stages.s8_skeptic import ConfusionPair, record_confusion_edges
 from app.llm.base import (
     CompletionResult,
     EmbeddingResult,
@@ -316,7 +312,6 @@ def _run_pilot_body(
 
     # --- S6~S11: 에피소드 생성 ---
     deduper = _Deduper(embed_fn, config.foundry.dedup_similarity)
-    max_retries = config.foundry.max_dedup_retries
     episodes: list[Episode] = []
     evidences: list[Evidence] = []
     all_pairs: list[ConfusionPair] = []
@@ -324,87 +319,25 @@ def _run_pilot_body(
     reject_count = 0
     episode_ids: list[str] = []
 
-    nonce = 0
     for i in range(n):
         scenario_id, _frame_id, _source_id = scenarios[i % len(scenarios)]
         persona = personas[i % len(personas)]
-        episode_id = f"EP_{run_id}_{i:05d}"
         log_start = len(call_log)  # dedup 재시도 호출까지 이 에피소드에 귀속 (토큰 유실 방지)
 
-        # S6 발화 — dedup 폐기 시 nonce를 바꿔 재생성해 정확히 n개를 채운다
-        utt = None
-        for _ in range(max_retries + 1):
-            candidate = simulate(
-                llm_client, scenario_id=scenario_id, persona_lens=persona, model=model,
-                scenario_context={"nonce": nonce},
-            )
-            nonce += 1
-            if not deduper.is_duplicate(candidate.utterance):
-                utt = candidate
-                break
-        if utt is None:
-            raise RuntimeError(
-                f"발화 dedup 재시도 {max_retries}회 소진 (에피소드 {i}) — provider 다양성 부족"
-            )
-
-        # S7 분석 → S8 회의 → S9 판정 → S10 합의
-        candidates = analyze(llm_client, utterance=utt.utterance, scenario_id=scenario_id,
-                             model=model)
-        pairs = challenge(llm_client, utterance=utt.utterance, scenario_id=scenario_id,
-                          candidates=[c.intent_id for c in candidates], model=model)
-        verdict = judge(llm_client, utterance=utt.utterance, scenario_id=scenario_id,
-                        candidates=[c.intent_id for c in candidates], model=model)
-        consensus = build_consensus(candidates, pairs, config)
-        all_pairs.extend(pairs)
-
-        # S11 적재 (tier는 Aggregator로 산출 — 전부 BRONZE/SILVER)
-        signals = [
-            EvidenceSignal(
-                intent_id=consensus.top_intent, polarity="supports",
-                strength=consensus.consensus, evidence_type="SYNTHETIC_CONSENSUS",
-                actor_type="LLM_ANALYST", reliability=consensus.consensus,
-            )
-        ]
-        if i % 2 == 0:  # 일부 에피소드는 규칙 신호를 추가 → 2 신호(SILVER 후보)
-            signals.append(
-                EvidenceSignal(
-                    intent_id=consensus.top_intent, polarity="supports", strength=0.8,
-                    evidence_type="DOMAIN_RULE", actor_type="RULE_ENGINE",
-                    trainer_ref=None, reliability=0.85,
-                )
-            )
-        agg = aggregate(signals, config)
-        tier = recommend_tier(agg, config)
-
-        rejected = verdict.verdict == "reject"
-        if rejected:
-            reject_count += 1
-        else:
-            consensus_scores.append(consensus.consensus)
-
-        episodes.append(
-            Episode(
-                episode_id=episode_id, ontology_version=ontology_version, lang="ko",
-                dataset_split="TRAIN", reliability_tier=tier,
-                label_state="REJECTED" if rejected else "LABEL_CANDIDATE",
-                origin_channel="FOUNDRY_SYNTHETIC", episode_creator_type="FOUNDRY_PIPELINE",
-                primary_subject_type="SIMULATED_TEACHER", scenario_id=scenario_id,
-                teacher_prompt=utt.utterance, persona_lens_used=persona,
-                label_distribution=consensus.label_distribution or {"UNKNOWN": 1.0},
-                consensus=consensus.consensus, disagreement_pairs=consensus.disagreement_pairs,
-            )
+        gen = generate_episode(
+            llm_client, config=config, run_id=run_id, index=i, scenario_id=scenario_id,
+            persona=persona, ontology_version=ontology_version, deduper=deduper, model=model,
         )
-        for k, sig in enumerate(signals):
-            evidences.append(
-                Evidence(
-                    evidence_id=f"EV_{run_id}_{i:05d}_{k}", episode_id=episode_id,
-                    intent_id=sig.intent_id, polarity=sig.polarity, strength=sig.strength,
-                    evidence_type=sig.evidence_type, actor_type=sig.actor_type,
-                    reliability=sig.reliability, adversarial=False,
-                )
-            )
+        episodes.append(gen.episode)
+        evidences.extend(gen.evidences)
+        all_pairs.extend(gen.pairs)
+        if gen.accepted:
+            consensus_scores.append(gen.consensus_score)
+        else:
+            reject_count += 1
 
         # manifest 계보 + 토큰·비용 귀속
+        episode_id = gen.episode.episode_id
         manifest.episode_scenario[episode_id] = scenario_id
         new_calls = call_log[log_start:]
         manifest.episode_tokens[episode_id] = sum(c.total_tokens for c in new_calls)

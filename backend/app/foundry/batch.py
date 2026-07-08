@@ -1,0 +1,222 @@
+"""배치 러너 — 체크포인트·재시작 가능한 대규모 에피소드 생성 (T2.1, §10-2 Phase 2).
+
+- 슬롯별 결정론적 dedup_hash로 재시작 멱등: 이미 생성된 슬롯은 건너뛴다(중복 생성 0).
+- 배치(chunk)마다 commit해 체크포인트. 중단 후 재실행하면 완료 슬롯을 스킵하고 이어간다.
+- 실패 에피소드는 격리 큐(failed_episodes)로 보내고 배치를 계속 진행한다.
+- 배치별 토큰·비용 단가 리포트.
+"""
+from __future__ import annotations
+
+import hashlib
+import uuid
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass, field
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.core.config import ExperimentsConfig
+from app.core.ontology import load_ontology
+from app.foundry.episode_builder import generate_episode
+from app.foundry.pilot import _Deduper, _default_source_specs, _make_variant
+from app.foundry.stages.s1_discovery import SourceCandidate, register_source
+from app.foundry.stages.s2_governance import govern_source, store_raw_document
+from app.foundry.stages.s3_extractor import FrameInput, build_situation_frame
+from app.foundry.stages.s5_situation_builder import build_scenarios
+from app.foundry.stages.s8_skeptic import record_confusion_edges
+from app.llm.client import LLMClient
+from app.models.episodes import Episode
+from app.models.foundry import FailedEpisode
+
+_DOMAINS = ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]
+_DEFAULT_PERSONAS = ["P_hypo_1", "P_active_2", "P_struct_3"]
+
+Scenario = tuple[str, str, str]  # (scenario_id, frame_id, source_id)
+
+
+def slot_dedup_hash(run_id: str, slot_index: int) -> str:
+    """슬롯(run_id, index)의 결정론적 dedup_hash — 재시작 시 완료 슬롯 식별."""
+    return "DH_" + hashlib.sha256(f"{run_id}|{slot_index}".encode()).hexdigest()[:38]
+
+
+def prepare_scenarios(
+    session: Session, *, run_id: str, config: ExperimentsConfig,
+    specs: list[SourceCandidate] | None = None,
+) -> list[Scenario]:
+    """S1~S5로 소스·프레임·시나리오를 준비한다 (배치 러너 입력). run_batch와 분리 — 1회 실행."""
+    specs = specs or _default_source_specs()
+    scenarios: list[Scenario] = []
+    for si, spec in enumerate(specs):
+        source = register_source(session, spec)
+        govern_source(session, source.source_id, "ALLOW", reviewed_by="batch")
+        store_raw_document(session, source.source_id, f"[batch raw excerpt {run_id} {si}]")
+        frame = build_situation_frame(
+            session,
+            FrameInput(
+                domain=_DOMAINS[si % 7], summary=f"배치 소스 {si} 상황 프레임",
+                teacher_concern="개입 시점과 방식", extraction_confidence=0.8,
+            ),
+        )
+        session.flush()
+        variants = [_make_variant(v) for v in range(config.foundry.scenario_variants)]
+        for sc in build_scenarios(session, frame, variants, config):
+            scenarios.append((sc.scenario_id, frame.frame_id, source.source_id))
+    session.flush()
+    return scenarios
+
+
+@dataclass
+class BatchCost:
+    batch_index: int
+    attempted: int   # 시도한 슬롯 수 (created + failed) — 단가 분모
+    created: int     # 실제 적재된 에피소드
+    failed: int
+    tokens: int      # 배치 윈도의 모든 LLM 토큰 (실패분 포함 = 낭비 포함)
+    cost_usd: float
+
+    def unit_tokens(self) -> float:
+        """시도당 토큰 — 실패로 낭비된 호출까지 반영(전량 실패 배치가 0으로 오보고되지 않게)."""
+        return self.tokens / self.attempted if self.attempted else 0.0
+
+    def unit_cost(self) -> float:
+        return self.cost_usd / self.attempted if self.attempted else 0.0
+
+
+@dataclass
+class BatchReport:
+    run_id: str
+    requested: int
+    created: int
+    skipped_existing: int
+    failed: int
+    batches: list[BatchCost] = field(default_factory=list)
+
+    def total_tokens(self) -> int:
+        return sum(b.tokens for b in self.batches)
+
+    def total_cost(self) -> float:
+        return sum(b.cost_usd for b in self.batches)
+
+    def as_dict(self) -> dict:
+        return {
+            "run_id": self.run_id,
+            "requested": self.requested,
+            "created": self.created,
+            "skipped_existing": self.skipped_existing,
+            "failed": self.failed,
+            "total_tokens": self.total_tokens(),
+            "total_cost_usd": round(self.total_cost(), 6),
+            "batches": [
+                {
+                    "batch_index": b.batch_index, "attempted": b.attempted, "created": b.created,
+                    "failed": b.failed, "tokens": b.tokens,
+                    "unit_tokens": round(b.unit_tokens(), 2),
+                    "unit_cost_usd": round(b.unit_cost(), 6),
+                }
+                for b in self.batches
+            ],
+        }
+
+
+def _chunks(items: list[int], size: int) -> Iterator[list[int]]:
+    for i in range(0, len(items), size):
+        yield items[i : i + size]
+
+
+def run_batch(
+    session: Session,
+    *,
+    run_id: str,
+    n: int,
+    llm_client: LLMClient,
+    embed_fn,
+    config: ExperimentsConfig,
+    scenarios: list[Scenario],
+    personas: list[str] | None = None,
+    batch_size: int | None = None,
+    model: str = "batch",
+) -> BatchReport:
+    """n개 슬롯을 batch_size씩 생성·커밋한다. 완료 슬롯은 스킵(재시작 멱등), 실패는 격리."""
+    if not scenarios:
+        raise ValueError("scenarios가 비어 있습니다 (prepare_scenarios 먼저)")
+    personas = personas or _DEFAULT_PERSONAS
+    batch_size = batch_size or config.foundry.batch_size
+    ontology_version = load_ontology().version
+
+    slot_hashes = {i: slot_dedup_hash(run_id, i) for i in range(n)}
+    existing = set(
+        session.scalars(
+            select(Episode.dedup_hash).where(Episode.dedup_hash.in_(list(slot_hashes.values())))
+        )
+    )
+    todo = [i for i in range(n) if slot_hashes[i] not in existing]
+
+    call_log: list = []
+    prev_recorder = llm_client._recorder  # noqa: SLF001
+    llm_client._recorder = call_log.append  # noqa: SLF001
+    deduper = _Deduper(embed_fn, config.foundry.dedup_similarity)
+
+    report = BatchReport(
+        run_id=run_id, requested=n, created=0, skipped_existing=len(existing), failed=0,
+    )
+    try:
+        for batch_index, chunk in enumerate(_chunks(todo, batch_size)):
+            batch_log_start = len(call_log)
+            batch_pairs: list = []
+            created_here = 0
+            failed_here = 0
+            for i in chunk:
+                scenario_id, _f, _s = scenarios[i % len(scenarios)]
+                persona = personas[i % len(personas)]
+                try:
+                    gen = generate_episode(
+                        llm_client, config=config, run_id=run_id, index=i,
+                        scenario_id=scenario_id, persona=persona,
+                        ontology_version=ontology_version, deduper=deduper, model=model,
+                        dedup_hash=slot_hashes[i],
+                    )
+                except Exception as exc:  # noqa: BLE001 — 생성 실패 격리, 배치는 계속
+                    session.add(
+                        FailedEpisode(
+                            fail_id=f"FE_{uuid.uuid4().hex[:12]}", run_id=run_id, slot_index=i,
+                            stage="generate_episode", error=f"{type(exc).__name__}: {exc}"[:1000],
+                        )
+                    )
+                    failed_here += 1
+                    continue
+                # 슬롯별 savepoint — 동시 러너가 이미 만든 슬롯이면 dedup_hash 유니크 위반을
+                # 이 슬롯만 롤백하고 스킵(배치 전체를 중단시키지 않는다)
+                try:
+                    with session.begin_nested():
+                        session.add(gen.episode)
+                        session.add_all(gen.evidences)
+                except IntegrityError:
+                    report.skipped_existing += 1
+                    continue
+                batch_pairs.extend(gen.pairs)
+                created_here += 1
+
+            record_confusion_edges(session, batch_pairs)
+            session.commit()  # 체크포인트 — 여기까지는 재시작 시 스킵된다
+
+            report.failed += failed_here
+            new_calls = call_log[batch_log_start:]
+            report.batches.append(
+                BatchCost(
+                    batch_index=batch_index, attempted=created_here + failed_here,
+                    created=created_here, failed=failed_here,
+                    tokens=sum(c.total_tokens for c in new_calls),
+                    cost_usd=sum(c.cost_usd for c in new_calls),
+                )
+            )
+            report.created += created_here
+    finally:
+        llm_client._recorder = prev_recorder  # noqa: SLF001
+
+    return report
+
+
+def build_work_iterator(scenarios: Iterable[Scenario], n: int) -> list[int]:
+    """호환용 — 슬롯 인덱스 목록."""
+    return list(range(n))

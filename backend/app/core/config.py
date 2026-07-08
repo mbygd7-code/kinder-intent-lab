@@ -32,6 +32,7 @@ class FoundryConfig(_Section):
     pilot_kappa_min: float
     consensus_disagreement_margin: float
     max_dedup_retries: int
+    batch_size: int
 
 
 class BrainConfig(_Section):

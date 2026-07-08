@@ -48,6 +48,19 @@ class SourceDocument(Base):
     created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
+class FailedEpisode(Base):
+    """배치 러너의 실패 에피소드 격리 큐 — 한 에피소드 실패가 배치를 중단시키지 않는다 (T2.1)."""
+    __tablename__ = "failed_episodes"
+    __table_args__ = (Index("idx_failed_episodes_run", "run_id"),)
+
+    fail_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    run_id: Mapped[str] = mapped_column(Text, nullable=False)
+    slot_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage: Mapped[str | None] = mapped_column(Text)
+    error: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+
+
 class SituationFrame(Base):
     __tablename__ = "situation_frames"
     __table_args__ = (CheckConstraint("domain " + DOMAIN_CHECK),)

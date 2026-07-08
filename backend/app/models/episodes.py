@@ -51,6 +51,11 @@ class Episode(Base):
         ),
         Index("idx_episodes_split", "dataset_split"),
         Index("idx_episodes_state", "label_state"),
+        # 배치 재시작 멱등 — dedup_hash는 유일 (null은 다수 허용)
+        Index(
+            "idx_episodes_dedup_hash", "dedup_hash", unique=True,
+            postgresql_where=text("dedup_hash IS NOT NULL"),
+        ),
     )
 
     episode_id: Mapped[str] = mapped_column(Text, primary_key=True)
