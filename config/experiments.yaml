@@ -51,6 +51,10 @@ llm:                               # LLM 호출 정책 (벤더 무관 — provid
 atlas:
   map_min_similarity: 0.85        # 발화→pattern_cluster 매핑 최소 임베딩 유사도 (§2-4 coverage)
 
+persona:                           # §4-1 [4] 밀도 기반 클러스터링 (HDBSCAN 파라미터)
+  cluster_min_size: 3             # 최소 클러스터 크기
+  cluster_min_samples: 2          # core point 판정 이웃 수
+
 label_aggregator:
   min_label_functions: 2          # 독립 labeling 신호 최소 수
   aggregate_confidence_min: 0.60

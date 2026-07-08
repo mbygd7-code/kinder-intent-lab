@@ -17,6 +17,8 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "pgvector>=0.3",
     "python-dotenv>=1.0",
+    "scikit-learn>=1.5",
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]

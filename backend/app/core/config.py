@@ -79,6 +79,11 @@ class AtlasConfig(_Section):
     map_min_similarity: float
 
 
+class PersonaConfig(_Section):
+    cluster_min_size: int
+    cluster_min_samples: int
+
+
 class LabelAggregatorConfig(_Section):
     min_label_functions: int
     aggregate_confidence_min: float
@@ -117,6 +122,7 @@ class ExperimentsConfig(_Section):
     ontology: OntologyConfig
     llm: LLMConfig
     atlas: AtlasConfig
+    persona: PersonaConfig
     label_aggregator: LabelAggregatorConfig
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig
