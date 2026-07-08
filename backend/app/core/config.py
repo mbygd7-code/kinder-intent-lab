@@ -75,6 +75,10 @@ class LLMConfig(_Section):
     retry_backoff_s: float = Field(ge=0)
 
 
+class AtlasConfig(_Section):
+    map_min_similarity: float
+
+
 class LabelAggregatorConfig(_Section):
     min_label_functions: int
     aggregate_confidence_min: float
@@ -112,6 +116,7 @@ class ExperimentsConfig(_Section):
     growth: GrowthConfig
     ontology: OntologyConfig
     llm: LLMConfig
+    atlas: AtlasConfig
     label_aggregator: LabelAggregatorConfig
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig

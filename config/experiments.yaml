@@ -48,6 +48,9 @@ llm:                               # LLM 호출 정책 (벤더 무관 — provid
   timeout_s: 30.0                 # 호출 1회 타임아웃(초)
   retry_backoff_s: 0.5            # 재시도 간 백오프 기준(초, attempt에 비례)
 
+atlas:
+  map_min_similarity: 0.85        # 발화→pattern_cluster 매핑 최소 임베딩 유사도 (§2-4 coverage)
+
 label_aggregator:
   min_label_functions: 2          # 독립 labeling 신호 최소 수
   aggregate_confidence_min: 0.60

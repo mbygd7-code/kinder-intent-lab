@@ -9,6 +9,7 @@ from app.models.brain import BrainNode, BrainVersion, ConfusionEdge
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import (
     AtlasEntry,
+    AtlasExpansionEntry,
     CanonicalScenario,
     FailedEpisode,
     SituationFrame,
@@ -22,6 +23,7 @@ from app.models.persona import PersonaCluster, PopulationPrior, TeacherPrior
 __all__ = [
     "ArenaRun",
     "AtlasEntry",
+    "AtlasExpansionEntry",
     "Base",
     "BrainNode",
     "BrainVersion",

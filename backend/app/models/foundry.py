@@ -91,6 +91,21 @@ class AtlasEntry(Base):
     created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
+class AtlasExpansionEntry(Base):
+    """미매핑 발화의 Atlas 확장 큐 (§2-4) — 주간 클러스터링으로 신규 pattern_cluster 후보가 된다."""
+    __tablename__ = "atlas_expansion_queue"
+    __table_args__ = (
+        CheckConstraint("status IN ('PENDING','CLUSTERED','DISMISSED')"),
+        Index("idx_atlas_expansion_status", "status"),
+    )
+
+    queue_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    utterance: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'PENDING'"))
+    source_run: Mapped[str | None] = mapped_column(Text)
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+
+
 class CanonicalScenario(Base):
     __tablename__ = "canonical_scenarios"
 
