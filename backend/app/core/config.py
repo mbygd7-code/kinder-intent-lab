@@ -31,6 +31,7 @@ class FoundryConfig(_Section):
     judge_reject_max: float
     pilot_kappa_min: float
     consensus_disagreement_margin: float
+    max_dedup_retries: int
 
 
 class BrainConfig(_Section):

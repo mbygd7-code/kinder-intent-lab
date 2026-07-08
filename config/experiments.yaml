@@ -11,6 +11,7 @@ foundry:
   judge_reject_max: 0.25          # 초과 시 스케일 중단
   pilot_kappa_min: 0.65           # Pilot 500 사람 스팟 검수
   consensus_disagreement_margin: 0.15  # S10 상위 후보 이견 판정 (CONSENSUS_DISAGREEMENT 원천)
+  max_dedup_retries: 5            # S6 dedup 폐기 시 발화 재생성 상한 (n개 보장)
 
 brain:
   retrieval_top_k: 20
