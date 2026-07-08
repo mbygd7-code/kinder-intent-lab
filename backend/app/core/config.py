@@ -30,6 +30,7 @@ class FoundryConfig(_Section):
     consensus_min: float
     judge_reject_max: float
     pilot_kappa_min: float
+    consensus_disagreement_margin: float
 
 
 class BrainConfig(_Section):
