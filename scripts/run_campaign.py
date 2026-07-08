@@ -32,8 +32,19 @@ from app.core.config import get_config  # noqa: E402
 from app.foundry.campaign import PilotBaseline, run_campaign  # noqa: E402
 from app.foundry.pilot import SyntheticFoundryProvider, run_pilot  # noqa: E402
 from app.llm.base import EmbeddingRequest  # noqa: E402
-from app.llm.client import LLMClient  # noqa: E402
+from app.llm.client import LLMClient, get_llm_client  # noqa: E402
 from app.llm.mock import MockProvider  # noqa: E402
+
+
+def _completion_client(config):
+    """LLM_PROVIDER로 완성 클라이언트를 고른다: mock/synthetic → 오프라인 합성(stage-aware)
+    provider, 그 외(anthropic 등) → env 주입 실 provider. 임베딩은 별도(embed_fn=mock 유지)."""
+    import os
+
+    provider = (os.environ.get("LLM_PROVIDER") or "mock").lower()
+    if provider in ("mock", "synthetic", "synth"):
+        return LLMClient(SyntheticFoundryProvider(), config.llm)
+    return get_llm_client()
 
 
 def _database_url() -> str:
@@ -62,7 +73,7 @@ def main() -> int:
     engine = create_engine(_database_url(), poolclass=NullPool)
 
     with Session(engine) as session:
-        client = LLMClient(SyntheticFoundryProvider(), config.llm)
+        client = _completion_client(config)
         # 1) 기준선 Pilot
         pilot = run_pilot(
             session, n=args.baseline_n, llm_client=client, embed_fn=_embed_fn(),
