@@ -10,6 +10,10 @@ import json
 import sys
 from pathlib import Path
 
+# Windows 콘솔(cp949)에서 한글 출력이 UnicodeEncodeError로 죽지 않도록
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS = ROOT / "schemas"
 
