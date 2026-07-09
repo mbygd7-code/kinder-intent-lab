@@ -1,10 +1,9 @@
 /**
- * 홀로그램 플랫폼 — 뇌 아래 빛 풀 + 자연스러운 동심원 링 + radial 도트 + 이중 광기둥
- * (레퍼런스 이미지 하단 디테일). 순수 장식(§7-5): 데이터 인코딩 없음, 상호작용 없음.
- * 텍스처는 캔버스 그라디언트(결정론), 링 회전은 장식 모션.
+ * 홀로그램 플랫폼 — 뇌 아래 빛 풀 + radial 도트 링 + 바닥 먼지 (레퍼런스 이미지 하단 디테일).
+ * 순수 장식(§7-5): 데이터 인코딩 없음, 상호작용 없음. 텍스처는 캔버스 그라디언트(결정론).
+ * 동심원 실선 링은 제거(뇌와 다른 방향으로 도는 게 부자연스러웠음) — 도트 링만 남긴다.
  */
-import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import * as THREE from 'three'
 
 import { mulberry32 } from './hash'
@@ -12,17 +11,10 @@ import { mulberry32 } from './hash'
 const PLATFORM_Y = -1.27
 const CYAN = '#22d3ee'
 
-// 링 스펙: 반경/두께/불투명도 — 안쪽 하나가 밝은 주 링(레퍼런스), 바깥은 점점 옅게
-const RING_SPECS: Array<{ r: number; w: number; o: number }> = [
-  { r: 0.36, w: 0.007, o: 0.55 },
-  { r: 0.58, w: 0.024, o: 0.9 }, // 주 링 — 밝고 두꺼움
-  { r: 0.8, w: 0.005, o: 0.4 },
-  { r: 1.0, w: 0.012, o: 0.3 },
-  { r: 1.22, w: 0.005, o: 0.22 },
-  { r: 1.45, w: 0.009, o: 0.12 },
-]
 const DUST_COUNT = 420
 const DUST_SEED = 0xd0_57ed
+const DOT_RINGS = [0.47, 0.69, 0.9, 1.12] // 점선 원 — radial 도트 링
+const DOTS_PER_RING = 72
 
 /** 부드러운 방사형 빛 풀 텍스처 (결정론 — 그라디언트만) */
 function makeGlowTexture(): THREE.Texture {
@@ -56,13 +48,25 @@ function floorDust(): Float32Array {
   return out
 }
 
+function dotRings(): Float32Array {
+  const out = new Float32Array(DOT_RINGS.length * DOTS_PER_RING * 3)
+  let i = 0
+  for (const r of DOT_RINGS) {
+    for (let k = 0; k < DOTS_PER_RING; k++) {
+      const ang = (k / DOTS_PER_RING) * Math.PI * 2
+      out[i * 3] = Math.cos(ang) * r
+      out[i * 3 + 1] = PLATFORM_Y + 0.005
+      out[i * 3 + 2] = Math.sin(ang) * r
+      i++
+    }
+  }
+  return out
+}
+
 export function Platform() {
-  const rings = useRef<THREE.Group>(null)
   const glowTex = useMemo(makeGlowTexture, [])
   const dustPos = useMemo(floorDust, [])
-  useFrame((_, delta) => {
-    if (rings.current) rings.current.rotation.y += delta * 0.1 // 장식 모션
-  })
+  const dotPos = useMemo(dotRings, [])
   return (
     <group raycast={() => null}>
       {/* 빛 풀 — 부드러운 방사형 광 (레퍼런스의 바닥 발광면) */}
@@ -77,22 +81,14 @@ export function Platform() {
         />
       </mesh>
 
-      <group ref={rings} position={[0, PLATFORM_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        {RING_SPECS.map(({ r, w, o }, i) => (
-          <mesh key={i}>
-            <ringGeometry args={[r - w, r + w, 128]} />
-            <meshBasicMaterial
-              color={CYAN}
-              transparent
-              opacity={o}
-              side={THREE.DoubleSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-      </group>
+      {/* radial 도트 링 — 정적(회전 없음) */}
+      <points raycast={() => null}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[dotPos, 3]} />
+        </bufferGeometry>
+        <pointsMaterial color={CYAN} size={0.016} transparent opacity={0.65}
+          depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation toneMapped={false} />
+      </points>
 
       {/* 뇌간 하단 접점 글로우 */}
       <sprite position={[0, -1.02, -0.42]} scale={[0.5, 0.5, 1]}>
