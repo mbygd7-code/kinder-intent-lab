@@ -1,6 +1,7 @@
 """brain_nodes, confusion_edges, brain_versions, exemplars (§5, §6-6, §5-7)."""
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    REAL,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -89,6 +90,25 @@ class ConfusionEdge(Base):
     evidence_runs = mapped_column(JSONB)
     contrast_exemplars = mapped_column(JSONB)
     last_updated = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+
+
+class InferenceLog(Base):
+    """추론 전건 로그 — 4단계(retrieval/scorer/prior/normalize) 기여를 stages에 분리 기록 (§5-5)."""
+    __tablename__ = "inference_logs"
+    __table_args__ = (Index("idx_inference_logs_request", "request_id"),)
+
+    inference_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    request_id: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    top_intent: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float | None] = mapped_column(REAL)  # 001 관례: REAL
+    margin: Mapped[float | None] = mapped_column(REAL)
+    persona_state_version: Mapped[str | None] = mapped_column(Text)
+    fallback_used: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE")
+    )
+    stages = mapped_column(JSONB, nullable=False)
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
 class BrainVersion(Base):
