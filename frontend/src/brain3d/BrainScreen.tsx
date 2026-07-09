@@ -54,12 +54,14 @@ export function BrainScreen() {
   const setDataSource = useBrainStore((s) => s.setDataSource)
   const setRegionScores = useBrainStore((s) => s.setRegionScores)
   const setBrainMeta = useBrainStore((s) => s.setBrainMeta)
+  const setBrain = useBrainStore((s) => s.setBrain)
 
   useEffect(() => {
     const ctrl = new AbortController()
     fetchBrainState(ctrl.signal)
       .then((brain) => {
         setData(fromApi(brain))
+        setBrain(brain) // 패널이 읽는 원본
         setRegionScores(
           Object.fromEntries(brain.regions.map((r) => [r.region, r.reliability])),
         )
@@ -72,7 +74,7 @@ export function BrainScreen() {
         setDataSource('error')
       })
     return () => ctrl.abort()
-  }, [setBrainMeta, setDataSource, setRegionScores])
+  }, [setBrain, setBrainMeta, setDataSource, setRegionScores])
 
   const loadMock = () => {
     // 명시적 데모 — MOCK 배지가 계속 표시된다 (실데이터 오인 방지)

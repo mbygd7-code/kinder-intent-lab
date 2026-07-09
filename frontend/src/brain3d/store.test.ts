@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useBrainStore } from './store'
 
 beforeEach(() => {
-  useBrainStore.setState({ selectedNodeId: null, viewMode: '3d' })
+  useBrainStore.setState({ selectedNodeId: null, selectedRegionId: null, viewMode: '3d' })
 })
 
 describe('useBrainStore', () => {
@@ -28,5 +28,15 @@ describe('useBrainStore', () => {
     expect(useBrainStore.getState().viewMode).toBe('2d')
     useBrainStore.getState().setViewMode('3d')
     expect(useBrainStore.getState().viewMode).toBe('3d')
+  })
+
+  it('region 선택은 노드 선택을 지운다 (§7-2 — 좌 패널 포커스 전환)', () => {
+    // 3D region 라벨/좌 패널 row가 부르는 액션 — jsdom이 R3F Canvas를 못 띄우므로 여기서 고정
+    useBrainStore.getState().select('N_x')
+    useBrainStore.getState().selectRegion('PLAY')
+    expect(useBrainStore.getState().selectedRegionId).toBe('PLAY')
+    expect(useBrainStore.getState().selectedNodeId).toBeNull() // 우 노드 패널 닫힘
+    useBrainStore.getState().selectRegion(null)
+    expect(useBrainStore.getState().selectedRegionId).toBeNull()
   })
 })

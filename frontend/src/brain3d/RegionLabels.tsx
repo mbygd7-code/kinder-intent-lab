@@ -25,29 +25,38 @@ function labelPos(center: readonly [number, number, number]): [number, number, n
 
 export function RegionLabels() {
   const scores = useBrainStore((s) => s.regionScores)
+  const selectRegion = useBrainStore((s) => s.selectRegion)
+  const selectedRegionId = useBrainStore((s) => s.selectedRegionId)
   return (
     <>
       {REGIONS.map((r) => {
         const pos = labelPos(r.center)
         const score = scores[r.id as RegionId]
+        const active = selectedRegionId === r.id
         return (
-          <group key={r.id} raycast={() => null}>
+          <group key={r.id}>
             <Line
               points={[r.center as unknown as [number, number, number], pos]}
               color={r.color}
-              lineWidth={1}
+              lineWidth={active ? 2 : 1}
               transparent
-              opacity={0.55}
+              opacity={active ? 0.9 : 0.55}
+              raycast={() => null}
             />
             {/* distanceFactor 미사용 — 라벨은 깊이와 무관한 고정 크기 UI 콜아웃(레퍼런스 스타일) */}
             <Html position={pos} center wrapperClass="region-label-wrap" zIndexRange={[2, 0]}>
-              <div className="region-label">
+              <button
+                type="button"
+                className={`region-label${active ? ' region-label-active' : ''}`}
+                style={active ? { borderColor: r.color } : undefined}
+                onClick={() => selectRegion(active ? null : r.id)}
+              >
                 <span className="region-dot" style={{ backgroundColor: r.color }} />
                 <span className="region-name">{r.label}</span>
                 <span className="region-score" style={{ color: r.color }}>
                   {score == null ? '—' : Math.round(score * 100)}
                 </span>
-              </div>
+              </button>
             </Html>
           </group>
         )

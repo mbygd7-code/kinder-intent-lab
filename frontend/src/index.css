@@ -68,12 +68,161 @@ body {
   font-size: 0.78rem;
 }
 
-/* --- Brain 뷰 --- */
-.brain-screen {
+/* --- 본문: 좌 패널 | 뇌 | 우 패널 (패널은 뇌 위에 떠 있는 오버레이) --- */
+.observatory-body {
   position: relative;
   flex: 1;
   min-height: 0;
 }
+
+/* --- Brain 뷰 --- */
+.brain-screen {
+  position: absolute;
+  inset: 0;
+}
+
+/* --- 사이드 패널 (레퍼런스 좌/우) --- */
+.side-panel {
+  position: absolute;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 19rem;
+  max-width: 32vw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  overflow-y: auto;
+  z-index: 4;
+  pointer-events: none;
+}
+.side-panel-left { left: 0.75rem; }
+.side-panel-right { right: 0.75rem; }
+
+.panel-card {
+  pointer-events: auto;
+  background: rgba(9, 14, 28, 0.78);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.7rem;
+  padding: 0.8rem 0.9rem;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 22px rgba(6, 12, 28, 0.5);
+}
+
+.panel-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; }
+.panel-count { font-size: 0.7rem; color: var(--muted); }
+.panel-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+.panel-hint { font-size: 0.62rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.panel-empty { font-size: 0.76rem; color: var(--muted); padding: 0.35rem 0; }
+.panel-subhead {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0.7rem 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.brain-score { display: flex; align-items: baseline; gap: 0.2rem; margin-top: 0.15rem; }
+.brain-score-value { font-size: 2.1rem; font-weight: 700; color: var(--fg); }
+.brain-score-max { font-size: 0.9rem; color: var(--muted); }
+
+.region-list { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }
+.region-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  color: var(--fg);
+  text-align: left;
+}
+.region-row:hover { background: rgba(255, 255, 255, 0.04); }
+.region-row-active { background: rgba(255, 255, 255, 0.06); }
+.region-swatch { width: 0.7rem; height: 0.7rem; border-radius: 3px; flex: none; }
+.region-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.region-row-name { font-size: 0.82rem; font-weight: 600; }
+.region-row-sub { font-size: 0.66rem; color: var(--muted); }
+.region-row-score { font-size: 0.9rem; font-weight: 700; }
+
+.stat-rows { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.2rem 0; }
+.stat-row { display: flex; justify-content: space-between; font-size: 0.8rem; }
+.stat-row dt { color: var(--muted); }
+.stat-row dd { font-weight: 700; }
+.muted { color: var(--muted); }
+.muted-strong { color: #93b4e6; }
+
+.weak-list { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+.weak-row { display: flex; justify-content: space-between; font-size: 0.78rem; }
+.weak-name { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.node-title { display: flex; align-items: center; gap: 0.45rem; font-size: 1.05rem; font-weight: 700; margin-top: 0.3rem; }
+.node-region { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; }
+
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.metric { background: rgba(255, 255, 255, 0.03); border-radius: 0.5rem; padding: 0.5rem; display: flex; flex-direction: column; }
+.metric-value { font-size: 1.15rem; font-weight: 700; }
+.metric-label { font-size: 0.66rem; color: var(--muted); }
+
+.dir-hint { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.mock-badge {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  color: #fdba74;
+  background: rgba(124, 45, 18, 0.5);
+  border: 1px solid rgba(234, 88, 12, 0.5);
+  border-radius: 0.35rem;
+  padding: 0.08rem 0.35rem;
+  font-weight: 700;
+}
+.mock-dot { color: #fdba74; margin-left: 0.2rem; font-weight: 700; }
+
+.confusion-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
+.confusion-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
+.confusion-arrow { font-weight: 700; }
+.confusion-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.confusion-rate { font-weight: 700; }
+
+.axis-rows { display: flex; flex-direction: column; gap: 0.35rem; }
+.axis-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.axis-label { color: var(--fg); }
+.axis-level { font-weight: 700; font-size: 0.72rem; letter-spacing: 0.05em; }
+.lvl-high { color: #f87171; }
+.lvl-med { color: #fbbf24; }
+.lvl-low { color: #94a3b8; }
+
+.cta-train {
+  width: 100%;
+  margin-top: 0.7rem;
+  background: linear-gradient(90deg, #ea580c, #f97316);
+  color: #fff;
+  border: none;
+  border-radius: 0.55rem;
+  padding: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cta-train:hover { filter: brightness(1.08); }
+.train-brief { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.brief-row { display: flex; justify-content: space-between; font-size: 0.76rem; }
+.brief-row span { color: var(--muted); }
+
+/* region 라벨(3D)도 클릭 가능한 버튼 — 기본 버튼 스타일 리셋 */
+.region-label { cursor: pointer; font-family: inherit; }
+.region-label-active { box-shadow: 0 0 16px rgba(53, 224, 210, 0.35); }
 
 .brain-screen canvas {
   touch-action: none;
@@ -171,6 +320,10 @@ body {
   white-space: nowrap;
   color: var(--fg);
   box-shadow: 0 0 14px rgba(53, 224, 210, 0.12);
+  /* wrapper(.region-label-wrap)는 pointer-events:none으로 회전을 통과시키되, 버튼 자신은
+     클릭을 받아야 한다 — 자식이 상속된 none을 다시 켠다. 없으면 클릭이 Canvas로 새어
+     onPointerMissed가 노드를 해제한다(리뷰 HIGH). */
+  pointer-events: auto;
 }
 
 .region-name {

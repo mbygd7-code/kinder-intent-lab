@@ -6,6 +6,7 @@
  */
 import { create } from 'zustand'
 
+import type { ObservatoryBrain } from '../api/observatory'
 import type { RegionId } from './regions'
 
 export type ViewMode = '3d' | '2d'
@@ -15,7 +16,9 @@ export type DataSource = 'loading' | 'live' | 'mock' | 'error'
 
 interface BrainViewState {
   selectedNodeId: string | null
+  selectedRegionId: RegionId | null // §7-2 Zoom 1 — 선택된 region
   viewMode: ViewMode
+  brain: ObservatoryBrain | null // 패널이 읽는 원본 응답(regions[]/nodes[])
   regionScores: Partial<Record<RegionId, number | null>>
   ktibGlobal: number | null // §7-1 중앙 수치 — 마지막 Arena run만 (null="—")
   brainVersion: string | null
@@ -23,7 +26,9 @@ interface BrainViewState {
   /** 지금 추론에 개입 중인 노드(§7-5 Pulse) — infer/gym 이벤트가 채운다. 기본 비어 있음 */
   pulsingNodeIds: ReadonlySet<string>
   select: (nodeId: string | null) => void
+  selectRegion: (regionId: RegionId | null) => void
   setViewMode: (mode: ViewMode) => void
+  setBrain: (brain: ObservatoryBrain | null) => void
   setRegionScores: (scores: Partial<Record<RegionId, number | null>>) => void
   setBrainMeta: (meta: { ktibGlobal: number | null; brainVersion: string | null }) => void
   setDataSource: (source: DataSource) => void
@@ -32,14 +37,19 @@ interface BrainViewState {
 
 export const useBrainStore = create<BrainViewState>()((set) => ({
   selectedNodeId: null,
+  selectedRegionId: null,
   viewMode: '3d',
+  brain: null,
   regionScores: {},
   ktibGlobal: null,
   brainVersion: null,
   dataSource: 'loading',
   pulsingNodeIds: new Set<string>(),
+  // 노드 선택 시 region 선택은 유지(좌·우 패널 독립). region 선택은 노드 선택을 지운다.
   select: (nodeId) => set({ selectedNodeId: nodeId }),
+  selectRegion: (regionId) => set({ selectedRegionId: regionId, selectedNodeId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
+  setBrain: (brain) => set({ brain }),
   setRegionScores: (regionScores) => set({ regionScores }),
   setBrainMeta: ({ ktibGlobal, brainVersion }) => set({ ktibGlobal, brainVersion }),
   setDataSource: (dataSource) => set({ dataSource }),

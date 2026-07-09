@@ -5,6 +5,8 @@
  */
 import { BrainScreen } from './brain3d/BrainScreen'
 import { useBrainStore } from './brain3d/store'
+import { NodePanel } from './panels/NodePanel'
+import { RegionsPanel } from './panels/RegionsPanel'
 
 function App() {
   const ktib = useBrainStore((s) => s.ktibGlobal)
@@ -22,7 +24,11 @@ function App() {
           </span>
         </div>
       </header>
-      <BrainScreen />
+      <div className="observatory-body">
+        <RegionsPanel />
+        <BrainScreen />
+        <NodePanel />
+      </div>
     </main>
   )
 }
