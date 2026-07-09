@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kinder://schemas/observatory_brain.schema.json",
+  "title": "ObservatoryBrain",
+  "description": "GET /v1/observatory/brain 응답 — 3D Brain 렌더 상태. brightness 계열(heldout_accuracy/calibration_ece/last_arena_run, region reliability, ktib_global)의 원천은 Arena뿐(원칙 8) — Arena 미실행이면 null이며 지어내지 않는다.",
+  "type": "object",
+  "required": ["brain_version", "ontology_version", "ktib_global", "regions", "nodes"],
+  "properties": {
+    "brain_version": {"type": "string"},
+    "ontology_version": {"type": "string"},
+    "ktib_global": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "regions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["region", "reliability", "node_count", "gold_evidence", "synthetic_evidence"],
+        "properties": {
+          "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+          "reliability": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "node_count": {"type": "integer", "minimum": 0},
+          "gold_evidence": {"type": "integer", "minimum": 0},
+          "synthetic_evidence": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node_id", "intent_id", "region", "evidence_total", "evidence_diversity", "gold_count", "exemplar_count", "heldout_accuracy", "pending_evaluation"],
+        "properties": {
+          "node_id": {"type": "string"},
+          "intent_id": {"type": "string"},
+          "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+          "evidence_total": {"type": "integer", "minimum": 0},
+          "evidence_diversity": {"type": "number", "minimum": 0, "maximum": 1},
+          "gold_count": {"type": "integer", "minimum": 0},
+          "exemplar_count": {"type": "integer", "minimum": 0},
+          "heldout_accuracy": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "calibration_ece": {"type": ["number", "null"]},
+          "last_arena_run": {"type": ["string", "null"]},
+          "pending_evaluation": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

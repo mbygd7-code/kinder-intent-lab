@@ -20,15 +20,16 @@ describe('regions — 7 고정 region (§5-10)', () => {
 
   it('좌표는 v1 고정 — 값이 바뀌면 의미 좌표계가 깨진다 (스냅샷 잠금)', () => {
     // 임의 변경 금지: region 신설·개편 = 온톨로지 major 버전 (§5-10)
+    // [2026-07-09] 사용자 승인 리스타일: 분산 셸 → 해부학적 단일 뇌 내부로 1회 이동
     const centers = Object.fromEntries(REGIONS.map((r) => [r.id, r.center]))
     expect(centers).toEqual({
-      PLAY: [-0.5, 0.65, 0.75],
-      OBSERVATION: [0.55, 0.7, -0.2],
-      DOCUMENT: [-0.8, -0.15, 0.6],
-      VISUAL: [0.7, 0.15, -0.9],
-      COMMUNICATION: [-0.7, -0.5, -0.15],
-      OPERATION: [0.65, -0.45, 0.5],
-      REFLECTION: [0.0, -0.8, -0.8],
+      PLAY: [0, 0.55, 0.62],
+      OBSERVATION: [0, 0.62, -0.42],
+      DOCUMENT: [0, -0.08, 0.8],
+      VISUAL: [0, 0.12, -0.82],
+      COMMUNICATION: [-0.42, -0.1, 0.3],
+      OPERATION: [0.42, -0.1, 0.3],
+      REFLECTION: [0.0, -0.48, -0.68],
     })
   })
 

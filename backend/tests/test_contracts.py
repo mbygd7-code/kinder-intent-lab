@@ -22,6 +22,7 @@ from app.contracts import (
     InferRequest,
     InferResponse,
     IntentEpisode,
+    ObservatoryBrain,
     VisualSemantics,
 )
 
@@ -37,6 +38,7 @@ MODEL_BY_SCHEMA = {
     "evidence": Evidence,
     "infer_request": InferRequest,
     "infer_response": InferResponse,
+    "observatory_brain": ObservatoryBrain,
     "visual_semantics": VisualSemantics,
 }
 

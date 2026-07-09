@@ -1,22 +1,22 @@
 /**
  * 2D region map 고정 레이아웃 — §7-5 fallback의 의미 좌표계 (§5-10 준용).
  *
- * 2D 좌표는 3D 고정 좌표계의 측면 배치(전두=오른쪽)를 스키마틱하게 옮긴 **고정값**이다 —
+ * 2D 좌표는 3D 고정 좌표계의 사시상 배치(전두=왼쪽)를 스키마틱하게 옮긴 **고정값**이다 —
  * 저사양 사용자에게는 이 뷰가 유일한 지도이므로 위치 안정성 보장은 3D와 동일하게 적용된다.
  * brain2d.test.ts가 스냅샷·비겹침·점 포함 불변식을 잠근다. 임의 수정 금지.
  */
 import { fmix32, fnv1a } from './hash'
 import type { RegionId } from './regions'
 
-/** region별 2D 고정 좌표 (스키마틱 측면 뷰) */
+/** region별 2D 고정 좌표 (스키마틱 사시상 뷰, 전두=왼쪽 — 3D 해부학 배치와 동일 방향) */
 export const POS_2D: Record<RegionId, readonly [number, number]> = {
-  PLAY: [0.75, -0.6],
-  OBSERVATION: [-0.1, -0.8],
-  DOCUMENT: [0.85, 0.15],
-  VISUAL: [-0.9, -0.1],
-  COMMUNICATION: [-0.2, 0.4],
-  OPERATION: [0.5, 0.62],
-  REFLECTION: [-0.75, 0.7],
+  PLAY: [-0.62, -0.55],
+  OBSERVATION: [0.42, -0.62],
+  DOCUMENT: [-0.85, 0.1],
+  VISUAL: [0.85, -0.05],
+  COMMUNICATION: [-0.28, 0.28],
+  OPERATION: [0.3, 0.42],
+  REFLECTION: [0.72, 0.85],
 }
 
 export const REGION_R = 0.26 // region 원 반지름

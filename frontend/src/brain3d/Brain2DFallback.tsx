@@ -19,7 +19,7 @@ export function Brain2DFallback({ nodes }: Props) {
   return (
     <svg
       className="brain-2d"
-      viewBox="-1.45 -1.25 2.9 2.4"
+      viewBox="-1.45 -1.25 2.9 2.65"
       role="img"
       aria-label="Brain region map (2D fallback)"
       onClick={() => select(null)}

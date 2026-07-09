@@ -12,14 +12,15 @@ import { REGIONS, type RegionId } from './regions'
 
 describe('POS_2D — 2D 고정 의미 좌표 (§5-10 준용)', () => {
   it('좌표는 고정 — 값이 바뀌면 2D 사용자에게 region 위치 앵커가 깨진다 (스냅샷 잠금)', () => {
+    // [2026-07-09] 사용자 승인 리스타일: 3D 해부학 배치(전두=왼쪽)와 방향 일치하도록 1회 이동
     expect(POS_2D).toEqual({
-      PLAY: [0.75, -0.6],
-      OBSERVATION: [-0.1, -0.8],
-      DOCUMENT: [0.85, 0.15],
-      VISUAL: [-0.9, -0.1],
-      COMMUNICATION: [-0.2, 0.4],
-      OPERATION: [0.5, 0.62],
-      REFLECTION: [-0.75, 0.7],
+      PLAY: [-0.62, -0.55],
+      OBSERVATION: [0.42, -0.62],
+      DOCUMENT: [-0.85, 0.1],
+      VISUAL: [0.85, -0.05],
+      COMMUNICATION: [-0.28, 0.28],
+      OPERATION: [0.3, 0.42],
+      REFLECTION: [0.72, 0.85],
     })
   })
 

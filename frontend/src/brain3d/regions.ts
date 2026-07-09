@@ -30,15 +30,19 @@ export interface BrainRegion {
   radius: number
 }
 
-// 뇌 형태 근사 배치: +z 전두, -z 후두, +y 상부. 디자인 레퍼런스의 해부학적 배치를 따른다.
+// 해부학적 로브 배치 (brainShape.ts 실루엣 내부, 사시상 뷰 = 레퍼런스 이미지):
+// PLAY=전두상부, DOCUMENT=전두하부, OBSERVATION=두정, VISUAL=후두,
+// COMMUNICATION/OPERATION=좌/우 측두, REFLECTION=소뇌·뇌간.
+// 2026-07-09 사용자 승인 리스타일로 1회 이동(분산 셸 → 단일 뇌 내부) — 이후 다시 고정.
+// 쌍거리 최소 0.616(VISUAL–REFLECTION) ≥ 2×radius(0.56) — 비겹침 테스트 유지.
 export const REGIONS: readonly BrainRegion[] = [
-  { id: 'PLAY', label: 'Play', color: '#4ade80', center: [-0.5, 0.65, 0.75], radius: 0.34 },
-  { id: 'OBSERVATION', label: 'Observation', color: '#38bdf8', center: [0.55, 0.7, -0.2], radius: 0.34 },
-  { id: 'DOCUMENT', label: 'Document', color: '#fb923c', center: [-0.8, -0.15, 0.6], radius: 0.34 },
-  { id: 'VISUAL', label: 'Visual', color: '#c084fc', center: [0.7, 0.15, -0.9], radius: 0.34 },
-  { id: 'COMMUNICATION', label: 'Communication', color: '#f472b6', center: [-0.7, -0.5, -0.15], radius: 0.34 },
-  { id: 'OPERATION', label: 'Operation', color: '#facc15', center: [0.65, -0.45, 0.5], radius: 0.34 },
-  { id: 'REFLECTION', label: 'Reflection', color: '#22d3ee', center: [0.0, -0.8, -0.8], radius: 0.34 },
+  { id: 'PLAY', label: 'Play', color: '#4ade80', center: [0, 0.55, 0.62], radius: 0.28 },
+  { id: 'OBSERVATION', label: 'Observation', color: '#38bdf8', center: [0, 0.62, -0.42], radius: 0.28 },
+  { id: 'DOCUMENT', label: 'Document', color: '#fb923c', center: [0, -0.08, 0.8], radius: 0.28 },
+  { id: 'VISUAL', label: 'Visual', color: '#c084fc', center: [0, 0.12, -0.82], radius: 0.28 },
+  { id: 'COMMUNICATION', label: 'Communication', color: '#f472b6', center: [-0.42, -0.1, 0.3], radius: 0.28 },
+  { id: 'OPERATION', label: 'Operation', color: '#facc15', center: [0.42, -0.1, 0.3], radius: 0.28 },
+  { id: 'REFLECTION', label: 'Reflection', color: '#22d3ee', center: [0.0, -0.48, -0.68], radius: 0.28 },
 ] as const
 
 export const REGION_BY_ID = Object.fromEntries(

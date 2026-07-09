@@ -7,6 +7,7 @@ from app.contracts.episode import IntentEpisode
 from app.contracts.evidence import Evidence
 from app.contracts.infer_request import InferRequest
 from app.contracts.infer_response import InferResponse
+from app.contracts.observatory import ObservatoryBrain
 from app.contracts.visual_semantics import VisualSemantics
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "InferRequest",
     "InferResponse",
     "IntentEpisode",
+    "ObservatoryBrain",
     "VisualSemantics",
 ]

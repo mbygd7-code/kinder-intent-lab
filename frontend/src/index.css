@@ -21,7 +21,10 @@ body,
 }
 
 body {
-  background: radial-gradient(1200px 800px at 50% 30%, #0a1224 0%, var(--bg) 60%);
+  background:
+    radial-gradient(900px 500px at 18% 88%, rgba(37, 99, 235, 0.1) 0%, transparent 60%),
+    radial-gradient(700px 420px at 85% 15%, rgba(124, 58, 237, 0.07) 0%, transparent 60%),
+    radial-gradient(1200px 800px at 50% 32%, #0a1224 0%, var(--bg) 62%);
   color: var(--fg);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   overflow: hidden;
@@ -127,6 +130,30 @@ body {
   font-size: 0.75rem;
 }
 
+.badge-mock {
+  background: #7c2d12;
+  color: #fdba74;
+  border: 1px solid #ea580c;
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.error-chip {
+  background: var(--panel);
+  border: 1px solid rgba(234, 88, 12, 0.5);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: #fdba74;
+  max-width: 15rem;
+}
+
 /* --- region 라벨 (3중 인코딩 ②) --- */
 .region-label-wrap {
   pointer-events: none;
@@ -135,14 +162,26 @@ body {
 .region-label {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  background: var(--panel);
+  gap: 0.45rem;
+  background: rgba(10, 16, 32, 0.82);
   border: 1px solid var(--panel-border);
-  border-radius: 999px;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.78rem;
+  border-radius: 0.55rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
   white-space: nowrap;
   color: var(--fg);
+  box-shadow: 0 0 14px rgba(53, 224, 210, 0.12);
+}
+
+.region-name {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.region-score {
+  font-weight: 700;
+  border-left: 1px solid var(--panel-border);
+  padding-left: 0.45rem;
 }
 
 .region-dot {

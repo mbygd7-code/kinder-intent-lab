@@ -1,0 +1,24 @@
+{
+  "brain_version": "seed-v0",
+  "ontology_version": "onto-1.0",
+  "ktib_global": null,
+  "regions": [
+    {"region": "PLAY", "reliability": null, "node_count": 11, "gold_evidence": 31, "synthetic_evidence": 842},
+    {"region": "VISUAL", "reliability": null, "node_count": 9, "gold_evidence": 12, "synthetic_evidence": 640}
+  ],
+  "nodes": [
+    {
+      "node_id": "N_play_expand",
+      "intent_id": "play_expand",
+      "region": "PLAY",
+      "evidence_total": 130,
+      "evidence_diversity": 0.44,
+      "gold_count": 6,
+      "exemplar_count": 4,
+      "heldout_accuracy": null,
+      "calibration_ece": null,
+      "last_arena_run": null,
+      "pending_evaluation": false
+    }
+  ]
+}
