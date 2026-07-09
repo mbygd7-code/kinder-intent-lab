@@ -75,7 +75,8 @@ def bootstrap_nodes(
                 region=i.domain,
                 definition_ref=f"{onto.version}#{i.intent_id}",
                 created_by_event=event_id,
-                pending_evaluation=True,  # Arena 미측정 → Dormant (brightness NULL)
+                # pending_evaluation은 기본 False — §6-5 Pending Ring은 "훈련됨·검증 대기"라
+                # 훈련 세션 종료가 켠다(§7-4). 미측정(Dormant)은 brightness NULL이 표현한다(§7-6).
             )
         )
     session.flush()

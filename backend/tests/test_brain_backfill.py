@@ -6,7 +6,8 @@
 - adversarial=true evidence는 집계에서 분리 (절대 규칙 6)
 - backfill은 brightness(heldout_accuracy 등)를 건드리지 않는다 (절대 규칙 3 — Arena 전용)
 """
-from sqlalchemy import select
+import pytest
+from sqlalchemy import delete, select
 
 from app.brain.backfill import (
     aggregate_evidence_stats,
@@ -21,6 +22,15 @@ from app.llm.mock import MockProvider
 from app.models.brain import BrainNode, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.governance import GovernanceEvent
+
+
+@pytest.fixture(autouse=True)
+def _empty_brain_bank(db_session):
+    """이 모듈은 '빈 뱅크에서의 부트스트랩'을 검증한다 — 실 DB에 노드가 영구 적재된 뒤에도
+    전제를 유지하도록 세이브포인트 안에서 비운다(테스트 종료 시 롤백, 실 데이터 무손상)."""
+    db_session.execute(delete(Exemplar))
+    db_session.execute(delete(BrainNode))
+    db_session.flush()
 
 CFG = get_config()
 
