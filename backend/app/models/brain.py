@@ -1,5 +1,16 @@
-"""brain_nodes, confusion_edges, brain_versions (§5, §6-6)."""
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Text, UniqueConstraint, text
+"""brain_nodes, confusion_edges, brain_versions, exemplars (§5, §6-6, §5-7)."""
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +38,34 @@ class BrainNode(Base):
     )
     # 절대 규칙 4: 노드 생성은 governance_events를 남기는 승인 플로우로만
     created_by_event: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class Exemplar(Base):
+    """노드별 대표 에피소드 임베딩 (§5-1·§5-7). GOLD 확정 라벨에서만 선정.
+
+    hnsw 인덱스는 비-idx_ 이름이라 model↔schema 동기 테스트(idx_ 대조)에서 제외 —
+    벡터 인덱스 이름은 마이그레이션 0009가 원천.
+    """
+    __tablename__ = "exemplars"
+    __table_args__ = (
+        UniqueConstraint("node_id", "episode_id"),  # 중복 채택 방지
+        Index("idx_exemplars_node", "node_id"),
+        Index(
+            "exemplars_embedding_hnsw", "embedding",
+            postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    exemplar_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    node_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("brain_nodes.node_id"), nullable=False
+    )
+    intent_id: Mapped[str] = mapped_column(Text, nullable=False)
+    episode_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("episodes.episode_id"), nullable=False
+    )
+    embedding = mapped_column(Vector(1536), nullable=False)
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
 class ConfusionEdge(Base):
