@@ -1,5 +1,6 @@
 """Foundry 테이블 (S1~S5): sources, source_documents, situation_frames, atlas_entries,
 canonical_scenarios."""
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -88,6 +89,9 @@ class AtlasEntry(Base):
     register = mapped_column(JSONB)
     observed_count: Mapped[int | None] = mapped_column(Integer, server_default=text("0"))
     source_class_mix = mapped_column(JSONB)
+    # surface_form 임베딩 — S4 적재 시 저장(마이그레이션 0011). retrieve_candidates(§5-4[1])가
+    # 요청마다 재임베딩하지 않도록 사전 계산. nullable: 미채움 행은 retrieval에서 제외된다.
+    embedding = mapped_column(Vector(1536))
     created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
