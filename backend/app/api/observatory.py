@@ -10,13 +10,16 @@ from __future__ import annotations
 
 import math
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.brain.diagnosis import diagnose_node
 from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
+from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
-from app.core.ontology import CANONICAL_DOMAINS, load_ontology
+from app.core.ontology import CANONICAL_DOMAINS, UNKNOWN_INTENT_ID, load_ontology
 from app.models.arena import ArenaRun
 from app.models.brain import BrainNode, BrainVersion, Exemplar
 
@@ -110,4 +113,48 @@ def brain_state(session: Session = Depends(get_session)) -> ObservatoryBrain:
         ktib_global=_ktib_global(session),
         regions=regions,
         nodes=out_nodes,
+    )
+
+
+# --- 노드 Weakness 진단 (§7-3, T4.1 실계산) ---
+
+
+def _get_experiments() -> ExperimentsConfig:
+    return get_config()
+
+
+class AxisOut(BaseModel):
+    value: float | None  # §7-3 원값. null = 데이터 없음(계산 불가)
+    level: str | None    # HIGH | MED | LOW | null
+
+
+class NodeDiagnosisOut(BaseModel):
+    intent_id: str
+    ambiguous_language: AxisOut
+    screen_context_coverage: AxisOut
+    persona_diversity: AxisOut
+    gold_data: AxisOut
+
+
+@router.get("/node/{intent_id}/diagnosis", response_model=NodeDiagnosisOut)
+def node_diagnosis(
+    intent_id: str,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> NodeDiagnosisOut:
+    """§7-3 4축 실계산. 데이터 없는 축은 value/level null(지어내지 않음)."""
+    real = {i.intent_id for i in load_ontology().intents if i.intent_id != UNKNOWN_INTENT_ID}
+    if intent_id not in real:
+        raise HTTPException(status_code=404, detail="알 수 없는 intent")
+    dg = diagnose_node(session, intent_id, config)
+
+    def ax(a) -> AxisOut:
+        return AxisOut(value=a.value, level=a.level)
+
+    return NodeDiagnosisOut(
+        intent_id=dg.intent_id,
+        ambiguous_language=ax(dg.ambiguous_language),
+        screen_context_coverage=ax(dg.screen_context_coverage),
+        persona_diversity=ax(dg.persona_diversity),
+        gold_data=ax(dg.gold_data),
     )

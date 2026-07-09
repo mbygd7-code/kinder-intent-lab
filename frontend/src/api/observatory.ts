@@ -40,3 +40,31 @@ export async function fetchBrainState(signal?: AbortSignal): Promise<Observatory
   if (!res.ok) throw new Error(`observatory API ${res.status}`)
   return (await res.json()) as ObservatoryBrain
 }
+
+// --- T4.1 Weakness 진단 4축 (§7-3 실계산) ---
+
+export type WeakLevel = 'HIGH' | 'MED' | 'LOW'
+
+export interface DiagnosisAxis {
+  value: number | null // §7-3 원값 — null=데이터 없음(계산 불가)
+  level: WeakLevel | null
+}
+
+export interface NodeDiagnosis {
+  intent_id: string
+  ambiguous_language: DiagnosisAxis
+  screen_context_coverage: DiagnosisAxis
+  persona_diversity: DiagnosisAxis
+  gold_data: DiagnosisAxis
+}
+
+export async function fetchNodeDiagnosis(
+  intentId: string,
+  signal?: AbortSignal,
+): Promise<NodeDiagnosis> {
+  const res = await fetch(`/v1/observatory/node/${encodeURIComponent(intentId)}/diagnosis`, {
+    signal,
+  })
+  if (!res.ok) throw new Error(`node diagnosis ${res.status}`)
+  return (await res.json()) as NodeDiagnosis
+}

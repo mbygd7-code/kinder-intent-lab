@@ -34,8 +34,24 @@ const BRAIN: ObservatoryBrain = {
   ],
 }
 
+// 노드 4축 진단(§7-3) 응답 스텁 — 기본은 데이터 없음(모두 null). 개별 테스트가 덮어쓸 수 있다.
+function stubDiagnosis(diag?: Partial<Record<string, { value: number | null; level: string | null }>>) {
+  const nul = { value: null, level: null }
+  vi.stubGlobal('fetch', vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      intent_id: 'play_a',
+      ambiguous_language: diag?.ambiguous_language ?? nul,
+      screen_context_coverage: diag?.screen_context_coverage ?? nul,
+      persona_diversity: diag?.persona_diversity ?? nul,
+      gold_data: diag?.gold_data ?? nul,
+    }),
+  }) as Response))
+}
+
 beforeEach(() => {
   useBrainStore.setState({ brain: BRAIN, ktibGlobal: null, selectedRegionId: null, selectedNodeId: null })
+  stubDiagnosis() // NodePanel의 진단 fetch가 기본적으로 안전하게 해석되게
 })
 afterEach(() => {
   cleanup()
@@ -76,28 +92,70 @@ describe('NodePanel (§7-3)', () => {
     expect(container.querySelector('.side-panel-right')).toBeNull()
   })
 
-  it('선택 노드: 실 KEY METRICS + mock 혼동/WHY-WEAK(라벨 필수) + Gold Data는 실데이터', () => {
-    useBrainStore.setState({ selectedNodeId: 'N_play_a' })
+  it('선택 노드: 실 KEY METRICS + 혼동(mock 라벨) + 실계산 4축(데이터 없으면 "—")', () => {
+    useBrainStore.setState({ selectedNodeId: 'N_play_a' }) // stubDiagnosis 기본=모두 null
     const { container } = render(<NodePanel />)
     expect(screen.getByText('play_a')).toBeTruthy()
-    // §7-3 방향성 혼동: 후보(play_b, vis_a)가 있으니 실제로 행이 렌더된다(빈 목록 vacuous 방지)
+    // 방향성 혼동은 mock(§5-6 미적재) — 라벨 필수, 후보가 있으면 행 렌더(vacuous 방지)
     expect(container.querySelectorAll('.confusion-row').length).toBeGreaterThanOrEqual(1)
-    expect(container.querySelectorAll('.confusion-row').length).toBeLessThanOrEqual(3)
-    expect(screen.queryByText('혼동 관계 데이터 없음 (측정 전)')).toBeNull()
+    expect(screen.getByText('미리보기 · mock')).toBeTruthy()
     // 실 지표 4종 (KEY METRICS 전부 실데이터)
     expect(screen.getByText('Evidence Total').previousSibling?.textContent).toBe('30')
     expect(screen.getByText('Gold').previousSibling?.textContent).toBe('12')
     expect(screen.getByText('Diversity').previousSibling?.textContent).toBe('0%')
     expect(screen.getByText('Exemplars').previousSibling?.textContent).toBe('0')
-    // §7-3 4축 라벨 존재
+    // WHY-WEAK는 §7-3 실계산 배지 (mock 아님)
+    expect(screen.getByText('§7-3 실계산')).toBeTruthy()
+    // 진단 데이터 없음 → 4축 모두 "—"(지어내지 않음)
     for (const ax of ['Ambiguous Language', 'Screen Context Coverage', 'Persona Diversity', 'Gold Data']) {
-      expect(screen.getByText(ax)).toBeTruthy()
+      const row = screen.getByText(ax).closest('.axis-row') as HTMLElement
+      expect(within(row).getByText('—')).toBeTruthy()
     }
-    // mock 섹션은 반드시 "mock" 라벨을 단다 (실측 오인 방지)
-    expect(screen.getAllByText(/mock/i).length).toBeGreaterThanOrEqual(2)
-    // Gold Data는 실 gold_count(12)→HIGH (mock 아님)
-    const goldAxis = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
-    expect(within(goldAxis).getByText('HIGH')).toBeTruthy()
+  })
+
+  it('노드 전환 시 재fetch — 이전 노드의 레벨이 잔류하지 않는다 (정직성 게이트)', async () => {
+    // URL의 intent에 따라 다른 레벨 반환: play_a→HIGH, 그 외→LOW
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const isA = url.includes('play_a')
+      const lvl = isA ? { value: 20, level: 'HIGH' } : { value: 0, level: 'LOW' }
+      return { ok: true, json: async () => ({
+        intent_id: isA ? 'play_a' : 'play_b',
+        ambiguous_language: { value: null, level: null },
+        screen_context_coverage: { value: null, level: null },
+        persona_diversity: { value: null, level: null },
+        gold_data: lvl,
+      }) } as Response
+    }))
+    useBrainStore.setState({ selectedNodeId: 'N_play_a' })
+    render(<NodePanel />)
+    await waitFor(() => {
+      const g = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
+      expect(within(g).getByText('HIGH')).toBeTruthy()
+    })
+    // play_b로 전환 → 잔류 HIGH가 아니라 LOW로 바뀐다
+    useBrainStore.setState({ selectedNodeId: 'N_play_b' })
+    await waitFor(() => {
+      const g = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
+      expect(within(g).getByText('LOW')).toBeTruthy()
+      expect(within(g).queryByText('HIGH')).toBeNull()
+    })
+  })
+
+  it('실계산 4축이 응답 레벨을 그대로 표시한다 (Gold Data=HIGH 등)', async () => {
+    stubDiagnosis({
+      ambiguous_language: { value: 3.2, level: 'HIGH' },
+      screen_context_coverage: { value: 0.2, level: 'LOW' },
+      persona_diversity: { value: 0.1, level: 'LOW' },
+      gold_data: { value: 20, level: 'HIGH' },
+    })
+    useBrainStore.setState({ selectedNodeId: 'N_play_a' })
+    render(<NodePanel />)
+    await waitFor(() => {
+      const gold = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
+      expect(within(gold).getByText('HIGH')).toBeTruthy()
+    })
+    const cov = screen.getByText('Screen Context Coverage').closest('.axis-row') as HTMLElement
+    expect(within(cov).getByText('LOW')).toBeTruthy()
   })
 
   it('강화하기 클릭 → 헷갈리는 짝 + §8-1 Gym 3모드(한글) 버튼 노출', () => {
@@ -113,12 +171,14 @@ describe('NodePanel (§7-3)', () => {
 
   it('모드 클릭 → openGymSession이 intent_id(node_id 아님)로 origin 전송 + 오버레이 마운트', async () => {
     // Phase 3 게이트 시임: node→패널→강화하기→openGymSession 배선 고정 (리뷰 MINOR)
-    const sent: Array<{ url: string; body: Record<string, unknown> }> = []
-    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
-      sent.push({ url, body: JSON.parse(init.body as string) })
+    // 마운트 시 진단 GET(body 없음)도 함께 나가므로 gym POST만 골라 검증한다
+    const sent: Array<{ url: string; body: Record<string, unknown> | null }> = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      sent.push({ url, body: init?.body ? JSON.parse(init.body as string) : null })
       return { ok: true, json: async () => ({
         session_id: 'GS_x', pack_id: 'CP_x', mode: 'guess_my_intent',
         items: [{ item_id: 'GI_0', utterance: '발화', candidate_intents: ['play_a'], brain_guess: null }],
+        // 진단 GET 응답으로도 무해(axis 없으면 "—")
       }) } as Response
     }))
     useBrainStore.setState({ selectedNodeId: 'N_play_a' })
@@ -126,9 +186,9 @@ describe('NodePanel (§7-3)', () => {
     fireEvent.click(screen.getByText('🚀 강화하기'))
     fireEvent.click(screen.getByRole('button', { name: '의도 알아맞히기' }))
     await waitFor(() => expect(screen.getByRole('dialog', { name: '훈련 세션' })).toBeTruthy())
-    const origin = sent[0].body.origin as { node: string }
-    expect(sent[0].url).toBe('/v1/gym/session')
-    expect(origin.node).toBe('play_a') // intent_id — node_id('N_play_a')였다면 백엔드 422
+    const gym = sent.find((s) => s.url === '/v1/gym/session')
+    expect(gym).toBeTruthy()
+    expect((gym!.body!.origin as { node: string }).node).toBe('play_a') // node_id였다면 백엔드 422
   })
 
   it('mock 진단은 결정론 — 같은 노드 재렌더에 혼동 목록이 동일', () => {

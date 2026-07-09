@@ -167,3 +167,22 @@ def test_response_roundtrips_schema(api) -> None:
     _seed_brain(db)
     r = client.get("/v1/observatory/brain")
     jsonschema.validate(r.json(), SCHEMA)
+
+
+def test_node_diagnosis_endpoint(api) -> None:
+    """T4.1: 노드 4축 진단 — Gold Data는 GOLD 에피소드 절대량, 데이터 없는 축은 null(정직)."""
+    client, db = api
+    ints = _seed_brain(db)  # ints[0]은 GOLD 에피소드 1건(EP_OBS_1)
+    r = client.get(f"/v1/observatory/node/{ints[0]}/diagnosis")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent_id"] == ints[0]
+    assert body["gold_data"]["value"] == 1  # GOLD 1건
+    assert body["gold_data"]["level"] == "LOW"  # 1 < gold_low(3)
+    assert body["ambiguous_language"]["value"] is None   # Atlas 없음 → 계산 불가
+    assert body["persona_diversity"]["value"] is None    # persona_lens 없음
+
+
+def test_node_diagnosis_unknown_intent_404(api) -> None:
+    client, _ = api
+    assert client.get("/v1/observatory/node/NOT_A_REAL_INTENT/diagnosis").status_code == 404

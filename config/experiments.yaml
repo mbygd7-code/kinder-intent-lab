@@ -43,6 +43,16 @@ gym:                               # Gym 세션 → evidence 적재 (§8-1)
   evidence_strength: 0.9          # 교사 트레이너 라벨의 기본 신호 강도 (aggregator 가중 입력)
   session_items: 6                # 세션당 기본 아이템 수 (default_pack_items의 플레이 서브셋)
 
+diagnosis:                         # T4.1 Weakness 진단 4축 레벨 버킷 임계 (§7-3, 원값→HIGH/MED/LOW)
+  ambiguous_competitors_low: 1.0  # Atlas 평균 경쟁 intent 수 (높을수록 모호)
+  ambiguous_competitors_high: 2.5
+  screen_coverage_low: 0.3        # S5 변형축 커버리지 [0,1] (낮을수록 약함)
+  screen_coverage_high: 0.6
+  persona_entropy_low: 0.3        # persona 정규화 엔트로피 [0,1] (낮을수록 약함)
+  persona_entropy_high: 0.6
+  gold_low: 3                     # GOLD 에피소드 절대량 (낮을수록 약함)
+  gold_high: 10
+
 ontology:
   min_intents: 60                 # v1 시드 최소 intent 수 (UNKNOWN 제외)
   min_examples_per_side: 2        # intent당 positive/negative 예시 최소 수

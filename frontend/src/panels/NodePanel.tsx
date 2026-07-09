@@ -1,13 +1,14 @@
 /**
  * 우측 패널 — Zoom 2 Node 상세 + Weakness Diagnosis Engine (§7-3, 레퍼런스 우측 패널).
  *
- * 실데이터: 노드의 evidence 지표(총량/gold/다양성/exemplar) + Gold Data 축(gold_count).
- * mock(§7-3 AC "이 단계는 계산값 mock"): 방향성 혼동 목록 + WHY-WEAK 3축 — "미리보기(mock)"로
- * 명시해 실측으로 오인되지 않게 한다. 강화하기→Challenge Pack 생성은 T3.7(Gym) 연결.
+ * 실데이터: 노드의 evidence 지표(총량/gold/다양성/exemplar) + **WHY-WEAK 4축 실계산**(T4.1,
+ * /v1/observatory/node/{intent}/diagnosis) — 데이터 없는 축은 "—"(지어내지 않음).
+ * mock(labeled): 방향성 혼동 목록만 — confusion_edges(§5-6) 미적재 구간이라 "미리보기·mock".
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { openGymSession, type GymMode, type GymSessionStart } from '../api/gym'
+import { fetchNodeDiagnosis, type DiagnosisAxis, type NodeDiagnosis } from '../api/observatory'
 import { REGION_BY_ID, type RegionId } from '../brain3d/regions'
 import { useBrainStore } from '../brain3d/store'
 import { goldDataLevel, mockDiagnosis, type WeakLevel } from './diagnosis'
@@ -18,14 +19,15 @@ const pct = (v: number) => `${Math.round(v * 100)}%`
 const LEVEL_CLASS: Record<WeakLevel, string> = { HIGH: 'lvl-high', MED: 'lvl-med', LOW: 'lvl-low' }
 const GYM_MODES: GymMode[] = ['guess_my_intent', 'choose_right_meaning', 'correction_drill']
 
-function Axis({ label, level, mock }: { label: string; level: WeakLevel; mock?: boolean }) {
+function Axis({ label, axis }: { label: string; axis: DiagnosisAxis | undefined }) {
+  // §7-3 실계산 — 데이터 없으면 "—"(지어내지 않음)
+  const level = axis?.level ?? null
   return (
     <div className="axis-row">
-      <span className="axis-label">
-        {label}
-        {mock && <span className="mock-dot" title="미리보기(mock)">◦</span>}
+      <span className="axis-label">{label}</span>
+      <span className={`axis-level ${level ? LEVEL_CLASS[level] : 'lvl-none'}`}>
+        {level ?? '—'}
       </span>
-      <span className={`axis-level ${LEVEL_CLASS[level]}`}>{level}</span>
     </div>
   )
 }
@@ -37,8 +39,26 @@ export function NodePanel() {
   const [gymSession, setGymSession] = useState<GymSessionStart | null>(null)
   const [starting, setStarting] = useState<GymMode | null>(null)
   const [gymError, setGymError] = useState<string | null>(null)
+  const [why, setWhy] = useState<NodeDiagnosis | null>(null) // §7-3 4축 실계산
 
   const node = brain?.nodes.find((n) => n.node_id === selectedNodeId) ?? null
+
+  // 노드 선택이 바뀌면 4축 진단을 실제 계산으로 가져온다
+  useEffect(() => {
+    if (!node) {
+      setWhy(null)
+      return
+    }
+    const ctrl = new AbortController()
+    setWhy(null)
+    fetchNodeDiagnosis(node.intent_id, ctrl.signal)
+      .then(setWhy)
+      .catch((e: unknown) => {
+        if (!ctrl.signal.aborted) console.warn('node diagnosis 미연결:', e)
+      })
+    return () => ctrl.abort()
+  }, [node])
+
   const allIntents = useMemo(() => (brain?.nodes ?? []).map((n) => n.intent_id), [brain])
   const diag = useMemo(
     () => (node ? mockDiagnosis(node.node_id, allIntents, node.intent_id) : null),
@@ -71,6 +91,10 @@ export function NodePanel() {
       setStarting(null)
     }
   }
+
+  // 노드 전환 직후 한 프레임 동안 이전 노드의 실계산 레벨이 잔류하지 않게 intent로 게이트
+  // (why 초기화는 effect에서 paint 후에야 돈다 — 지금 노드가 아니면 "—"로 보인다)
+  const currentWhy = why?.intent_id === node.intent_id ? why : null
 
   return (
     <aside className="side-panel side-panel-right">
@@ -117,7 +141,7 @@ export function NodePanel() {
             {diag.confusions.map((c) => (
               <li key={c.intentId} className="confusion-row">
                 <span className="confusion-arrow" style={{ color }}>→</span>
-                <span className="confusion-name">{c.intentId}</span>
+                <span className="confusion-name">{labelOf(c.intentId)}</span>
                 <span className="confusion-rate">{pct(c.rate)}</span>
               </li>
             ))}
@@ -128,14 +152,14 @@ export function NodePanel() {
       <section className="panel-card">
         <div className="panel-subhead">
           WHY THIS NODE IS WEAK
-          <span className="mock-badge">3축 미리보기 · mock</span>
+          <span className="calc-badge">§7-3 실계산</span>
         </div>
+        {/* T4.1: 4축 실계산. 데이터 없는 축은 "—"(지어내지 않음) */}
         <div className="axis-rows">
-          <Axis label="Ambiguous Language" level={diag.why.ambiguousLanguage} mock />
-          <Axis label="Screen Context Coverage" level={diag.why.screenContextCoverage} mock />
-          <Axis label="Persona Diversity" level={diag.why.personaDiversity} mock />
-          {/* Gold Data는 실 gold_count에서 — mock 아님 */}
-          <Axis label="Gold Data" level={goldDataLevel(node.gold_count)} />
+          <Axis label="Ambiguous Language" axis={currentWhy?.ambiguous_language} />
+          <Axis label="Screen Context Coverage" axis={currentWhy?.screen_context_coverage} />
+          <Axis label="Persona Diversity" axis={currentWhy?.persona_diversity} />
+          <Axis label="Gold Data" axis={currentWhy?.gold_data} />
         </div>
 
         <button type="button" className="cta-train" onClick={() => setShowBrief((v) => !v)}>

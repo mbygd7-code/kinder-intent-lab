@@ -69,6 +69,17 @@ class GymConfig(_Section):
     session_items: int
 
 
+class DiagnosisConfig(_Section):
+    ambiguous_competitors_low: float
+    ambiguous_competitors_high: float
+    screen_coverage_low: float
+    screen_coverage_high: float
+    persona_entropy_low: float
+    persona_entropy_high: float
+    gold_low: int
+    gold_high: int
+
+
 class OntologyConfig(_Section):
     min_intents: int
     min_examples_per_side: int
@@ -150,6 +161,7 @@ class ExperimentsConfig(_Section):
     fast_update: FastUpdateConfig
     growth: GrowthConfig
     gym: GymConfig
+    diagnosis: DiagnosisConfig
     ontology: OntologyConfig
     llm: LLMConfig
     atlas: AtlasConfig
