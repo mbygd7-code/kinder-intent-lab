@@ -110,6 +110,36 @@ class AtlasExpansionEntry(Base):
     created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 
 
+class FoundryWorkOrder(Base):
+    """A형(Data Coverage) 강화 주문 — 사람 세션 없이 Foundry(S5~S10)에 시나리오 생성을 지시 (§6-1).
+
+    Observatory 클릭 진단이 COVERAGE_LOW면 Challenge Pack이 이 큐로 발행된다(사람 불필요).
+    상태 기계: PENDING → IN_PROGRESS → DONE(생성 완료) | DISMISSED. pack_id로 발원 pack 추적.
+    """
+    __tablename__ = "foundry_work_queue"
+    __table_args__ = (
+        CheckConstraint("order_type IN ('SCENARIO_COVERAGE')"),
+        CheckConstraint("status IN ('PENDING','IN_PROGRESS','DONE','DISMISSED')"),
+        Index("idx_foundry_work_status", "status"),
+    )
+
+    order_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    intent_id: Mapped[str] = mapped_column(Text, nullable=False)
+    region: Mapped[str | None] = mapped_column(Text)
+    order_type: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'SCENARIO_COVERAGE'")
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'PENDING'"))
+    requested_items: Mapped[int] = mapped_column(Integer, nullable=False)
+    strategy = mapped_column(JSONB)
+    diagnosis = mapped_column(JSONB)
+    pack_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("challenge_packs.pack_id")
+    )
+    payload = mapped_column(JSONB)
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+
+
 class CanonicalScenario(Base):
     __tablename__ = "canonical_scenarios"
 

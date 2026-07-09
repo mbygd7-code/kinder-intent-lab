@@ -35,9 +35,17 @@ fast_update:
   weekly_decay: 0.98
 
 growth:
-  confusion_trigger: 0.25         # C형 강화 발동 edge 기준
-  gold_low_threshold: 100         # B형 강화 발동 기준
+  confusion_trigger: 0.25         # C형 강화 발동 edge 기준 (confusion_rate)
+  gold_low_threshold: 100         # B형 강화 발동 기준 (노드 GOLD 절대량 미달)
   default_pack_items: 20
+  coverage_order_items: 12        # A형 Foundry 작업주문이 요청하는 시나리오 수
+  priority_weights:               # §6-3 훈련 우선순위 (순위 신호 가중치, 상대 비교용)
+    heldout_low: 0.30             # ① heldout 정확도 최저
+    confusion_high: 0.25          # ② confusion_rate 최고 edge
+    performance_drop: 0.15        # ③ 최근 성능 하락
+    evidence_low: 0.15            # ④ evidence 최소
+    persona_impact: 0.10          # ⑤ persona 영향 큰
+    service_importance: 0.05      # ⑥ 서비스 중요도
 
 gym:                               # Gym 세션 → evidence 적재 (§8-1)
   evidence_strength: 0.9          # 교사 트레이너 라벨의 기본 신호 강도 (aggregator 가중 입력)

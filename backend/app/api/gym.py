@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
 from app.core.db import get_session
+from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
+from app.gym.challenge import generate_pack, pack_to_dict
 from app.gym.evidence import evidence_type_for
 from app.gym.pack import build_items, build_pack
 from app.gym.session import start_session
@@ -25,6 +27,7 @@ from app.models.gym import GymSession
 router = APIRouter(prefix="/v1/gym", tags=["gym"])
 
 GymMode = Literal["guess_my_intent", "choose_right_meaning", "correction_drill"]
+PackTrigger = Literal["observatory_click", "scheduled", "version_gate_campaign"]
 
 
 def get_experiments() -> ExperimentsConfig:
@@ -80,6 +83,59 @@ class SubmitResponse(BaseModel):
     episodes_created: int
     evidence_created: int
     by_type: dict[str, int]
+
+
+# --- T4.2 Challenge Pack 생성 (진단→전략, 사람 세션 이전 단계) ---
+
+
+class PackGenRequest(BaseModel):
+    node_intent: str = Field(min_length=1)
+    trigger: PackTrigger = "observatory_click"
+
+
+class WorkOrderOut(BaseModel):
+    order_id: str
+    order_type: str
+    status: str
+    requested_items: int
+
+
+class PackGenResponse(BaseModel):
+    pack: dict            # challenge_pack.schema.json 형태
+    diagnosis_codes: list[str]
+    strategy: list[str]
+    needs_human: bool     # False면 A/D형 — Gym 세션 없이 처리
+    node_priority: float  # §6-3 훈련 우선순위 점수
+    work_orders: list[WorkOrderOut]
+
+
+@router.post("/pack", response_model=PackGenResponse)
+def generate_challenge_pack(
+    req: PackGenRequest,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(get_experiments),
+) -> PackGenResponse:
+    """§6-1·6-3·6-4: 노드 진단 → 강화 pack. A형은 Foundry 작업 큐로 발행(사람 세션 없이)."""
+    real = {i.intent_id for i in load_ontology().intents if i.intent_id != UNKNOWN_INTENT_ID}
+    if req.node_intent not in real:
+        raise HTTPException(status_code=404, detail="알 수 없는 intent")
+    result = generate_pack(
+        session, node_intent=req.node_intent, trigger=req.trigger, config=config
+    )
+    return PackGenResponse(
+        pack=pack_to_dict(result.pack),
+        diagnosis_codes=result.diagnosis_codes,
+        strategy=result.pack.strategy,
+        needs_human=result.needs_human,
+        node_priority=result.node_priority,
+        work_orders=[
+            WorkOrderOut(
+                order_id=w.order_id, order_type=w.order_type,
+                status=w.status, requested_items=w.requested_items,
+            )
+            for w in result.work_orders
+        ],
+    )
 
 
 @router.post("/session", response_model=SessionStartResponse)

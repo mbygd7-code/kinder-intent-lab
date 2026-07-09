@@ -58,10 +58,23 @@ class FastUpdateConfig(_Section):
     weekly_decay: float
 
 
+class PriorityWeights(_Section):
+    """§6-3 훈련 우선순위 순위 신호 가중치 (상대 비교용 — 합이 1일 필요는 없다)."""
+
+    heldout_low: float          # ① heldout 정확도 최저 intent
+    confusion_high: float       # ② confusion_rate 최고 edge
+    performance_drop: float     # ③ 최근 성능 하락 intent
+    evidence_low: float         # ④ evidence 최소 intent
+    persona_impact: float       # ⑤ persona 영향 큰 intent
+    service_importance: float   # ⑥ 서비스 중요도
+
+
 class GrowthConfig(_Section):
     confusion_trigger: float
     gold_low_threshold: int
     default_pack_items: int
+    coverage_order_items: int   # A형 Foundry 작업주문 1건이 요청하는 시나리오 수 (§6-1)
+    priority_weights: PriorityWeights
 
 
 class GymConfig(_Section):
