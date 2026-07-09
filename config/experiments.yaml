@@ -39,6 +39,10 @@ growth:
   gold_low_threshold: 100         # B형 강화 발동 기준
   default_pack_items: 20
 
+gym:                               # Gym 세션 → evidence 적재 (§8-1)
+  evidence_strength: 0.9          # 교사 트레이너 라벨의 기본 신호 강도 (aggregator 가중 입력)
+  session_items: 6                # 세션당 기본 아이템 수 (default_pack_items의 플레이 서브셋)
+
 ontology:
   min_intents: 60                 # v1 시드 최소 intent 수 (UNKNOWN 제외)
   min_examples_per_side: 2        # intent당 positive/negative 예시 최소 수

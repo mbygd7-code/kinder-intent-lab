@@ -7,12 +7,16 @@
  */
 import { useMemo, useState } from 'react'
 
+import { openGymSession, type GymMode, type GymSessionStart } from '../api/gym'
 import { REGION_BY_ID, type RegionId } from '../brain3d/regions'
 import { useBrainStore } from '../brain3d/store'
 import { goldDataLevel, mockDiagnosis, type WeakLevel } from './diagnosis'
+import { GymOverlay } from './GymOverlay'
+import { GYM_MODE_LABEL_KO, labelOf } from './intentLabels'
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
 const LEVEL_CLASS: Record<WeakLevel, string> = { HIGH: 'lvl-high', MED: 'lvl-med', LOW: 'lvl-low' }
+const GYM_MODES: GymMode[] = ['guess_my_intent', 'choose_right_meaning', 'correction_drill']
 
 function Axis({ label, level, mock }: { label: string; level: WeakLevel; mock?: boolean }) {
   return (
@@ -30,6 +34,9 @@ export function NodePanel() {
   const brain = useBrainStore((s) => s.brain)
   const selectedNodeId = useBrainStore((s) => s.selectedNodeId)
   const [showBrief, setShowBrief] = useState(false)
+  const [gymSession, setGymSession] = useState<GymSessionStart | null>(null)
+  const [starting, setStarting] = useState<GymMode | null>(null)
+  const [gymError, setGymError] = useState<string | null>(null)
 
   const node = brain?.nodes.find((n) => n.node_id === selectedNodeId) ?? null
   const allIntents = useMemo(() => (brain?.nodes ?? []).map((n) => n.intent_id), [brain])
@@ -41,6 +48,29 @@ export function NodePanel() {
   if (!node || !diag) return null
   // 미지의 region 문자열이 와도 패널이 통째로 죽지 않게 방어(계약상 7개 고정이지만 신규 코드)
   const color = REGION_BY_ID[node.region as RegionId]?.color ?? '#94a3b8'
+
+  const startGym = async (mode: GymMode) => {
+    setStarting(mode)
+    setGymError(null)
+    try {
+      // origin: 실 gold_count + 상위(mock) 혼동으로 진단·타깃 구성 (§7-4 강화하기)
+      const diagnosis = [
+        ...(goldDataLevel(node.gold_count) === 'LOW' ? ['GOLD_LOW'] : []),
+        ...(diag.confusions.length ? ['CONFUSION_HIGH'] : []),
+      ]
+      const session = await openGymSession('TR_local', mode, {
+        node: node.intent_id,
+        region: node.region,
+        diagnosis,
+        target_confusion: diag.confusions[0]?.intentId ?? null,
+      })
+      setGymSession(session)
+    } catch (e) {
+      setGymError(String(e))
+    } finally {
+      setStarting(null)
+    }
+  }
 
   return (
     <aside className="side-panel side-panel-right">
@@ -113,25 +143,36 @@ export function NodePanel() {
         </button>
         {showBrief && (
           <div className="train-brief">
-            <div className="mock-badge">미리보기 · T3.7 Gym에서 실제 생성</div>
             <div className="brief-row">
-              <span>Target Confusion</span>
+              <span>헷갈리는 짝</span>
               <strong>
-                {node.intent_id}
-                {diag.confusions[0] ? ` ↔ ${diag.confusions[0].intentId}` : ''}
+                {labelOf(node.intent_id)}
+                {diag.confusions[0] ? ` ↔ ${labelOf(diag.confusions[0].intentId)}` : ''}
               </strong>
             </div>
-            <div className="brief-row">
-              <span>Difficulty</span>
-              <strong>Medium → Hard</strong>
+            {/* §8-1 Gym 모드 선택 → 세션 시작 (실 백엔드) */}
+            <div className="gym-mode-pick">훈련 방식을 골라 주세요</div>
+            <div className="gym-mode-buttons">
+              {GYM_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className="gym-mode-btn"
+                  disabled={starting !== null}
+                  onClick={() => startGym(mode)}
+                >
+                  {starting === mode ? '여는 중…' : GYM_MODE_LABEL_KO[mode]}
+                </button>
+              ))}
             </div>
-            <div className="brief-row">
-              <span>Persona Mix</span>
-              <strong>5 teacher patterns</strong>
-            </div>
+            {gymError && <p className="gym-error">시작 중 문제가 생겼어요. 다시 시도해 주세요.</p>}
           </div>
         )}
       </section>
+
+      {gymSession && (
+        <GymOverlay session={gymSession} onClose={() => setGymSession(null)} />
+      )}
     </aside>
   )
 }

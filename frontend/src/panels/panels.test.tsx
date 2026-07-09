@@ -3,8 +3,8 @@
  *
  * T3.6 AC: §7-2·§7-3 목업과 필드 1:1 + 정보 정직성(Arena 미실행 → "—", mock은 명시 라벨).
  */
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ObservatoryBrain, ObservatoryNode } from '../api/observatory'
 import { REGIONS } from '../brain3d/regions'
@@ -37,7 +37,10 @@ const BRAIN: ObservatoryBrain = {
 beforeEach(() => {
   useBrainStore.setState({ brain: BRAIN, ktibGlobal: null, selectedRegionId: null, selectedNodeId: null })
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('RegionsPanel (§7-2)', () => {
   it('KTIB 미실행이면 "—", 7개 region 리스트를 렌더한다', () => {
@@ -97,12 +100,35 @@ describe('NodePanel (§7-3)', () => {
     expect(within(goldAxis).getByText('HIGH')).toBeTruthy()
   })
 
-  it('강화하기 클릭 → §7-4 브리핑 미리보기(라벨) 노출', () => {
+  it('강화하기 클릭 → 헷갈리는 짝 + §8-1 Gym 3모드(한글) 버튼 노출', () => {
     useBrainStore.setState({ selectedNodeId: 'N_play_a' })
     render(<NodePanel />)
     fireEvent.click(screen.getByText('🚀 강화하기'))
-    expect(screen.getByText('Target Confusion')).toBeTruthy()
-    expect(screen.getByText(/T3.7 Gym/)).toBeTruthy()
+    expect(screen.getByText('헷갈리는 짝')).toBeTruthy()
+    expect(screen.getByText('훈련 방식을 골라 주세요')).toBeTruthy()
+    for (const label of ['의도 알아맞히기', '알맞은 의미 고르기', '바로잡기 연습']) {
+      expect(screen.getByRole('button', { name: label })).toBeTruthy()
+    }
+  })
+
+  it('모드 클릭 → openGymSession이 intent_id(node_id 아님)로 origin 전송 + 오버레이 마운트', async () => {
+    // Phase 3 게이트 시임: node→패널→강화하기→openGymSession 배선 고정 (리뷰 MINOR)
+    const sent: Array<{ url: string; body: Record<string, unknown> }> = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
+      sent.push({ url, body: JSON.parse(init.body as string) })
+      return { ok: true, json: async () => ({
+        session_id: 'GS_x', pack_id: 'CP_x', mode: 'guess_my_intent',
+        items: [{ item_id: 'GI_0', utterance: '발화', candidate_intents: ['play_a'], brain_guess: null }],
+      }) } as Response
+    }))
+    useBrainStore.setState({ selectedNodeId: 'N_play_a' })
+    render(<NodePanel />)
+    fireEvent.click(screen.getByText('🚀 강화하기'))
+    fireEvent.click(screen.getByRole('button', { name: '의도 알아맞히기' }))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: '훈련 세션' })).toBeTruthy())
+    const origin = sent[0].body.origin as { node: string }
+    expect(sent[0].url).toBe('/v1/gym/session')
+    expect(origin.node).toBe('play_a') // intent_id — node_id('N_play_a')였다면 백엔드 422
   })
 
   it('mock 진단은 결정론 — 같은 노드 재렌더에 혼동 목록이 동일', () => {

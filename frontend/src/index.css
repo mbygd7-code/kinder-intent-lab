@@ -224,6 +224,86 @@ body {
 .region-label { cursor: pointer; font-family: inherit; }
 .region-label-active { box-shadow: 0 0 16px rgba(53, 224, 210, 0.35); }
 
+/* --- Gym 모드 선택 (강화하기 브리핑) --- */
+.gym-mode-pick { font-size: 0.7rem; color: var(--muted); margin: 0.5rem 0 0.3rem; letter-spacing: 0.06em; }
+.gym-mode-buttons { display: flex; flex-direction: column; gap: 0.3rem; }
+.gym-mode-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+  border-radius: 0.45rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+.gym-mode-btn:hover:not(:disabled) { border-color: var(--accent); }
+.gym-mode-btn:disabled { opacity: 0.5; cursor: default; }
+.gym-error { color: #fca5a5; font-size: 0.75rem; margin-top: 0.35rem; }
+
+/* --- Gym 오버레이 (모달) --- */
+.gym-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 15, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  /* 부모 .side-panel이 pointer-events:none이라 상속을 끊어야 한다 — 안 그러면 모달 클릭이
+     캔버스로 새어 onPointerMissed가 노드를 해제하고 오버레이가 언마운트된다. */
+  pointer-events: auto;
+}
+.gym-modal {
+  width: min(34rem, 92vw);
+  background: rgba(11, 17, 33, 0.96);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.9rem;
+  padding: 1.2rem 1.3rem;
+  box-shadow: 0 0 40px rgba(6, 12, 28, 0.7);
+}
+.gym-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+.gym-mode { font-weight: 700; letter-spacing: 0.03em; color: var(--accent); }
+.gym-progress { font-size: 0.78rem; color: var(--muted); }
+.gym-close {
+  margin-left: auto; background: transparent; border: none; color: var(--muted);
+  font-size: 1rem; cursor: pointer;
+}
+.gym-prompt { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+.gym-utterance {
+  font-size: 1.25rem; font-weight: 600; text-align: center; padding: 0.9rem 0.6rem 1.2rem;
+  color: var(--fg); line-height: 1.5;
+}
+.gym-wrong {
+  font-size: 0.82rem; color: #fca5a5; text-align: center; margin-bottom: 0.7rem;
+  background: rgba(120, 30, 30, 0.25); border-radius: 0.5rem; padding: 0.5rem;
+}
+.gym-wrong strong { color: #f87171; }
+.gym-wrong-tag {
+  display: inline-block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
+  color: #fdba74; background: rgba(124, 45, 18, 0.5); border: 1px solid rgba(234, 88, 12, 0.5);
+  border-radius: 0.3rem; padding: 0.05rem 0.3rem; margin-right: 0.4rem; vertical-align: middle;
+}
+.gym-retry { color: var(--muted); }
+.gym-options { display: flex; flex-direction: column; gap: 0.45rem; }
+.gym-option {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.gym-option:hover { border-color: var(--accent); background: rgba(53, 224, 210, 0.08); }
+.gym-option-wrong { border-color: rgba(248, 113, 113, 0.4); }
+.gym-submit, .gym-result { text-align: center; padding: 1rem 0.5rem; }
+.gym-submit p { margin-bottom: 0.9rem; color: var(--fg); }
+.gym-result-num { font-size: 3rem; font-weight: 800; color: var(--accent); }
+.gym-result-label { font-size: 0.9rem; color: var(--fg); }
+.gym-result-note { font-size: 0.76rem; color: var(--muted); margin: 0.6rem 0 1rem; }
+
 .brain-screen canvas {
   touch-action: none;
 }

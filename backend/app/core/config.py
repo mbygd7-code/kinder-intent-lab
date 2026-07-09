@@ -64,6 +64,11 @@ class GrowthConfig(_Section):
     default_pack_items: int
 
 
+class GymConfig(_Section):
+    evidence_strength: float
+    session_items: int
+
+
 class OntologyConfig(_Section):
     min_intents: int
     min_examples_per_side: int
@@ -144,6 +149,7 @@ class ExperimentsConfig(_Section):
     decision: DecisionConfig
     fast_update: FastUpdateConfig
     growth: GrowthConfig
+    gym: GymConfig
     ontology: OntologyConfig
     llm: LLMConfig
     atlas: AtlasConfig
