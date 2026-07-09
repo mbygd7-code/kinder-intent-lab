@@ -12,20 +12,32 @@
  */
 import { useMemo, useState } from 'react'
 
-import { submitGymSession, type GymItem, type GymResult, type GymSessionStart } from '../api/gym'
+import {
+  GymApiError,
+  submitGymSession,
+  type GymItem,
+  type GymResult,
+  type GymSessionStart,
+} from '../api/gym'
 import { GYM_MODE_LABEL_KO, labelOf } from './intentLabels'
 
 interface Props {
   session: GymSessionStart
   onClose: () => void
+  /** 제출이 실제로 성공한 뒤에만 호출 — 뇌 상태 refetch 트리거(§6-7 [6]). 취소 닫기엔 안 부른다 */
+  onComplete?: () => void
 }
 
-export function GymOverlay({ session, onClose }: Props) {
+export function GymOverlay({ session, onClose, onComplete }: Props) {
   const { items, mode } = session
   const [idx, setIdx] = useState(0)
   const [results, setResults] = useState<GymResult[]>([])
   const [attempts, setAttempts] = useState(0) // 현재 아이템의 다시 시도 수(바로잡기 연습)
-  const [report, setReport] = useState<{ evidence_created: number } | null>(null)
+  // alreadySaved: 재시도가 409(이미 제출됨)를 받은 경우 — 서버에 이미 반영돼 있어 성공으로
+  // 안내하되, 이 호출이 만든 근거 수는 0이므로 숫자를 지어내지 않는다(정직성)
+  const [report, setReport] = useState<
+    { evidence_created: number } | { alreadySaved: true } | null
+  >(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -63,7 +75,14 @@ export function GymOverlay({ session, onClose }: Props) {
     try {
       const rep = await submitGymSession(session.session_id, results)
       setReport({ evidence_created: rep.evidence_created })
-    } catch {
+      onComplete?.()
+    } catch (e) {
+      if (e instanceof GymApiError && e.status === 409) {
+        // 첫 제출이 이미 반영된 재시도(타임아웃 후 등) — 중복 저장 없이 성공으로 안내
+        setReport({ alreadySaved: true })
+        onComplete?.()
+        return
+      }
       setError('저장 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.')
     } finally {
       setBusy(false)
@@ -86,11 +105,19 @@ export function GymOverlay({ session, onClose }: Props) {
 
         {report ? (
           <div className="gym-result">
-            <div className="gym-result-num">{report.evidence_created}</div>
-            <div className="gym-result-label">개의 학습 근거를 쌓았어요</div>
-            <p className="gym-result-note">
-              선생님이 달아 주신 의도가 브레인 학습 근거로 저장됐어요. 고맙습니다!
-            </p>
+            {'alreadySaved' in report ? (
+              <p className="gym-result-note">
+                이미 저장된 세션이에요 — 선생님의 답변이 브레인 학습 근거로 잘 반영되어 있어요.
+              </p>
+            ) : (
+              <>
+                <div className="gym-result-num">{report.evidence_created}</div>
+                <div className="gym-result-label">개의 학습 근거를 쌓았어요</div>
+                <p className="gym-result-note">
+                  선생님이 달아 주신 의도가 브레인 학습 근거로 저장됐어요. 고맙습니다!
+                </p>
+              </>
+            )}
             <button type="button" className="cta-train" onClick={onClose}>완료</button>
           </div>
         ) : done ? (

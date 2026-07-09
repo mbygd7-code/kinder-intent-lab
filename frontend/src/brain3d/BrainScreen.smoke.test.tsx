@@ -129,4 +129,36 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     )
     expect(dots.length).toBeGreaterThanOrEqual(100)
   })
+
+  it('T4.3: bumpReload → 실제로 refetch가 한 번 더 나간다 (§6-7 [6] 갱신 배선 고정)', async () => {
+    // reloadNonce가 effect deps에서 빠지는 회귀(린트 정리 등)를 잡는 테스트 — 카운터가 아니라
+    // fetch 호출 수를 직접 센다
+    stubFetch(true)
+    const fetchMock = vi.mocked(fetch)
+    render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    const callsAfterMount = fetchMock.mock.calls.length
+    useBrainStore.getState().bumpReload()
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBe(callsAfterMount + 1))
+  })
+
+  it('T4.3: 라이브 표시 중 재조회 실패 → 에러 화면으로 뒤집히지 않고 라이브 유지 (정직성)', async () => {
+    // 제출 직후 일시 장애가 '백엔드 미연결'+데모 버튼으로 뒤집히면, 실데이터 위에 mock 진입로가
+    // 열린다 — 기존 라이브 상태를 유지해야 한다
+    let fail = false
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (fail) throw new Error('refetch blip')
+      return { ok: true, json: async () => FAKE_BRAIN } as Response
+    }))
+    const { container } = render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    fail = true
+    useBrainStore.getState().bumpReload()
+    // 실패 응답이 처리될 시간을 준 뒤에도 dataSource는 live, 에러 칩 없음
+    await waitFor(() => {
+      expect(vi.mocked(fetch).mock.results.length).toBeGreaterThanOrEqual(2)
+    })
+    expect(useBrainStore.getState().dataSource).toBe('live')
+    expect(container.querySelector('.error-chip')).toBeNull()
+  })
 })

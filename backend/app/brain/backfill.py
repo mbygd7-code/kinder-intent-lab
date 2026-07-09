@@ -26,12 +26,15 @@ from app.models.governance import GovernanceEvent
 
 EmbedFn = Callable[[list[str]], list[list[float]]]
 
-# evidence_type → evidence_stats 버킷(계약 EvidenceStats). DOMAIN_RULE·HUMAN_CORRECTION은
-# 이 5버킷에 대응이 없어 미집계 — §5-1 버킷은 provenance 품질 카테고리의 부분집합이다.
+# evidence_type → evidence_stats 버킷(계약 EvidenceStats). DOMAIN_RULE은 이 5버킷에 대응이
+# 없어 미집계. HUMAN_CORRECTION은 human_confirmed 버킷 — §6-5 "교정 20개가 들어오면 …
+# 즉시 변하는 것: evidence 카운트·density"와 §6-7 [4](HUMAN_CORRECTION도 human evidence
+# 20건에 포함)·[6](size↑)가 교정 evidence의 즉시 반영을 명시한다 (T4.3 리뷰 MAJOR).
 _TYPE_BUCKET = {
     "SYNTHETIC_CONSENSUS": "synthetic",
     "WEAK_BEHAVIORAL": "weak_behavioral",
     "HUMAN_CONFIRMATION": "human_confirmed",
+    "HUMAN_CORRECTION": "human_confirmed",
     "EXPERT_REVIEW": "expert",
 }
 _BUCKETS = ("synthetic", "weak_behavioral", "human_confirmed", "gold", "expert")

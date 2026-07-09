@@ -19,6 +19,7 @@ from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.gym.challenge import generate_pack, pack_to_dict
 from app.gym.evidence import evidence_type_for
+from app.gym.growth import finalize_session
 from app.gym.pack import build_items, build_pack
 from app.gym.session import start_session
 from app.gym.session import submit_results as _submit
@@ -83,6 +84,11 @@ class SubmitResponse(BaseModel):
     episodes_created: int
     evidence_created: int
     by_type: dict[str, int]
+    # §6-7 [5][6]: 세션 종료 성장 반영 결과 (프론트가 노드 갱신·pending 링 표시에 사용)
+    node_intent: str | None = None
+    episodes_aggregated: int = 0
+    label_states: dict[str, int] = Field(default_factory=dict)
+    pending_set: bool = False
 
 
 # --- T4.2 Challenge Pack 생성 (진단→전략, 사람 세션 이전 단계) ---
@@ -172,10 +178,20 @@ def submit_session(
     gs = session.get(GymSession, session_id)
     if gs is None:
         raise HTTPException(status_code=404, detail="세션 없음")
+    # 멱등 가드: 이미 제출된 세션의 재-POST(타임아웃 재시도·더블클릭)가 에피소드·evidence를
+    # 통째로 복제해 노드 size를 이중 계상하는 것을 차단한다 (T4.3 리뷰 MAJOR)
+    if (gs.results or {}).get("responses"):
+        raise HTTPException(status_code=409, detail="이미 제출된 세션입니다")
     report = _submit(session, gs, [r.model_dump() for r in req.results], config)
+    # §6-7 [5][6] — 세션 종료 성장 반영: aggregator 전이 + 노드 size/density + pending 링
+    fin = finalize_session(session, gs, config)
     return SubmitResponse(
         session_id=report.session_id,
         episodes_created=report.episodes_created,
         evidence_created=report.evidence_created,
         by_type=report.by_type,
+        node_intent=fin.node_intent,
+        episodes_aggregated=fin.episodes_aggregated,
+        label_states=fin.label_states,
+        pending_set=fin.pending_set,
     )

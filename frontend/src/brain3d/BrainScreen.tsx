@@ -55,7 +55,10 @@ export function BrainScreen() {
   const setRegionScores = useBrainStore((s) => s.setRegionScores)
   const setBrainMeta = useBrainStore((s) => s.setBrainMeta)
   const setBrain = useBrainStore((s) => s.setBrain)
+  const reloadNonce = useBrainStore((s) => s.reloadNonce) // Gym 제출 후 bump → 재조회
 
+  // reloadNonce가 오르면 refetch — 노드 배치는 node_id 결정론(layoutNodes)이라 자리 유지,
+  // 훈련된 노드의 size/density/pending ring만 갱신된다(§6-7 [6] 즉시 반영)
   useEffect(() => {
     const ctrl = new AbortController()
     fetchBrainState(ctrl.signal)
@@ -70,11 +73,17 @@ export function BrainScreen() {
       })
       .catch((err: unknown) => {
         if (ctrl.signal.aborted) return
+        // 제출 후 재조회(bump)의 일시 실패는 '백엔드 미연결' 화면으로 뒤집지 않는다 —
+        // 이미 라이브 데이터를 그리는 중이면 실데이터(다소 이전 상태)를 유지하는 게 정직하다
+        if (useBrainStore.getState().dataSource === 'live') {
+          console.warn('brain 재조회 실패 — 기존 라이브 상태 유지:', err)
+          return
+        }
         console.warn('observatory API 미연결:', err)
         setDataSource('error')
       })
     return () => ctrl.abort()
-  }, [setBrain, setBrainMeta, setDataSource, setRegionScores])
+  }, [reloadNonce, setBrain, setBrainMeta, setDataSource, setRegionScores])
 
   const loadMock = () => {
     // 명시적 데모 — MOCK 배지가 계속 표시된다 (실데이터 오인 방지)

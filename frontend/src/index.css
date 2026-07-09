@@ -226,6 +226,28 @@ body {
 .brief-row { display: flex; justify-content: space-between; font-size: 0.76rem; }
 .brief-row span { color: var(--muted); }
 
+/* --- §7-4 pack 브리핑 (T4.3 — 실 Challenge Pack 기반) --- */
+.brief-loading { font-size: 0.76rem; color: var(--muted); margin-top: 0.5rem; }
+.brief-heading { font-size: 0.8rem; line-height: 1.5; }
+.brief-heading strong { color: #fdba74; }
+.brief-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.15rem 0 0.25rem; }
+.brief-chip {
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #93c5fd;
+  background: rgba(30, 58, 138, 0.35);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  border-radius: 0.35rem;
+  padding: 0.08rem 0.4rem;
+}
+.brief-chip-diag {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--panel-border);
+}
+.brief-foundry-note { font-size: 0.74rem; color: var(--muted); line-height: 1.5; margin-top: 0.2rem; }
+
 /* region 라벨(3D)도 클릭 가능한 버튼 — 기본 버튼 스타일 리셋 */
 .region-label { cursor: pointer; font-family: inherit; }
 .region-label-active { box-shadow: 0 0 16px rgba(53, 224, 210, 0.35); }

@@ -25,6 +25,8 @@ interface BrainViewState {
   dataSource: DataSource
   /** 지금 추론에 개입 중인 노드(§7-5 Pulse) — infer/gym 이벤트가 채운다. 기본 비어 있음 */
   pulsingNodeIds: ReadonlySet<string>
+  /** Gym 제출 완료 후 뇌 상태 refetch 트리거(§6-7 [6] 즉시 반영) — BrainScreen이 구독 */
+  reloadNonce: number
   select: (nodeId: string | null) => void
   selectRegion: (regionId: RegionId | null) => void
   setViewMode: (mode: ViewMode) => void
@@ -33,6 +35,7 @@ interface BrainViewState {
   setBrainMeta: (meta: { ktibGlobal: number | null; brainVersion: string | null }) => void
   setDataSource: (source: DataSource) => void
   setPulsing: (ids: Iterable<string>) => void
+  bumpReload: () => void
 }
 
 export const useBrainStore = create<BrainViewState>()((set) => ({
@@ -45,6 +48,7 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   brainVersion: null,
   dataSource: 'loading',
   pulsingNodeIds: new Set<string>(),
+  reloadNonce: 0,
   // 노드 선택 시 region 선택은 유지(좌·우 패널 독립). region 선택은 노드 선택을 지운다.
   select: (nodeId) => set({ selectedNodeId: nodeId }),
   selectRegion: (regionId) => set({ selectedRegionId: regionId, selectedNodeId: null }),
@@ -54,4 +58,6 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   setBrainMeta: ({ ktibGlobal, brainVersion }) => set({ ktibGlobal, brainVersion }),
   setDataSource: (dataSource) => set({ dataSource }),
   setPulsing: (ids) => set({ pulsingNodeIds: new Set(ids) }),
+  // 훈련된 노드의 size/density/pending ring이 화면에 반영되게 재조회만 유도(§7-5 인코딩 불변)
+  bumpReload: () => set((s) => ({ reloadNonce: s.reloadNonce + 1 })),
 }))
