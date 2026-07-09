@@ -23,8 +23,6 @@ const RING_SPECS: Array<{ r: number; w: number; o: number }> = [
 ]
 const DUST_COUNT = 420
 const DUST_SEED = 0xd0_57ed
-const DOT_RINGS = [0.47, 0.69, 0.9, 1.12] // 점선 원 — radial 도트 링
-const DOTS_PER_RING = 72
 
 /** 부드러운 방사형 빛 풀 텍스처 (결정론 — 그라디언트만) */
 function makeGlowTexture(): THREE.Texture {
@@ -58,30 +56,12 @@ function floorDust(): Float32Array {
   return out
 }
 
-function dotRings(): Float32Array {
-  const out = new Float32Array(DOT_RINGS.length * DOTS_PER_RING * 3)
-  let i = 0
-  for (const r of DOT_RINGS) {
-    for (let k = 0; k < DOTS_PER_RING; k++) {
-      const ang = (k / DOTS_PER_RING) * Math.PI * 2
-      out[i * 3] = Math.cos(ang) * r
-      out[i * 3 + 1] = PLATFORM_Y + 0.005
-      out[i * 3 + 2] = Math.sin(ang) * r
-      i++
-    }
-  }
-  return out
-}
-
 export function Platform() {
   const rings = useRef<THREE.Group>(null)
-  const dotsRef = useRef<THREE.Points>(null)
   const glowTex = useMemo(makeGlowTexture, [])
   const dustPos = useMemo(floorDust, [])
-  const dotPos = useMemo(dotRings, [])
   useFrame((_, delta) => {
     if (rings.current) rings.current.rotation.y += delta * 0.1 // 장식 모션
-    if (dotsRef.current) dotsRef.current.rotation.y -= delta * 0.04
   })
   return (
     <group raycast={() => null}>
@@ -113,27 +93,6 @@ export function Platform() {
           </mesh>
         ))}
       </group>
-
-      {/* radial 도트 링 — 반대 방향 저속 회전 */}
-      <points ref={dotsRef} raycast={() => null}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[dotPos, 3]} />
-        </bufferGeometry>
-        <pointsMaterial color={CYAN} size={0.016} transparent opacity={0.65}
-          depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation toneMapped={false} />
-      </points>
-
-      {/* 광기둥: 넓은 원뿔(옅게) + 좁은 코어 빔(밝게) — 뇌간에서 플랫폼으로 */}
-      <mesh position={[0, PLATFORM_Y + 0.6, -0.2]}>
-        <cylinderGeometry args={[0.34, 0.85, 1.25, 40, 1, true]} />
-        <meshBasicMaterial color={CYAN} transparent opacity={0.05} side={THREE.DoubleSide}
-          blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
-      </mesh>
-      <mesh position={[0, PLATFORM_Y + 0.55, -0.32]}>
-        <cylinderGeometry args={[0.09, 0.2, 1.05, 24, 1, true]} />
-        <meshBasicMaterial color="#a5f3fc" transparent opacity={0.12} side={THREE.DoubleSide}
-          blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
-      </mesh>
 
       {/* 뇌간 하단 접점 글로우 */}
       <sprite position={[0, -1.02, -0.42]} scale={[0.5, 0.5, 1]}>

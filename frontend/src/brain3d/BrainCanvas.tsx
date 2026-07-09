@@ -44,6 +44,9 @@ export function BrainCanvas({ nodes, visuals }: Props) {
         minDistance={1.9}
         maxDistance={6.5}
         target={[0, -0.15, 0]}
+        // 상반구만: 폴라각 0(수직 위)~수평까지 — 바닥면 아래로 카메라가 내려가지 못하게 한다
+        minPolarAngle={0.12}
+        maxPolarAngle={Math.PI / 2}
         autoRotate
         autoRotateSpeed={0.3}
         makeDefault
