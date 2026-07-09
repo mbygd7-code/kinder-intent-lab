@@ -4,131 +4,32 @@
 - persona 조회 실패 시 default(중립) prior + fallback_used
 - 결과에 persona_state_version 포함
 - 절대 규칙 5: 훈련 메타데이터(gym_extension)는 scorer 입력(Core)에 절대 안 들어간다
+
+합성 scorer·임베딩·시드·요청 빌더는 brain_helpers에서 공유(T3.3 API 테스트와 공용).
 """
 import json
 
-from app.brain.backfill import bootstrap_nodes, select_exemplars
+from brain_helpers import (
+    CFG,
+    FAST,
+    _client,
+    _embed,
+    _real_intents,
+    _request,
+    _seed,
+    _SyntheticScorer,
+)
+
 from app.brain.inference import core_signals, infer, retrieve_candidates
 from app.brain.priors import (
     issue_state_version,
     set_population_priors,
     set_teacher_priors,
 )
-from app.contracts.infer_request import (
-    GymExtension,
-    InferRequest,
-    PromptInfo,
-    SessionInfo,
-    TeacherContext,
-    WorkspaceContext,
-)
-from app.core.config import get_config
-from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
-from app.llm.base import CompletionResult, EmbeddingRequest, LLMProvider, Usage
-from app.llm.client import LLMClient, LLMConfig
-from app.llm.mock import MockProvider
+from app.contracts.infer_request import GymExtension
+from app.llm.client import LLMClient
 from app.models.brain import InferenceLog
-from app.models.episodes import Episode
 from app.models.persona import PersonaCluster
-
-CFG = get_config()
-FAST = LLMConfig(max_retries=0, timeout_s=5.0, retry_backoff_s=0.0)
-
-
-def _embed():
-    p = MockProvider(embed_dim=1536)
-    return lambda texts: p.embed(EmbeddingRequest(inputs=texts, model="e")).vectors
-
-
-class _SyntheticScorer(LLMProvider):
-    """프롬프트의 candidate_intents를 읽어 결정론적 activation을 돌려준다. 마지막 프롬프트 보관.
-
-    fixed: 모든 후보에 이 activation(없으면 0.9,0.8,… 내림차순). omit: 출력에서 뺄 후보(LLM
-    누락 모사). inject: 후보 밖 intent 주입(계약 위반 모사).
-    """
-
-    name = "synth-scorer"
-
-    def __init__(self, fixed=None, omit=(), inject=()) -> None:
-        self.last_prompt = ""
-        self._fixed = fixed
-        self._omit = set(omit)
-        self._inject = list(inject)
-
-    def complete(self, request) -> CompletionResult:
-        self.last_prompt = request.prompt
-        cands = self._candidates(request.prompt)
-        scores = [
-            {
-                "intent_id": c,
-                "activation": self._fixed if self._fixed is not None
-                else round(max(0.1, 0.9 - 0.1 * i), 3),
-                "rationale": "syn",
-            }
-            for i, c in enumerate(cands)
-            if c not in self._omit
-        ]
-        scores += [{"intent_id": x, "activation": 0.99, "rationale": "bogus"} for x in self._inject]
-        text = json.dumps({"scores": scores}, ensure_ascii=False)
-        usage = Usage(prompt_tokens=max(1, len(request.prompt) // 4),
-                      completion_tokens=max(1, len(text) // 4))
-        return CompletionResult(text=text, model=request.model, provider=self.name,
-                                usage=usage, cost_usd=0.0)
-
-    @staticmethod
-    def _candidates(prompt: str) -> list[str]:
-        # 마지막 ```json 블록이 render_agent_prompt가 붙인 입력 컨텍스트(앞 블록은 출력 예시)
-        start = prompt.rfind("```json")
-        block = prompt[start + 7 : prompt.find("```", start + 7)]
-        return json.loads(block).get("candidate_intents", [])
-
-    def embed(self, request):  # pragma: no cover
-        raise NotImplementedError
-
-
-def _real_intents(n):
-    return [i.intent_id for i in load_ontology().intents if i.intent_id != UNKNOWN_INTENT_ID][:n]
-
-
-def _gold(db, ep_id, intent, prompt) -> None:
-    db.add(Episode(
-        episode_id=ep_id, ontology_version="onto-1.0", lang="ko", dataset_split="TRAIN",
-        reliability_tier="GOLD", label_state="LABELED", origin_channel="FOUNDRY_SYNTHETIC",
-        episode_creator_type="FOUNDRY_PIPELINE", primary_subject_type="SIMULATED_TEACHER",
-        teacher_prompt=prompt, label_distribution={intent: 1.0},
-    ))
-
-
-def _seed(db, embed, pairs):
-    """노드 부트스트랩 + (intent, prompt) GOLD 에피소드 → exemplar 적재."""
-    bootstrap_nodes(db, approved_by="lab")
-    for k, (intent, prompt) in enumerate(pairs):
-        _gold(db, f"EP_SEED_{k}", intent, prompt)
-    db.flush()
-    select_exemplars(db, CFG, embed)
-    db.flush()
-
-
-def _request(prompt_text, *, mode="gym", teacher_ref="TR_1", gym_extension=None,
-             cluster=None) -> InferRequest:
-    tc = (TeacherContext(teacher_ref=teacher_ref, profile={"persona_cluster": cluster})
-          if cluster is not None else TeacherContext(teacher_ref=teacher_ref))
-    kwargs = dict(
-        request_id="REQ_1", schema_version="ir-0.2", mode=mode,
-        session=SessionInfo(session_id="S1", surface_type="play_board", conversation_history=[]),
-        prompt=PromptInfo(text=prompt_text, lang="ko"),
-        workspace_context=WorkspaceContext(objects=[], selection=[]),
-        recent_actions=[],
-        teacher_context=tc,
-    )
-    if gym_extension is not None:  # 명시적 null은 계약이 거부 — 없으면 키 생략
-        kwargs["gym_extension"] = gym_extension
-    return InferRequest(**kwargs)
-
-
-def _client():
-    return LLMClient(_SyntheticScorer(), FAST)
-
 
 # --- AC 1: 4단계 분리 기록 ---
 
