@@ -16,6 +16,7 @@ import type { PlacedNode } from './layout'
 import { NeuralWeb } from './NeuralWeb'
 import { NodesMesh } from './NodesMesh'
 import { ParticleLayer } from './ParticleLayer'
+import { PersonaOverlayLayer } from './PersonaOverlayLayer'
 import { Platform } from './Platform'
 import { RegionLabels } from './RegionLabels'
 import { useBrainStore } from './store'
@@ -23,9 +24,11 @@ import { useBrainStore } from './store'
 interface Props {
   nodes: PlacedNode[]
   visuals?: ReadonlyMap<string, NodeVisual>
+  /** T5.4 Persona Overlay(§7-6) — 선택 클러스터의 intent_id → prior. null = 오버레이 OFF */
+  overlayPriors?: ReadonlyMap<string, number> | null
 }
 
-export function BrainCanvas({ nodes, visuals }: Props) {
+export function BrainCanvas({ nodes, visuals, overlayPriors }: Props) {
   const select = useBrainStore((s) => s.select)
   return (
     <Canvas
@@ -35,6 +38,8 @@ export function BrainCanvas({ nodes, visuals }: Props) {
       gl={{ antialias: true }}
     >
       <NodesMesh nodes={nodes} visuals={visuals} />
+      {/* 절대 규칙 3: 오버레이는 NodesMesh 위 부가 레이어 — 노드 밝기 인코딩을 덮지 않는다 */}
+      {overlayPriors && <PersonaOverlayLayer nodes={nodes} priors={overlayPriors} />}
       <ParticleLayer />
       <NeuralWeb />
       <Platform />

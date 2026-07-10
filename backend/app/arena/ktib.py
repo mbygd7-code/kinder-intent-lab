@@ -26,6 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
+from app.core.datasets import BENCHMARK_SPLIT
 from app.models.arena import KtibItem, KtibVersion
 from app.models.episodes import Episode
 from app.models.foundry import CanonicalScenario
@@ -56,7 +57,7 @@ def eligible_episodes(session: Session) -> list[Episode]:
     return list(session.scalars(
         select(Episode)
         .where(
-            Episode.dataset_split == "BENCHMARK_HOLDOUT",
+            Episode.dataset_split == BENCHMARK_SPLIT,
             Episode.reliability_tier == "GOLD",
             Episode.label_state == "LABELED",
             Episode.origin_channel.notin_(SYNTHETIC_CHANNELS),

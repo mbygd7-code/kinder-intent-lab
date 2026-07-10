@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.brain.priors import current_state_version
 from app.core.config import ExperimentsConfig
+from app.core.datasets import training_gold
 from app.models.brain import BrainVersion, ConfusionEdge
 from app.models.episodes import Episode
 
@@ -46,11 +47,13 @@ def _base_watermark(base: BrainVersion | None) -> int:
 
 
 def count_gold(session: Session) -> int:
-    """GOLD∧LABELED 에피소드 절대량(§3-3)."""
+    """학습 GOLD∧LABELED 에피소드 절대량(§3-3).
+
+    BENCHMARK_HOLDOUT은 제외한다 — 벤치마크를 늘렸다고 candidate 빌드가 트리거되면 안 된다
+    (§8-2 "학습 파이프라인이 접근할 수 없다").
+    """
     return int(session.scalar(
-        select(func.count()).select_from(Episode).where(
-            Episode.reliability_tier == "GOLD", Episode.label_state == "LABELED"
-        )
+        select(func.count()).select_from(Episode).where(training_gold())
     ) or 0)
 
 
@@ -77,11 +80,9 @@ def pending_candidate(session: Session, base_name: str) -> BrainVersion | None:
 
 
 def _gold_nodes(session: Session) -> list[str]:
-    """GOLD∧LABELED 에피소드의 최상위 intent 집합 — 후보가 담는 노드."""
+    """학습 GOLD∧LABELED 에피소드의 최상위 intent 집합 — 후보가 담는 노드 (벤치마크 제외)."""
     rows = session.execute(
-        select(Episode.label_distribution).where(
-            Episode.reliability_tier == "GOLD", Episode.label_state == "LABELED"
-        )
+        select(Episode.label_distribution).where(training_gold())
     ).all()
     return sorted({max(d, key=d.get) for (d,) in rows if d})
 

@@ -8,11 +8,16 @@
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 
-import { fetchBrainState, type ObservatoryBrain } from '../api/observatory'
+import {
+  fetchBrainState,
+  fetchPersonaOverlay,
+  type ObservatoryBrain,
+} from '../api/observatory'
 import { Brain2DFallback } from './Brain2DFallback'
 import { visualFromNode, type NodeVisual } from './encodings'
 import { layoutNodes, type NodeSeed, type PlacedNode } from './layout'
 import { makeMockNodes } from './mockNodes'
+import { PersonaOverlayControl } from './PersonaOverlayControl'
 import { REGION_BY_ID, type RegionId } from './regions'
 import { useBrainStore } from './store'
 
@@ -55,6 +60,10 @@ export function BrainScreen() {
   const setRegionScores = useBrainStore((s) => s.setRegionScores)
   const setBrainMeta = useBrainStore((s) => s.setBrainMeta)
   const setBrain = useBrainStore((s) => s.setBrain)
+  const setPersonaOverlay = useBrainStore((s) => s.setPersonaOverlay)
+  const setPersonaOverlayError = useBrainStore((s) => s.setPersonaOverlayError)
+  const personaOverlay = useBrainStore((s) => s.personaOverlay)
+  const overlayClusterId = useBrainStore((s) => s.overlayClusterId)
   const reloadNonce = useBrainStore((s) => s.reloadNonce) // Gym 제출 후 bump → 재조회
 
   // reloadNonce가 오르면 refetch — 노드 배치는 node_id 결정론(layoutNodes)이라 자리 유지,
@@ -68,7 +77,12 @@ export function BrainScreen() {
         setRegionScores(
           Object.fromEntries(brain.regions.map((r) => [r.region, r.reliability])),
         )
-        setBrainMeta({ ktibGlobal: brain.ktib_global, brainVersion: brain.brain_version })
+        setBrainMeta({
+          ktibGlobal: brain.ktib_global,
+          brainVersion: brain.brain_version,
+          brainStage: brain.brain_stage, // §7-6 — Arena 산출 그대로
+          brainStageName: brain.brain_stage_name,
+        })
         setDataSource('live')
       })
       .catch((err: unknown) => {
@@ -84,6 +98,29 @@ export function BrainScreen() {
       })
     return () => ctrl.abort()
   }, [reloadNonce, setBrain, setBrainMeta, setDataSource, setRegionScores])
+
+  // T5.4 persona-overlay(§7-6·§4-2) — 부가 채널이라 실패해도 dataSource(뇌 화면)는 안 건드린다
+  useEffect(() => {
+    const ctrl = new AbortController()
+    fetchPersonaOverlay(ctrl.signal)
+      .then((overlay) => {
+        if (!Array.isArray(overlay?.clusters)) throw new Error('persona overlay 형식 아님')
+        setPersonaOverlay(overlay)
+      })
+      .catch((err: unknown) => {
+        if (ctrl.signal.aborted) return
+        console.warn('persona overlay 미연결:', err)
+        setPersonaOverlayError() // 이미 ready면 store가 기존 실데이터를 유지한다
+      })
+    return () => ctrl.abort()
+  }, [reloadNonce, setPersonaOverlay, setPersonaOverlayError])
+
+  // 선택된 클러스터의 intent_id → prior 맵 — OFF(null 선택)면 null → 기본 §7-5 인코딩 그대로
+  const overlayPriors = useMemo<ReadonlyMap<string, number> | null>(() => {
+    if (overlayClusterId == null || !personaOverlay) return null
+    const cluster = personaOverlay.clusters.find((c) => c.cluster_id === overlayClusterId)
+    return cluster ? new Map(Object.entries(cluster.priors)) : null
+  }, [personaOverlay, overlayClusterId])
 
   const loadMock = () => {
     // 명시적 데모 — MOCK 배지가 계속 표시된다 (실데이터 오인 방지)
@@ -101,10 +138,10 @@ export function BrainScreen() {
     <div className="brain-screen">
       {effectiveMode === '3d' ? (
         <Suspense fallback={<p className="rotate-hint">3D 로딩…</p>}>
-          <BrainCanvas nodes={data.nodes} visuals={data.visuals} />
+          <BrainCanvas nodes={data.nodes} visuals={data.visuals} overlayPriors={overlayPriors} />
         </Suspense>
       ) : (
-        <Brain2DFallback nodes={data.nodes} />
+        <Brain2DFallback nodes={data.nodes} overlayPriors={overlayPriors} />
       )}
 
       <div className="brain-hud">
@@ -117,6 +154,8 @@ export function BrainScreen() {
             {effectiveMode === '3d' ? '2D 지도로 보기' : '3D 뇌로 보기'}
           </button>
         )}
+        {/* T5.4 Persona Overlay(§7-6) — 뇌가 그려진 뒤에만(로딩/에러 화면엔 오버레이 대상이 없다) */}
+        {(dataSource === 'live' || dataSource === 'mock') && <PersonaOverlayControl />}
         {dataSource === 'mock' && <span className="badge badge-mock">MOCK</span>}
         {dataSource === 'error' && (
           <div className="error-chip">

@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
+from app.core.datasets import is_training_gold
 from app.models.episodes import Episode
 from app.models.foundry import AtlasEntry, CanonicalScenario
 
@@ -115,10 +116,8 @@ def _persona_diversity(node_eps: list[Episode]) -> float | None:
 
 
 def _gold_count(node_eps: list[Episode]) -> int:
-    return sum(
-        1 for e in node_eps
-        if e.reliability_tier == "GOLD" and e.label_state == "LABELED"
-    )
+    """GOLD_LOW 축의 표본 — 벤치마크 에피소드는 학습 자산이 아니므로 세지 않는다(§8-2)."""
+    return sum(1 for e in node_eps if is_training_gold(e))
 
 
 def diagnose_node(

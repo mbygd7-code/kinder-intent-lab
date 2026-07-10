@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
+from app.core.datasets import training_gold
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.foundry.stages.s4_language_miner import cosine_similarity
 from app.models.brain import BrainNode, Exemplar
@@ -115,9 +116,11 @@ def select_exemplars(session: Session, config: ExperimentsConfig, embed_fn: Embe
         existing_eps.add(ex.episode_id)
 
     # ORDER BY로 처리 순서를 고정 — dedup 시 어느 near-중복이 남는지 재현 가능하게(멱등·결정론)
+    # §8-2: BENCHMARK_HOLDOUT은 학습 파이프라인이 접근할 수 없다 — exemplar로 뽑으면 Arena
+    # 점수가 '암기'의 측정치가 된다.
     golds = session.execute(
         select(Episode.episode_id, Episode.teacher_prompt, Episode.label_distribution)
-        .where(Episode.reliability_tier == "GOLD", Episode.label_state == "LABELED")
+        .where(training_gold())
         .order_by(Episode.episode_id)
     ).all()
 
@@ -183,9 +186,7 @@ def aggregate_evidence_stats(session: Session) -> None:
             buckets[intent][bucket] += int(cnt)
 
     for (dist,) in session.execute(
-        select(Episode.label_distribution).where(
-            Episode.reliability_tier == "GOLD", Episode.label_state == "LABELED"
-        )
+        select(Episode.label_distribution).where(training_gold())  # §8-2 벤치마크 제외
     ).all():
         if dist:
             top = max(dist, key=dist.get)

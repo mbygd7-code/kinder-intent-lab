@@ -1,9 +1,11 @@
 /**
  * Region 라벨 콜아웃 — 3중 인코딩의 ② (§7-5: 색 + 라벨 + 위치).
  *
- * 레퍼런스 이미지처럼 [이름 | 점수] 칩을 리더라인으로 로브에 연결한다.
+ * 레퍼런스 이미지처럼 [이름 | 스테이지 | 점수] 칩을 리더라인으로 로브에 연결한다.
  * 점수 = region reliability(§7-2, Arena heldout이 원천) — Arena 미실행이면 null → "—"
  * (값을 지어내지 않는다, 원칙 8).
+ * 스테이지 = §7-6 성장 스테이지(stage_name, 전부 Arena 산출) — 미측정 region은
+ * "Dormant"(잠자는 뇌)로 읽힌다: 실패가 아니라 아직 깨어나기 전 상태다.
  */
 import { Html, Line } from '@react-three/drei'
 
@@ -25,6 +27,7 @@ function labelPos(center: readonly [number, number, number]): [number, number, n
 
 export function RegionLabels() {
   const scores = useBrainStore((s) => s.regionScores)
+  const brain = useBrainStore((s) => s.brain)
   const selectRegion = useBrainStore((s) => s.selectRegion)
   const selectedRegionId = useBrainStore((s) => s.selectedRegionId)
   return (
@@ -32,6 +35,8 @@ export function RegionLabels() {
       {REGIONS.map((r) => {
         const pos = labelPos(r.center)
         const score = scores[r.id as RegionId]
+        // §7-6 stage_name — API 도착 전엔 표기하지 않는다(지어내지 않음)
+        const stageName = brain?.regions.find((x) => x.region === r.id)?.stage_name ?? null
         const active = selectedRegionId === r.id
         return (
           <group key={r.id}>
@@ -53,6 +58,7 @@ export function RegionLabels() {
               >
                 <span className="region-dot" style={{ backgroundColor: r.color }} />
                 <span className="region-name">{r.label}</span>
+                {stageName != null && <span className="region-stage">{stageName}</span>}
                 <span className="region-score" style={{ color: r.color }}>
                   {score == null ? '—' : Math.round(score * 100)}
                 </span>
