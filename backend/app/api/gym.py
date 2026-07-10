@@ -183,7 +183,10 @@ def submit_session(
     if (gs.results or {}).get("responses"):
         raise HTTPException(status_code=409, detail="이미 제출된 세션입니다")
     report = _submit(session, gs, [r.model_dump() for r in req.results], config)
-    # §6-7 [5][6] — 세션 종료 성장 반영: aggregator 전이 + 노드 size/density + pending 링
+    # §6-7 [5][6] — 세션 종료 성장 반영: aggregator 전이 + 노드 size/density + pending 링.
+    # Fast 반영(개인 prior)은 여기서 하지 않는다 — 전역 state_version을 매 submit 발급하면
+    # population·타 트레이너 prior가 current에서 사라지고 seq 경쟁이 난다(리뷰). 주기 배치
+    # (run_fast_update_batch, scripts/run_fast_update.py)가 누적 근거로 한 버전에 적용한다.
     fin = finalize_session(session, gs, config)
     return SubmitResponse(
         session_id=report.session_id,
