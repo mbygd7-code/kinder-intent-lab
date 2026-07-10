@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.arena.runner import apply_confusion_edges, build_outcome
 from app.brain.promote import apply_arena_brightness
-from app.brain.version_gate import SEED_VERSION, current_base
+from app.brain.version_gate import current_brain_version
 from app.core.config import ExperimentsConfig
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
 
@@ -49,9 +49,12 @@ class ReflectResult:
 
 
 def measures_current_brain(session: Session, run: ArenaRun) -> bool:
-    """이 run이 현행(promote된) 뇌를 잰 것인가. 아니면 candidate를 잰 것이다."""
-    base = current_base(session)
-    return run.model_version == (base.version if base is not None else SEED_VERSION)
+    """이 run이 현행(promote된) 뇌를 잰 것인가. 아니면 candidate를 잰 것이다.
+
+    `observatory._ktib_global`·`stages.stage4_inputs`와 **같은 기준**을 쓴다 — 한쪽만 candidate를
+    걸러내면 3D 뇌의 중앙 수치와 노드 밝기가 서로 다른 뇌를 가리키게 된다.
+    """
+    return run.model_version == current_brain_version(session)
 
 
 def reflect_arena_run(

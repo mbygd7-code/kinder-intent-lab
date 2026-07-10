@@ -218,3 +218,16 @@ def build_cluster_report(result: ClusterResult, vectors: dict[str, list[float]])
             )
         )
     return ClusterReport(rows=rows)
+
+
+def report_lines(report: ClusterReport) -> list[str]:
+    """8축 가설 대조표를 사람이 읽을 줄로. 러너와 테스트가 **같은 함수**를 쓴다.
+
+    (러너가 직접 필드명을 적으면 이 dataclass가 바뀔 때 조용히 어긋나 실행 시점에야 터진다 —
+    실제로 그렇게 터졌다.)
+    """
+    return [
+        f"cluster={row.cluster_label} n={row.member_count} "
+        f"dominant_domain={row.dominant_domain or 'BALANCED'} axis={row.hypothesis_axis}"
+        for row in report.rows
+    ]

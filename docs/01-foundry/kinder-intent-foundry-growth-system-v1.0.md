@@ -943,12 +943,13 @@ visual_semantics:
 
 ```text
 /docs
+  /00-overview     ← 전체 그림·원리·데이터 흐름·운영 절차 (처음 오는 사람은 여기부터)
   /01-foundry
       kinder-intent-foundry-growth-system-v1.0.md   ← 이 문서 (제1 설계 문서)
   /02-brain        (Seed Brain 구현 상세 — §5 확장 시)
   /03-gym          (Gym 시나리오·모드 상세)
   /04-observatory  (3D Brain 구현 상세 — §7 확장 시)
-  /05-arena        (KTIB 구성·지표 정의 = 문서 ③)
+  /05-arena        (위험 등급표 + 지표 정의 = 문서 ③)  ← 구현·확정 완료
   /06-runtime-integration
       kinder-intent-runtime-spec-v0.1.md            ← 보류 (KTIB 80% 후 부활)
 ```

@@ -305,6 +305,58 @@ def test_brain_run_sets_ktib_global(api, db_session) -> None:
     assert body["brain_stage"] == 5 and body["brain_stage_name"] == "Whole Brain Resonance"
 
 
+def test_rejected_candidate_never_becomes_the_brains_headline(api, db_session) -> None:
+    """★ CRITICAL 회귀: reject된 후보의 높은 global이 3D 뇌의 중앙 수치·스테이지로 새면 안 된다.
+
+    §6-6 "reject → 숫자는 폐기된다". 후보 run도 run_type='brain'이라, model_version으로 걸러내지
+    않으면 최신 run이 곧 뇌의 상태가 되어 버린다(존재하지 않는 뇌를 렌더).
+    """
+    db_session.add(KtibVersion(ktib_version="ktib-1", seq=1, extractor_versions={},
+                               episode_count=1, content_hash="h1"))
+    db_session.flush()
+    # 현행 뇌(seed-v0)를 잰 run — 낮은 점수
+    db_session.add(ArenaRun(
+        run_id="AR_base", model_version="seed-v0", ontology_version="onto-1.0",
+        persona_state_version="none", extractor_versions={}, ktib_version="ktib-1",
+        run_type=RUN_TYPE_BRAIN, metrics={"first_intent_accuracy": 0.42}, confusion_matrix=[],
+    ))
+    db_session.flush()
+    # region 회귀로 reject된 후보를 잰 run — global은 목표를 넘었다
+    db_session.add(BrainVersion(version="seed-v0-rc1", base="seed-v0", trigger="t",
+                                delta={}, decision="reject",
+                                arena_result={"run_id": "AR_cand"}))
+    db_session.add(ArenaRun(
+        run_id="AR_cand", model_version="seed-v0-rc1", ontology_version="onto-1.0",
+        persona_state_version="none", extractor_versions={}, ktib_version="ktib-1",
+        run_type=RUN_TYPE_BRAIN, metrics={"first_intent_accuracy": 0.95}, confusion_matrix=[],
+    ))
+    db_session.flush()
+
+    body = api.get("/v1/observatory/brain").json()
+    assert body["brain_version"] == "seed-v0"   # promote 없음 — 여전히 seed
+    assert body["ktib_global"] == 0.42          # ★ 0.95가 아니다
+    assert body["brain_stage"] != 5             # 목표 도달로 렌더되지 않는다
+
+
+def test_candidate_run_excluded_from_stage4_window(db_session) -> None:
+    """★ 같은 뿌리: Stage 4 추세 윈도도 현행 뇌를 잰 run만 본다."""
+    from app.arena.stages import stage4_inputs
+
+    db_session.add(KtibVersion(ktib_version="ktib-1", seq=1, extractor_versions={},
+                               episode_count=1, content_hash="h1"))
+    db_session.flush()
+    for run_id, mv in (("AR_base", "seed-v0"), ("AR_cand", "seed-v0-rc1")):
+        db_session.add(ArenaRun(
+            run_id=run_id, model_version=mv, ontology_version="onto-1.0",
+            persona_state_version="none", extractor_versions={}, ktib_version="ktib-1",
+            run_type=RUN_TYPE_BRAIN, metrics={"by_node": {}}, confusion_matrix=[],
+        ))
+        db_session.flush()
+
+    _edges, history = stage4_inputs(db_session, CFG)
+    assert [r.run_id for r in history] == ["AR_base"]
+
+
 # --- Persona Overlay ---
 
 

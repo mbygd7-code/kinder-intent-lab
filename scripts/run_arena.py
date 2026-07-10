@@ -119,8 +119,14 @@ def main() -> int:
                     print(f"KTIB 축 불일치 — {exc}", file=sys.stderr)
                     return 4
                 if base_run is None:
-                    print(f"기준 run 없음(base={base_name}) — 먼저 --candidate 없이 1회 실행해 "
-                          f"기준 점수를 만들어라. 상승을 입증할 수 없으면 promote되지 않는다.")
+                    # ★ 기준이 없으면 global_delta=0이 되어 candidate가 **영구히 reject**된다.
+                    #   측정하지 못한 비교를 되돌릴 수 없는 판정으로 바꾸지 않는다 — 중단한다.
+                    print(f"기준 run 없음(base={base_name}) — 판정하지 않고 중단한다.\n"
+                          f"  먼저 `--candidate 없이` 1회 실행해 현행 뇌의 기준 점수를 만들어라.\n"
+                          f"  (기준 없이 판정하면 상승을 입증할 수 없어 후보가 그냥 폐기된다)",
+                          file=sys.stderr)
+                    session.rollback()
+                    return 5
                 outcome = build_outcome(result.run, base_run, config)
                 decision = resolve_candidate(session, cand, outcome, config)
                 print(f"decision={decision.decision} version={decision.version} "

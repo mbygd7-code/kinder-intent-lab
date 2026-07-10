@@ -50,6 +50,7 @@ from app.foundry.persona import (  # noqa: E402
     build_cluster_report,
     cluster_trainers,
     persist_clusters,
+    report_lines,
 )
 from app.foundry.persona_source import eligible_interactions, load_interactions  # noqa: E402
 
@@ -97,11 +98,9 @@ def main() -> int:
                       file=sys.stderr)
                 return 2
 
-            report = build_cluster_report(result, vectors)
             print("\n=== 8축 가설 대조표 (§4) ===")
-            for row in report.rows:
-                print(f"  {row.cluster_id}: n={row.member_count} "
-                      f"closest_axis={row.closest_axis} distance={row.distance:.4f}")
+            for line in report_lines(build_cluster_report(result, vectors)):
+                print(f"  {line}")
 
             # prior가 바뀌면 새 버전이다 — 기존 버전을 덮어쓰지 않는다(§5-3 replay)
             state_version = issue_state_version(session, reason="persona_discovery")

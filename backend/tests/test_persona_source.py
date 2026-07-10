@@ -133,3 +133,26 @@ def test_no_interactions_yields_empty_not_error(db_session) -> None:
     assert load_interactions(db_session) == []
     kept, counts = eligible_interactions([], CFG)
     assert kept == [] and counts == {}
+
+
+def test_report_lines_use_real_dataclass_fields() -> None:
+    """★ 회귀: 러너가 ClusterReportRow의 없는 필드를 읽어 성공 시 무조건 AttributeError였다.
+
+    러너와 이 테스트가 같은 `report_lines()`를 쓰므로 필드가 바뀌면 여기서 먼저 깨진다.
+    """
+    from app.foundry.persona import (
+        DOMAINS,
+        ClusterResult,
+        build_cluster_report,
+        report_lines,
+    )
+
+    refs = ["TR_a", "TR_b", "TR_c"]
+    # 전원 첫 domain에 편향된 벡터 (domain 편향 7 + correction/confirmation 2)
+    vectors = {r: [1.0] + [0.0] * (len(DOMAINS) - 1) + [0.0, 1.0] for r in refs}
+    result = ClusterResult(labels=dict.fromkeys(refs, 0), n_clusters=1, order=refs)
+
+    lines = report_lines(build_cluster_report(result, vectors))
+    assert len(lines) == 1
+    assert "cluster=0" in lines[0] and "n=3" in lines[0]
+    assert f"dominant_domain={DOMAINS[0]}" in lines[0] and "axis=" in lines[0]

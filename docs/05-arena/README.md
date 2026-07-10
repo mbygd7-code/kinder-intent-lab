@@ -42,7 +42,7 @@
 |---|---|---|
 | model_version | `arena_runs.model_version` | brain 버전(`brain_versions.version`) 또는 `zero_shot:<model>` |
 | ontology_version | `arena_runs.ontology_version` | `seeds/ontology_v1.yaml` |
-| persona_state_version | `arena_runs.persona_state_version` | `persona_state_versions` (zero-shot은 `none`) |
+| persona_state_version | `arena_runs.persona_state_version` | `persona_state_versions`. zero-shot도 **run 시점의 현행 버전을 그대로 기록**한다(prior를 쓰지는 않는다). 발급된 버전이 없으면 `none` |
 | extractor_versions | `arena_runs.extractor_versions` | KTIB가 동결한 지문 (`ktib_versions.extractor_versions`) |
 
 > "Brain이 좋아진 것인지 Extractor가 좋아진 것인지 귀속을 분리할 수 없으면 그 점수는

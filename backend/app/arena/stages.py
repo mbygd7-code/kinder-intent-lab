@@ -213,13 +213,22 @@ def brain_stage(
 def stage4_inputs(
     session: Session, config: ExperimentsConfig
 ) -> tuple[list[ConfusionEdge], list[ArenaRun]]:
-    """confirmed edge 전체 + 최신 brain run의 ktib_version에 속한 최근 W개 run(오래된 순)."""
-    from app.models.arena import RUN_TYPE_BRAIN  # 지역 import — 순환 방지
+    """confirmed edge 전체 + **현행 뇌를 잰** 최근 W개 brain run(오래된 순, 동일 ktib_version).
+
+    candidate run(`<base>-rcN`)은 제외한다 — reject된 후보의 점수로 성장 추세를 그리면 존재하지
+    않는 뇌의 상태를 렌더하게 된다(§6-6 "reject → 숫자는 폐기된다").
+    """
+    from app.brain.version_gate import current_brain_version  # 지역 import — 순환 방지
+    from app.models.arena import RUN_TYPE_BRAIN
 
     edges = list(session.scalars(select(ConfusionEdge)))
+    brain_version = current_brain_version(session)
     latest = session.scalar(
         select(ArenaRun)
-        .where(ArenaRun.run_type == RUN_TYPE_BRAIN)
+        .where(
+            ArenaRun.run_type == RUN_TYPE_BRAIN,
+            ArenaRun.model_version == brain_version,
+        )
         .order_by(ArenaRun.created_at.desc())
         .limit(1)
     )
@@ -230,6 +239,7 @@ def stage4_inputs(
         select(ArenaRun)
         .where(
             ArenaRun.run_type == RUN_TYPE_BRAIN,
+            ArenaRun.model_version == brain_version,
             ArenaRun.ktib_version == latest.ktib_version,  # 신·구 벤치마크를 섞지 않는다(§8-2)
         )
         .order_by(ArenaRun.created_at.desc())

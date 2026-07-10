@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.arena.stages import STAGE_NAMES, brain_stage, region_stages, stage4_inputs
 from app.brain.diagnosis import diagnose_node
 from app.brain.priors import current_state_version
-from app.brain.version_gate import version_gate_status
+from app.brain.version_gate import current_brain_version, version_gate_status
 from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
 from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
@@ -50,10 +50,20 @@ def _diversity(stats: dict) -> float:
 
 
 def _ktib_global(session: Session) -> float | None:
-    """§7-1 중앙 수치 — 마지막 **brain** arena run만. 베이스라인 run은 밝기 원천이 아니다(§8-2)."""
+    """§7-1 중앙 수치 — **현행 뇌를 잰 brain run**만.
+
+    두 가지를 배제한다:
+    - `zero_shot_baseline` run — 밝기의 원천이 아니다(§8-2 베이스라인 규칙)
+    - **candidate를 잰 run**(`<base>-rcN`) — promote되기 전이거나 reject됐다면 그 숫자는 이 뇌의
+      것이 아니다(§6-6 "reject → 숫자는 폐기된다"). 이 필터가 없으면 회귀로 거부된 후보의 높은
+      global이 3D 뇌의 중앙 수치와 성장 스테이지로 새어나온다(절대 규칙 3).
+    """
     metrics = session.scalar(
         select(ArenaRun.metrics)
-        .where(ArenaRun.run_type == RUN_TYPE_BRAIN)
+        .where(
+            ArenaRun.run_type == RUN_TYPE_BRAIN,
+            ArenaRun.model_version == current_brain_version(session),
+        )
         .order_by(ArenaRun.created_at.desc())
         .limit(1)
     )
@@ -160,8 +170,9 @@ class PersonaOverlayOut(BaseModel):
     """같은 뇌를 페르소나 클러스터별 활성 분포로 전환해 본다 (§7-6).
 
     원천은 `population_priors` — §5-5에서 **LLM 밖에서 activation에 곱해지는 배수**다.
-    측정된 클러스터별 정확도(Persona Lift/Harm)가 아니다. 그 지표는 아직 정의되지 않았다
-    (docs/05-arena §6 TBD) — 없는 값을 이 응답에서 지어내지 않는다.
+    측정된 클러스터별 정확도(Persona Lift/Harm)가 **아니다**. 그 지표는 docs/05-arena §8-3에
+    정의돼 있고 `app/arena/persona.py`가 arena run 시점에 계산해 `metrics["persona"]`에 동결한다.
+    이 엔드포인트는 의도적으로 **prior 배수만** 노출한다 — 여기서 측정값을 지어내지 않는다.
     """
 
     state_version: str | None

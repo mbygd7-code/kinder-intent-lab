@@ -42,6 +42,16 @@ def _base_name(base: BrainVersion | None) -> str:
     return base.version if base is not None else SEED_VERSION
 
 
+def current_brain_version(session: Session) -> str:
+    """지금 살아 있는 뇌의 버전명 (promote된 최신, 없으면 seed-v0).
+
+    **어떤 arena run이 '현행 뇌'를 잰 것인지 판정하는 단일 기준이다.** candidate를 잰 run은
+    `<base>-rcN`이라 여기와 일치하지 않는다 — reject된 후보의 점수가 3D 뇌의 상태로 렌더되면
+    안 되기 때문(절대 규칙 3·§6-6 "reject → 숫자는 폐기된다").
+    """
+    return _base_name(current_base(session))
+
+
 def _base_watermark(base: BrainVersion | None) -> int:
     return int((base.delta or {}).get("gold_watermark", 0)) if base is not None else 0
 
