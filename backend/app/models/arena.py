@@ -89,4 +89,6 @@ class ArenaRun(Base):
     )
     metrics = mapped_column(JSONB, nullable=False)
     confusion_matrix = mapped_column(JSONB)
-    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+    # clock_timestamp(): now()는 트랜잭션 시작 시각이라 한 트랜잭션의 여러 run이 같은 값을 갖고
+    # '최신 run' 정렬이 비결정적이 된다(마이그레이션 0014). run 로그는 행 삽입 시각이어야 한다.
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("clock_timestamp()"))
