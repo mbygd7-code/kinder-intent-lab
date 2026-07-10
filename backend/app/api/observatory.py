@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.brain.diagnosis import diagnose_node
+from app.brain.version_gate import version_gate_status
 from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
 from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
@@ -157,4 +158,28 @@ def node_diagnosis(
         screen_context_coverage=ax(dg.screen_context_coverage),
         persona_diversity=ax(dg.persona_diversity),
         gold_data=ax(dg.gold_data),
+    )
+
+
+# --- Version Gate 상태 (§6-6, T4.5 — candidate pending 표시용, 읽기 전용) ---
+
+
+class VersionGateOut(BaseModel):
+    base_version: str
+    new_gold: int
+    min_new_gold: int
+    condition_met: bool           # 신규 GOLD ≥ 임계 → 후보 빌드 가능
+    pending_candidate: str | None  # 아직 Arena 판정 안 난 후보(있으면 버전명)
+
+
+@router.get("/version-gate", response_model=VersionGateOut)
+def version_gate(
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> VersionGateOut:
+    """§6-6 후보 생성 게이트 상태 — 읽기만 한다(후보 빌드는 배치 scripts/run_version_gate.py)."""
+    s = version_gate_status(session, config)
+    return VersionGateOut(
+        base_version=s.base_version, new_gold=s.new_gold, min_new_gold=s.min_new_gold,
+        condition_met=s.condition_met, pending_candidate=s.pending_candidate,
     )
