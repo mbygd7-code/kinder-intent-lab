@@ -395,10 +395,17 @@ python scripts/run_human_review.py --apply review_queue.yaml --commit
 
 - **KTIB 자격 에피소드가 0건이다.** 그래서 위 게이트의 안전·persona 레그는 구조적으로 null이다.
   §10의 절차로 사람이 채워야 한다 — 코드로 만들 수 없다.
-- **Persona Discovery(§4)를 돌릴 데이터가 없다.** `app/foundry/persona.py`는 Gym 세션의 트레이너
-  상호작용을 클러스터링하는데, `gym_sessions = 0`이고 `TEACHER_TRAINER` evidence도 0이다.
-  실제 트레이너가 Gym을 플레이해야 클러스터가 생기고, 그제서야 Persona Lift/Harm과 3D Persona
-  Overlay가 null을 벗어난다.
+- **Persona Discovery(§4)를 돌릴 데이터가 없다.** 실행 경로는 이제 있다
+  (`scripts/run_persona_discovery.py` → `app/foundry/persona_source.py` 어댑터 → `persona.py` 클러스터링
+  → `persona_clusters` + `population_priors` + 새 `persona_state_version` 발급). 그러나
+  `TEACHER_TRAINER` evidence가 0건이라 클러스터링할 상호작용이 없다. **실제 트레이너가 Gym을
+  플레이해야** 클러스터가 생기고, 그제서야 Persona Lift/Harm과 3D Persona Overlay가 null을 벗어난다.
+  - 자연 분포만 센다: `adversarial=true`(Break the Brain) evidence는 제외한다(절대 규칙 6).
+  - `config.persona.min_interactions` 미만 트레이너는 제외 — 상호작용 두세 건으로 주장한 성향의
+    prior는 추론을 오염시킨다.
+  - 클러스터가 하나도 발견되지 않으면(전부 노이즈) 아무것도 적재하지 않고 exit 2한다.
+  - prior가 바뀌면 **항상 새 `persona_state_version`을 발급**한다 — 과거 arena run이 오늘의
+    prior로 다시 채점되지 않도록(§5-3 replay).
 - **exemplar가 0건이다.** GOLD가 0이기 때문이다 — §10의 인간 검수 경로가 이를 푼다.
 - **에피소드는 `scenario_id`를 통해서만 workspace를 갖는다.** 시나리오가 없는 벤치마크
   에피소드(전문가 작성 등)의 `workspace_snapshot`은 `null`이고, 그 경우 `visual_semantics`

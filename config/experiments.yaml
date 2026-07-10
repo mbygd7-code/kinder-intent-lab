@@ -76,6 +76,7 @@ atlas:
 persona:                           # §4-1 [4] 밀도 기반 클러스터링 (HDBSCAN 파라미터)
   cluster_min_size: 3             # 최소 클러스터 크기
   cluster_min_samples: 2          # core point 판정 이웃 수
+  min_interactions: 10            # 트레이너 1인이 성향을 주장하려면 필요한 최소 상호작용 수
 
 label_aggregator:
   min_label_functions: 2          # 독립 labeling 신호 최소 수

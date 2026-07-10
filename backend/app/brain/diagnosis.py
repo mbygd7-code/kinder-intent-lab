@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
-from app.core.datasets import is_training_gold
+from app.core.datasets import is_training_gold, not_benchmark
 from app.models.episodes import Episode
 from app.models.foundry import AtlasEntry, CanonicalScenario
 
@@ -62,9 +62,17 @@ def _norm_entropy(counts: list[int]) -> float:
 
 
 def _node_episodes(session: Session, intent_id: str) -> list[Episode]:
-    """이 노드에 귀속되는 에피소드 — label_distribution 최상위 intent가 이 intent."""
+    """이 노드에 귀속되는 **학습** 에피소드 — label_distribution 최상위 intent가 이 intent.
+
+    §8-2: 진단은 학습 파이프라인의 일부다(약한 노드 → 훈련 우선순위). 벤치마크 에피소드가
+    커버리지·persona 축에 섞이면 "이미 충분히 덮여 있다"는 거짓 진단이 나오고, 그 판단이
+    Challenge Pack 생성에 흘러간다. `datasets.py`가 선언한 계약대로 네 축 모두 벤치마크를 뺀다.
+    """
     rows = session.scalars(
-        select(Episode).where(Episode.label_distribution.has_key(intent_id))
+        select(Episode).where(
+            Episode.label_distribution.has_key(intent_id),
+            not_benchmark(),  # §8-2 — gold_data 축만이 아니라 네 축 전부에 적용
+        )
     )
     def _top(dist: dict) -> str:
         return max(dist, key=dist.get)

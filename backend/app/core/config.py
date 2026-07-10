@@ -111,6 +111,8 @@ class AtlasConfig(_Section):
 class PersonaConfig(_Section):
     cluster_min_size: int
     cluster_min_samples: int
+    # 상호작용 표본이 얇은 트레이너는 클러스터에 넣지 않는다 — 그 prior는 소음이다 (§4-1)
+    min_interactions: int = Field(ge=1)
 
 
 class LabelAggregatorConfig(_Section):

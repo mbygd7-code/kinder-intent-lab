@@ -119,6 +119,26 @@ def test_benchmark_gold_does_not_hide_gold_low(db_session) -> None:
     assert dg.gold_data.level == "LOW"    # → 여전히 약하다고 진단해야 한다
 
 
+def test_diagnosis_excludes_benchmark_from_all_four_axes(db_session) -> None:
+    """★ 진단은 학습 파이프라인의 일부다 — 네 축 **전부** 벤치마크를 뺀다(§8-2).
+
+    persona/커버리지 축이 벤치마크를 세면 "이미 충분히 덮여 있다"는 거짓 진단이 나오고,
+    그 판단이 Challenge Pack 생성(훈련 우선순위)으로 흘러간다.
+    """
+    from app.brain.diagnosis import _node_episodes
+
+    intent = _intent(0)
+    _episode(db_session, "EP_TRAIN", intent, split="TRAIN", prompt="학습용")
+    bench = _episode(db_session, "EP_BENCH", intent, split="BENCHMARK_HOLDOUT", prompt="벤치")
+    # 벤치마크 에피소드가 persona 축에 기여할 수 있는 상태로 만든다
+    bench.persona_lens_used = "P_STRICT"
+    db_session.flush()
+
+    seen = _node_episodes(db_session, intent)
+    assert [e.episode_id for e in seen] == ["EP_TRAIN"]
+    assert diagnose_node(db_session, intent, CFG).persona_diversity.value is None
+
+
 # --- 4. Version Gate new_gold ---
 
 
