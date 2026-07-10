@@ -4,11 +4,14 @@
  * BrainScreen 스모크: jsdom엔 WebGL이 없다 → §7-5 자동 2D fallback 경로가 실제 렌더로
  * 검증된다. Observatory API는 fetch 스텁 — live 경로(실 노드 렌더)와 error→명시적 MOCK
  * 경로(배지 필수)를 모두 확인한다. AC2의 라벨·색 축이 "렌더된 DOM"에서 확인되는 테스트.
+ *
+ * T5.4: §7-6 성장 스테이지 HUD + Persona Overlay(부가 채널 — 절대 규칙 3: 기본 노드
+ * 렌더링은 오버레이 ON에서도 불변)도 2D fallback DOM에서 검증한다.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ObservatoryBrain } from '../api/observatory'
+import type { ObservatoryBrain, PersonaOverlay } from '../api/observatory'
 import App from '../App'
 import { BrainScreen } from './BrainScreen'
 import { makeMockNodes } from './mockNodes'
@@ -32,9 +35,19 @@ const FAKE_BRAIN: ObservatoryBrain = {
   })),
 }
 
-function stubFetch(ok: boolean, brain: ObservatoryBrain = FAKE_BRAIN) {
-  vi.stubGlobal('fetch', vi.fn(async () => {
+// Persona Discovery 미실행 기본값 — clusters 빈 배열(토글 비활성 + 정직한 안내가 AC)
+const EMPTY_OVERLAY: PersonaOverlay = { state_version: null, prior_cap: 0.15, clusters: [] }
+
+function stubFetch(
+  ok: boolean,
+  brain: ObservatoryBrain = FAKE_BRAIN,
+  overlay: PersonaOverlay = EMPTY_OVERLAY,
+) {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (!ok) throw new Error('connection refused')
+    if (String(url).includes('persona-overlay')) {
+      return { ok: true, json: async () => overlay } as Response
+    }
     return { ok: true, json: async () => brain } as Response
   }))
 }
@@ -55,8 +68,10 @@ const ARENA_BRAIN: ObservatoryBrain = {
 
 beforeEach(() => {
   useBrainStore.setState({
-    selectedNodeId: null, viewMode: '3d', regionScores: {}, ktibGlobal: null,
-    brainVersion: null, dataSource: 'loading', pulsingNodeIds: new Set(),
+    selectedNodeId: null, selectedRegionId: null, viewMode: '3d', brain: null,
+    regionScores: {}, ktibGlobal: null, brainVersion: null, brainStage: null,
+    brainStageName: null, dataSource: 'loading', personaOverlay: null,
+    personaOverlayStatus: 'loading', overlayClusterId: null, pulsingNodeIds: new Set(),
   })
 })
 
@@ -109,11 +124,25 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     // App 헤더: ktib 0.618 → "61.8%" (— 아님), 버전 표기
     expect(await screen.findByText('61.8%')).toBeTruthy()
     expect(screen.getByText(/v0\.21/)).toBeTruthy()
+    // T5.4(§7-6): 뇌 전체 성장 스테이지가 KTIB 수치 곁에 그대로 뜬다
+    expect(screen.getByText('Stage 3 · Region Online')).toBeTruthy()
     await waitFor(() => {
       const s = useBrainStore.getState()
       expect(s.ktibGlobal).toBe(0.618)
+      expect(s.brainStage).toBe(3)
       expect(s.regionScores.PLAY).toBe(0.7) // 비null reliability 적재
       expect(s.regionScores.VISUAL).toBeNull() // 미측정 region은 여전히 null
+    })
+  })
+
+  it('T5.4(§7-6): 미측정 뇌는 실패가 아니라 Dormant — 스테이지 칩 + KTIB "—%" + region 스테이지', async () => {
+    stubFetch(true) // FAKE_BRAIN: brain_stage 0 "Dormant", ktib null, 전 region Dormant
+    render(<App />)
+    expect(await screen.findByText('Stage 0 · Dormant')).toBeTruthy()
+    expect(screen.getByText('—%')).toBeTruthy() // null ktib는 0이 아니라 "—"
+    // 좌 패널: region 목록 7개 전부 stage_name 표기 (+ 전체 배지 1)
+    await waitFor(() => {
+      expect(screen.getAllByText('Dormant').length).toBeGreaterThanOrEqual(7)
     })
   })
 
@@ -139,14 +168,17 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
 
   it('T4.3: bumpReload → 실제로 refetch가 한 번 더 나간다 (§6-7 [6] 갱신 배선 고정)', async () => {
     // reloadNonce가 effect deps에서 빠지는 회귀(린트 정리 등)를 잡는 테스트 — 카운터가 아니라
-    // fetch 호출 수를 직접 센다
+    // fetch 호출 수를 직접 센다 (T5.4부터 persona-overlay도 fetch하므로 brain URL만 센다)
     stubFetch(true)
     const fetchMock = vi.mocked(fetch)
+    const brainCalls = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('/v1/observatory/brain'))
+        .length
     render(<BrainScreen />)
     await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
-    const callsAfterMount = fetchMock.mock.calls.length
+    const callsAfterMount = brainCalls()
     useBrainStore.getState().bumpReload()
-    await waitFor(() => expect(fetchMock.mock.calls.length).toBe(callsAfterMount + 1))
+    await waitFor(() => expect(brainCalls()).toBe(callsAfterMount + 1))
   })
 
   it('T4.3: 라이브 표시 중 재조회 실패 → 에러 화면으로 뒤집히지 않고 라이브 유지 (정직성)', async () => {
@@ -167,5 +199,82 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     })
     expect(useBrainStore.getState().dataSource).toBe('live')
     expect(container.querySelector('.error-chip')).toBeNull()
+  })
+})
+
+describe('T5.4 Persona Overlay (§7-6·§4-2 — 부가 채널, 절대 규칙 3)', () => {
+  // FAKE_BRAIN의 실 mock intent에 붙는 클러스터: 01=강조(0.9), 02=중립(0.5), 03=억제(0.1),
+  // 나머지 intent들은 prior 부재 → 전부 중립(마크 없음 — 어둡게 그리면 값 날조다)
+  const CLUSTER_OVERLAY: PersonaOverlay = {
+    state_version: 'PS_1',
+    prior_cap: 0.15,
+    clusters: [
+      {
+        cluster_id: 'C_warm',
+        member_count: 6,
+        state_version: 'PS_1',
+        priors: { play_intent_01: 0.9, play_intent_02: 0.5, play_intent_03: 0.1 },
+      },
+    ],
+  }
+
+  const dotSnapshot = (container: HTMLElement) =>
+    [...container.querySelectorAll('circle.node-dot')].map((c) =>
+      ['cx', 'cy', 'r', 'fill', 'fill-opacity', 'stroke'].map((a) => c.getAttribute(a)).join('|'),
+    )
+
+  it('오버레이 ON: 마크는 비중립 prior에만 추가되고, 기본 노드 점은 1속성도 안 변한다', async () => {
+    stubFetch(true, FAKE_BRAIN, CLUSTER_OVERLAY)
+    const { container } = render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    const toggle = await screen.findByRole('button', { name: '오버레이 켜기' })
+    expect((toggle as HTMLButtonElement).disabled).toBe(false)
+
+    const before = dotSnapshot(container)
+    expect(before.length).toBeGreaterThanOrEqual(100)
+    expect(container.querySelectorAll('.persona-mark').length).toBe(0) // OFF = 마크 없음
+
+    fireEvent.click(toggle)
+    // 01(0.9)→boost, 03(0.1)→damp — 02(중립 0.5)와 prior 부재 노드는 마크가 없다(중립≠어두움)
+    await waitFor(() => expect(container.querySelectorAll('.persona-mark').length).toBe(2))
+    expect(container.querySelectorAll('.persona-mark-boost').length).toBe(1)
+    expect(container.querySelectorAll('.persona-mark-damp').length).toBe(1)
+    // 절대 규칙 3: 오버레이는 부가 채널 — §7-5 기본 인코딩(밝기 포함)을 싣는 기본 점은 불변
+    expect(dotSnapshot(container)).toEqual(before)
+    // 범례: prior_cap 명시(강조가 무한한 영향으로 읽히지 않게) + 사전 배수임을 표기
+    expect(screen.getByText(/prior_cap\s*0\.15/)).toBeTruthy()
+    expect(screen.getByText(/측정 정확도가 아니며/)).toBeTruthy()
+
+    // OFF로 되돌리면 마크만 사라지고 기본 점은 그대로
+    fireEvent.click(screen.getByRole('button', { name: '오버레이 끄기' }))
+    await waitFor(() => expect(container.querySelectorAll('.persona-mark').length).toBe(0))
+    expect(dotSnapshot(container)).toEqual(before)
+  })
+
+  it('clusters 비면(Persona Discovery 미실행): 토글은 보이되 비활성 + 정직한 안내 문구', async () => {
+    stubFetch(true) // 기본 EMPTY_OVERLAY
+    render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    const toggle = await screen.findByRole('button', { name: '오버레이 켜기' })
+    expect((toggle as HTMLButtonElement).disabled).toBe(true) // 숨기지 않고 비활성
+    expect(screen.getByText(/Persona Discovery 미실행/)).toBeTruthy()
+    fireEvent.click(toggle) // 비활성 — 오버레이가 켜질 길이 없다
+    expect(useBrainStore.getState().overlayClusterId).toBeNull()
+  })
+
+  it('persona-overlay API만 실패해도 뇌 화면(live)은 유지 — 오버레이는 미연결 안내', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('persona-overlay')) throw new Error('overlay down')
+      return { ok: true, json: async () => FAKE_BRAIN } as Response
+    }))
+    render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    await waitFor(() =>
+      expect(useBrainStore.getState().personaOverlayStatus).toBe('error'),
+    )
+    expect(screen.getByText(/성향 오버레이 미연결/)).toBeTruthy()
+    expect(
+      (screen.getByRole('button', { name: '오버레이 켜기' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
   })
 })

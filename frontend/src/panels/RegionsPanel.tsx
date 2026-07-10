@@ -5,6 +5,9 @@
  * 선택 시 §7-2 상세(Reliability/Coverage/Gold·Synthetic 분리/Top Weak Nodes).
  * Gold/Synthetic 카운트는 실데이터. Reliability·Coverage·Weak 랭킹은 Arena 산출 —
  * 미실행이면 "—"로, 지어내지 않는다(정보 정직성).
+ *
+ * T5.4 성장 스테이지(§7-6): 뇌 전체 stage 배지 + region별 stage_name + 측정 노드 수.
+ * 전부 Arena 산출값 그대로 — 미측정 region은 "Dormant"(잠자는 상태)로, 실패가 아니다.
  */
 import { useBrainStore } from '../brain3d/store'
 import { REGIONS, type RegionId } from '../brain3d/regions'
@@ -44,13 +47,19 @@ export function RegionsPanel() {
   return (
     <aside className="side-panel side-panel-left">
       <section className="panel-card">
-        <div className="panel-eyebrow">OVERALL BRAIN SCORE</div>
+        <div className="panel-head">
+          <span className="panel-eyebrow">OVERALL BRAIN SCORE</span>
+          {/* §7-6 뇌 전체 성장 스테이지 — Arena 산출 그대로, API 전엔 미표기 */}
+          {brain?.brain_stage_name != null && (
+            <span className="stage-badge">{brain.brain_stage_name}</span>
+          )}
+        </div>
         <div className="brain-score">
           <span className="brain-score-value">{ktib == null ? '—' : Math.round(ktib * 100)}</span>
           <span className="brain-score-max">/100</span>
         </div>
         <div className="panel-note">
-          {ktib == null ? 'Arena 미실행 — 측정 전' : 'KTIB First Intent Accuracy'}
+          {ktib == null ? 'Arena 미실행 — 잠에서 깨어나길 기다리는 뇌' : 'KTIB First Intent Accuracy'}
         </div>
       </section>
 
@@ -76,8 +85,14 @@ export function RegionsPanel() {
                     <span className="region-row-name">{r.label}</span>
                     <span className="region-row-sub">{SUBTITLE[r.id]}</span>
                   </span>
-                  <span className="region-row-score" style={{ color: r.color }}>
-                    {pct(data?.reliability)}
+                  <span className="region-row-right">
+                    <span className="region-row-score" style={{ color: r.color }}>
+                      {pct(data?.reliability)}
+                    </span>
+                    {/* §7-6 region 성장 스테이지 — 미측정=Dormant(실패 아님), API 전 미표기 */}
+                    {data?.stage_name != null && (
+                      <span className="region-row-stage">{data.stage_name}</span>
+                    )}
                   </span>
                 </button>
               </li>
@@ -92,6 +107,16 @@ export function RegionsPanel() {
             <span className="panel-eyebrow">{selectedRegionId} REGION</span>
           </div>
           <dl className="stat-rows">
+            <div className="stat-row">
+              <dt>Growth Stage</dt>
+              {/* §7-6 — Arena 산출 stage_name 그대로 (Stage 4는 백엔드가 내보내지 않는다) */}
+              <dd>{`${detail.stage} · ${detail.stage_name}`}</dd>
+            </div>
+            <div className="stat-row">
+              <dt>Measured Nodes</dt>
+              {/* heldout 측정된 노드 수 / 전체 — 미측정은 0%가 아니라 '아직 Arena 전' */}
+              <dd>{`${detail.measured_count} / ${detail.node_count}`}</dd>
+            </div>
             <div className="stat-row">
               <dt>Region Reliability</dt>
               <dd>{pct(detail.reliability)}</dd>

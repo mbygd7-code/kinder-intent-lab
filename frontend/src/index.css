@@ -68,6 +68,42 @@ body {
   font-size: 0.78rem;
 }
 
+/* §7-6 성장 스테이지 칩 (T5.4) — 헤더 KTIB 수치 곁. Dormant도 실패가 아닌 상태 표기 */
+.ktib-stage {
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #a5b4fc;
+  background: rgba(49, 46, 129, 0.35);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+}
+
+.stage-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #a5b4fc;
+  background: rgba(49, 46, 129, 0.35);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 0.35rem;
+  padding: 0.08rem 0.4rem;
+}
+
+.region-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.05rem; }
+.region-row-stage { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+
+/* 3D region 라벨 칩 안의 스테이지 표기 */
+.region-stage {
+  font-size: 0.62rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  border-left: 1px solid var(--panel-border);
+  padding-left: 0.45rem;
+}
+
 /* --- 본문: 좌 패널 | 뇌 | 우 패널 (패널은 뇌 위에 떠 있는 오버레이) --- */
 .observatory-body {
   position: relative;
@@ -386,6 +422,42 @@ body {
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+/* --- T5.4 Persona Overlay 컨트롤 (§7-6) — brain-hud 카드 --- */
+.persona-card {
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  width: 15.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+.persona-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.persona-title { font-size: 0.64rem; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; }
+.persona-toggle:disabled { opacity: 0.45; cursor: default; }
+.persona-toggle:disabled:hover { border-color: var(--panel-border); }
+.persona-empty { color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+.persona-legend { display: flex; flex-direction: column; gap: 0.3rem; }
+.persona-cluster-pick { display: flex; align-items: center; gap: 0.45rem; color: var(--muted); }
+.persona-cluster-pick select {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.74rem;
+}
+.persona-legend-row { display: flex; align-items: center; gap: 0.4rem; color: var(--fg); }
+.persona-legend-row span:last-child { flex: 1; }
+.persona-legend-row strong { margin-left: auto; }
+.persona-swatch { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
+.persona-swatch-neutral { background: transparent; border: 1px dashed var(--muted); }
+.persona-cap-note { color: var(--muted); font-size: 0.66rem; line-height: 1.5; }
 
 .badge-mock {
   background: #7c2d12;

@@ -126,6 +126,8 @@ describe('RegionsPanel (§7-2)', () => {
     for (const r of REGIONS) expect(screen.getByText(r.label)).toBeTruthy()
     // 모든 region reliability null → 점수 자리 "—" (지어내지 않음)
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(7)
+    // T5.4(§7-6): 미측정 뇌는 실패가 아니라 Dormant — 전체 배지 1 + region row 7
+    expect(screen.getAllByText('Dormant').length).toBeGreaterThanOrEqual(8)
   })
 
   it('region 선택 시 §7-2 상세: Gold/Synthetic 실데이터 분리 표기, Reliability/Coverage "—"', () => {
@@ -137,6 +139,9 @@ describe('RegionsPanel (§7-2)', () => {
     expect(d.getByText('Synthetic Episodes').nextSibling?.textContent).toBe('8,402')
     expect(d.getByText('Region Reliability').nextSibling?.textContent).toBe('—') // Arena 전
     expect(d.getByText('Coverage').nextSibling?.textContent).toBe('—')
+    // T5.4(§7-6): 성장 스테이지 + 측정 노드 수 — Arena 산출값 그대로
+    expect(d.getByText('Growth Stage').nextSibling?.textContent).toBe('0 · Dormant')
+    expect(d.getByText('Measured Nodes').nextSibling?.textContent).toBe('0 / 2')
     // Top Weak Nodes: 훈련량 낮은 순 → play_b(5) 먼저, 점수는 "—"
     const weakRows = detail.querySelectorAll('.weak-row')
     expect(weakRows[0].querySelector('.weak-name')?.textContent).toBe('play_b')
@@ -144,6 +149,27 @@ describe('RegionsPanel (§7-2)', () => {
     for (const row of weakRows) {
       expect(row.querySelector('.weak-score')?.textContent).toBe('—')
     }
+  })
+
+  it('T5.4(§7-6): 측정된 region은 stage_name이 API 값 그대로 흐른다 (Spark 등)', () => {
+    useBrainStore.setState({
+      brain: {
+        ...BRAIN,
+        regions: BRAIN.regions.map((r) =>
+          r.region === 'PLAY'
+            ? { ...r, reliability: 0.42, stage: 1 as const, stage_name: 'Spark', measured_count: 1 }
+            : r,
+        ),
+      },
+    })
+    render(<RegionsPanel />)
+    expect(screen.getByText('Spark')).toBeTruthy() // PLAY row — 나머지는 여전히 Dormant
+    fireEvent.click(screen.getByText('Play'))
+    const detail = screen.getByText('PLAY REGION').closest('.region-detail') as HTMLElement
+    const d = within(detail)
+    expect(d.getByText('Growth Stage').nextSibling?.textContent).toBe('1 · Spark')
+    expect(d.getByText('Measured Nodes').nextSibling?.textContent).toBe('1 / 2')
+    expect(d.getByText('Region Reliability').nextSibling?.textContent).toBe('42%')
   })
 })
 
