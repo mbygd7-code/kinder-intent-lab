@@ -83,6 +83,10 @@ label_aggregator:
   conflict_max: 0.30
   evidence_type_weights: empirical  # 고정 서열 금지 — 실측 신뢰도로 갱신
 
+review:                            # §3-3 GOLD = "인간 검수 2인 이상 일치(kappa 기록)"
+  min_reviewers: 2                 # 한 에피소드를 확정하는 데 필요한 서로 다른 검수자 수
+  min_agreement_kappa: 0.65        # 배치 전체의 검수자 간 일치도 하한 (미달 시 배치 전량 거부)
+
 version_gate:
   min_new_gold: 200
   promote_rule: global_up_and_no_region_regression_and_no_critical_worse

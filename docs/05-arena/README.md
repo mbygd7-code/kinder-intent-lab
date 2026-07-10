@@ -348,14 +348,66 @@ Harm(c) = |{ neutral 정답 ∧ persona_c 오답 }| / N     (Net = Lift − Harm
 > **현재 상태(정직):** KTIB에 critical 정답이 0건이고 persona 클러스터도 0개다. 따라서 안전 레그는
 > N/A + 경고, persona 레그는 N/A이며, 게이트는 **통과할 수 없다.** 이것은 의도된 보수성이다.
 
-## 10. 알려진 공백
+## 10. KTIB를 실제로 채우는 절차 (운영)
+
+KTIB 자격 에피소드는 **합성 뱅크에서 승격시킬 수 없다** — `benchmark_integrity` CHECK가 물리적으로
+막는다(절대 규칙 2). 유일한 경로는 사람이 저작·검수한 비합성 에피소드를 넣는 것이다.
+
+```bash
+# 1) 양식 생성 → 사람이 발화를 쓴다 (LLM 생성물 금지: 넣는 순간 KTIB가 합성 분포가 된다)
+python scripts/ingest_expert_episodes.py --template ktib_seed.yaml
+
+# 2) 적재 (BENCHMARK_HOLDOUT은 검수자 2인 이상 필수 → GOLD ∧ LABELED)
+python scripts/ingest_expert_episodes.py --file ktib_seed.yaml --commit
+
+# 3) KTIB 발급 (동결)
+python scripts/run_ktib_build.py --commit
+
+# 4) zero-shot 베이스라인 → 그 위에서 80% 목표의 난이도를 재확정 (§8-2)
+python scripts/run_zero_shot_baseline.py --commit --write-report
+```
+
+**표본 하한 주의:** `gate.critical_surface_min_items = 30`이다. 안전 레그가 N/A를 벗어나려면
+CRITICAL intent(7종)가 정답인 벤치마크 아이템이 최소 30건 있어야 한다. 그전까지 게이트는
+"critical 안전 미측정" 경고와 함께 통과 불가다 — 의도된 보수성이다.
+
+### 학습용 GOLD는 별도 경로다 (exemplar·new_gold)
+
+합성 뱅크의 SILVER 후보를 **인간 검수 2인 일치**로 GOLD까지 올릴 수 있다(§3-3). 그렇게 만든
+GOLD는 exemplar와 Version Gate의 `new_gold`에 쓰이지만, `origin_channel`이 합성이므로 **KTIB에는
+영원히 들어가지 못한다.**
+
+```bash
+python scripts/run_human_review.py --queue --limit 50 --out review_queue.yaml
+#   → 서로 다른 검수자 2명 이상이 각자 chosen_intent를 채우고 votes를 합친다
+python scripts/run_human_review.py --apply review_queue.yaml --commit
+```
+
+`app/aggregator/review.py`의 가드:
+
+- 배치 Cohen's kappa < `review.min_agreement_kappa`(0.65) → **배치 전량 거부**
+- 모든 라벨이 같아 kappa를 계산할 수 없으면 → **거부** (완전 일치를 1.0으로 반올림하지 않는다)
+- 에피소드별로 서로 다른 검수자 `review.min_reviewers`(2)명 이상 ∧ **만장일치**여야 확정.
+  1인이거나 불일치면 **상태 불변** — 다수결로 밀어붙이지 않는다
+- 전이는 `advance_label_state`(§3-6) → `promote_tier`(§3-3) 순서로만. GOLD ⇒ LABELED가 강제된다
+
+## 11. 알려진 공백
 
 - **KTIB 자격 에피소드가 0건이다.** 그래서 위 게이트의 안전·persona 레그는 구조적으로 null이다.
-  §8-2 격리 CHECK 때문에 기존 합성 뱅크에서 승격시킬 수 있는 에피소드는 원리적으로 없다 —
-  사람이 작성·검수한 비합성 GOLD 에피소드 확보가 선행되어야 한다.
+  §10의 절차로 사람이 채워야 한다 — 코드로 만들 수 없다.
+- **Persona Discovery(§4)를 돌릴 데이터가 없다.** `app/foundry/persona.py`는 Gym 세션의 트레이너
+  상호작용을 클러스터링하는데, `gym_sessions = 0`이고 `TEACHER_TRAINER` evidence도 0이다.
+  실제 트레이너가 Gym을 플레이해야 클러스터가 생기고, 그제서야 Persona Lift/Harm과 3D Persona
+  Overlay가 null을 벗어난다.
+- **exemplar가 0건이다.** GOLD가 0이기 때문이다 — §10의 인간 검수 경로가 이를 푼다.
 - **에피소드는 `scenario_id`를 통해서만 workspace를 갖는다.** 시나리오가 없는 벤치마크
   에피소드(전문가 작성 등)의 `workspace_snapshot`은 `null`이고, 그 경우 `visual_semantics`
-  extractor 축은 비어 있다 — 화면 컨텍스트 없는 발화로 평가된다.
+  extractor 축은 비어 있다 — 화면 컨텍스트 없는 발화로 평가된다. `ingest_expert_episodes`는
+  아직 workspace를 받지 않는다(발화만). 화면 컨텍스트가 있는 벤치마크가 필요하면 시나리오 연결이
+  선행되어야 한다.
 - **절대 규칙 6 (adversarial 분리):** Gym의 Break-the-Brain 산출 에피소드는 `dataset_split=TRAIN`
   으로만 생성되므로(`gym/session.py`) 구조적으로 KTIB에 들어갈 수 없다. `build_ktib`는 자격
   에피소드에 adversarial evidence가 붙어 있으면 loud-fail한다(`assert_no_adversarial`).
+- **코드는 "사람이 썼는지"를 검증할 수 없다.** `ingest_expert_episodes`는 `authored_by`를 필수로
+  받아 거버넌스 이벤트에 남길 뿐이다. LLM 생성 발화를 `EXPERT_AUTHORED`로 찍어 넣으면 KTIB는
+  조용히 합성 분포가 되고 Arena 점수는 암기의 측정치가 된다. 이 규율은 사람이 지켜야 한다.

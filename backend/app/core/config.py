@@ -120,6 +120,13 @@ class LabelAggregatorConfig(_Section):
     evidence_type_weights: str
 
 
+class ReviewConfig(_Section):
+    """§3-3 GOLD 승격 기준 — 인간 검수 2인 이상 일치, kappa 기록."""
+
+    min_reviewers: int = Field(ge=2)          # §3-3 "2인 이상" — 1인 확정은 구조적으로 불가능
+    min_agreement_kappa: float = Field(ge=0, le=1)
+
+
 class VersionGateConfig(_Section):
     min_new_gold: int
     promote_rule: str
@@ -212,6 +219,7 @@ class ExperimentsConfig(_Section):
     atlas: AtlasConfig
     persona: PersonaConfig
     label_aggregator: LabelAggregatorConfig
+    review: ReviewConfig
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig
     stages: StagesConfig
