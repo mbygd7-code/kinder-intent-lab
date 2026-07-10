@@ -23,9 +23,12 @@ const BRAIN: ObservatoryBrain = {
   brain_version: 'seed-v0',
   ontology_version: 'onto-1.0',
   ktib_global: null,
+  brain_stage: 0,
+  brain_stage_name: 'Dormant',
   regions: REGIONS.map((r) => ({
     region: r.id, reliability: null, node_count: 2,
     gold_evidence: r.id === 'PLAY' ? 231 : 0, synthetic_evidence: r.id === 'PLAY' ? 8402 : 0,
+    stage: 0, stage_name: 'Dormant', measured_count: 0,
   })),
   nodes: [
     node({ node_id: 'N_play_a', intent_id: 'play_a', region: 'PLAY', evidence_total: 30, gold_count: 12 }),

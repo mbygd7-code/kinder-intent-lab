@@ -1,9 +1,11 @@
-"""GET /v1/observatory/brain — 3D Brain 렌더 상태 (§7-1·§7-5).
+"""GET /v1/observatory/brain — 3D Brain 렌더 상태 (§7-1·§7-5·§7-6).
 
 원칙 8(절대 규칙 3): brightness 계열의 원천은 Arena뿐이다.
-- ktib_global ← 최신 arena_runs.metrics.first_intent_accuracy (run 없으면 null)
-- node.heldout_accuracy ← brain_nodes 컬럼 그대로 (Arena 러너만 기록; 여기선 읽기 전용)
+- ktib_global ← 최신 **run_type='brain'** arena_runs.metrics.first_intent_accuracy
+  (zero-shot 베이스라인 run은 3D에 새지 않는다 — §8-2 베이스라인 규칙)
+- node.heldout_accuracy ← brain_nodes 컬럼 그대로 (promote 경로만 기록; 여기선 읽기 전용)
 - region.reliability ← region 내 비null heldout 평균 (전부 null이면 null)
+- stage ← §7-6 성장 스테이지, 전부 위 Arena 산출에서 유도(저장하지 않고 매번 재계산)
 여기서 어떤 값도 계산으로 지어내지 않는다 — 훈련량(size)·다양성(density)은 evidence_stats에서.
 """
 from __future__ import annotations
@@ -15,19 +17,26 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.arena.reflect import STAGE_NAMES, brain_stage, region_stages
 from app.brain.diagnosis import diagnose_node
+from app.brain.priors import current_state_version
 from app.brain.version_gate import version_gate_status
 from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
 from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
 from app.core.ontology import CANONICAL_DOMAINS, UNKNOWN_INTENT_ID, load_ontology
-from app.models.arena import ArenaRun
+from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
 from app.models.brain import BrainNode, BrainVersion, Exemplar
+from app.models.persona import PersonaCluster, PopulationPrior
 
 router = APIRouter(prefix="/v1/observatory", tags=["observatory"])
 
 # evidence_stats 버킷(§5-1 계약 EvidenceStats의 구조 상수 — 실험 임계값 아님)
 _BUCKETS = ("synthetic", "weak_behavioral", "human_confirmed", "gold", "expert")
+
+
+def _get_experiments() -> ExperimentsConfig:
+    return get_config()
 
 
 def _diversity(stats: dict) -> float:
@@ -41,8 +50,12 @@ def _diversity(stats: dict) -> float:
 
 
 def _ktib_global(session: Session) -> float | None:
+    """§7-1 중앙 수치 — 마지막 **brain** arena run만. 베이스라인 run은 밝기 원천이 아니다(§8-2)."""
     metrics = session.scalar(
-        select(ArenaRun.metrics).order_by(ArenaRun.created_at.desc()).limit(1)
+        select(ArenaRun.metrics)
+        .where(ArenaRun.run_type == RUN_TYPE_BRAIN)
+        .order_by(ArenaRun.created_at.desc())
+        .limit(1)
     )
     if not metrics:
         return None
@@ -60,7 +73,10 @@ def _brain_version(session: Session) -> str:
 
 
 @router.get("/brain", response_model=ObservatoryBrain)
-def brain_state(session: Session = Depends(get_session)) -> ObservatoryBrain:
+def brain_state(
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> ObservatoryBrain:
     nodes = list(session.scalars(select(BrainNode)))
     exemplar_counts = dict(
         session.execute(
@@ -95,6 +111,7 @@ def brain_state(session: Session = Depends(get_session)) -> ObservatoryBrain:
         if n.heldout_accuracy is not None:
             acc["heldouts"].append(float(n.heldout_accuracy))
 
+    stages = region_stages(session, config)  # §7-6 — Arena 산출에서 유도
     regions = [
         ObservatoryRegion(
             region=d,
@@ -104,24 +121,86 @@ def brain_state(session: Session = Depends(get_session)) -> ObservatoryBrain:
             node_count=a["nodes"],
             gold_evidence=a["gold"],
             synthetic_evidence=a["synthetic"],
+            stage=stages[d].stage,
+            stage_name=stages[d].stage_name,
+            measured_count=stages[d].measured_count,
         )
         for d, a in region_acc.items()
     ]
 
+    ktib_global = _ktib_global(session)
+    global_stage = brain_stage(ktib_global, stages, config)
     return ObservatoryBrain(
         brain_version=_brain_version(session),
         ontology_version=load_ontology().version,
-        ktib_global=_ktib_global(session),
+        ktib_global=ktib_global,
+        brain_stage=global_stage,
+        brain_stage_name=STAGE_NAMES[global_stage],
         regions=regions,
         nodes=out_nodes,
     )
 
 
+# --- Persona Overlay (§4-2·§7-6, T5.4) ---
+
+
+class PersonaOverlayCluster(BaseModel):
+    cluster_id: str
+    member_count: int | None
+    state_version: str
+    priors: dict[str, float]  # intent_id → persona prior (activation을 곱으로 재정렬, §5-5)
+
+
+class PersonaOverlayOut(BaseModel):
+    """같은 뇌를 페르소나 클러스터별 활성 분포로 전환해 본다 (§7-6).
+
+    원천은 `population_priors` — §5-5에서 **LLM 밖에서 activation에 곱해지는 배수**다.
+    측정된 클러스터별 정확도(Persona Lift/Harm)가 아니다. 그 지표는 아직 정의되지 않았다
+    (docs/05-arena §6 TBD) — 없는 값을 이 응답에서 지어내지 않는다.
+    """
+
+    state_version: str | None
+    prior_cap: float          # §5-5 persona_prior_cap — 오버레이가 과장돼 보이지 않도록 함께 준다
+    clusters: list[PersonaOverlayCluster]
+
+
+@router.get("/persona-overlay", response_model=PersonaOverlayOut)
+def persona_overlay(
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> PersonaOverlayOut:
+    """클러스터별 prior 분포. 클러스터가 없으면 빈 목록(§4 Persona Discovery 미실행)."""
+    state_version = current_state_version(session)
+    clusters = {c.cluster_id: c for c in session.scalars(select(PersonaCluster))}
+    if not clusters or state_version is None:
+        return PersonaOverlayOut(
+            state_version=state_version, prior_cap=config.brain.persona_prior_cap, clusters=[]
+        )
+
+    rows = session.scalars(
+        select(PopulationPrior).where(PopulationPrior.state_version == state_version)
+    ).all()
+    grouped: dict[str, dict[str, float]] = {}
+    for row in rows:
+        grouped.setdefault(row.cluster_id, {})[row.intent_id] = float(row.prior)
+
+    return PersonaOverlayOut(
+        state_version=state_version,
+        prior_cap=config.brain.persona_prior_cap,
+        clusters=[
+            PersonaOverlayCluster(
+                cluster_id=cid,
+                member_count=clusters[cid].member_count,
+                state_version=state_version,
+                priors=dict(sorted(priors.items())),
+            )
+            for cid, priors in sorted(grouped.items())
+            if cid in clusters
+        ],
+    )
+
+
 # --- 노드 Weakness 진단 (§7-3, T4.1 실계산) ---
-
-
-def _get_experiments() -> ExperimentsConfig:
-    return get_config()
 
 
 class AxisOut(BaseModel):

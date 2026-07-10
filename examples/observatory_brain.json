@@ -2,9 +2,11 @@
   "brain_version": "seed-v0",
   "ontology_version": "onto-1.0",
   "ktib_global": null,
+  "brain_stage": 0,
+  "brain_stage_name": "Dormant",
   "regions": [
-    {"region": "PLAY", "reliability": null, "node_count": 11, "gold_evidence": 31, "synthetic_evidence": 842},
-    {"region": "VISUAL", "reliability": null, "node_count": 9, "gold_evidence": 12, "synthetic_evidence": 640}
+    {"region": "PLAY", "reliability": null, "node_count": 11, "gold_evidence": 31, "synthetic_evidence": 842, "stage": 0, "stage_name": "Dormant", "measured_count": 0},
+    {"region": "VISUAL", "reliability": null, "node_count": 9, "gold_evidence": 12, "synthetic_evidence": 640, "stage": 0, "stage_name": "Dormant", "measured_count": 0}
   ],
   "nodes": [
     {

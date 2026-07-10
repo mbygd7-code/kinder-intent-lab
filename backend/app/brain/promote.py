@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.config import ExperimentsConfig
 from app.models.brain import BrainNode, BrainVersion
 from app.models.governance import GovernanceEvent
+from app.models.guards import arena_brightness_write
 
 # 구현하는 promote 규칙의 이름 — config.version_gate.promote_rule과 일치해야 한다(구조 가드).
 PROMOTE_RULE = "global_up_and_no_region_regression_and_no_critical_worse"
@@ -81,6 +82,8 @@ def _apply_arena_brightness(session: Session, outcome: ArenaOutcome) -> int:
     """Arena 결과를 노드 밝기에 반영 — heldout·ece·last_arena_run + pending 링 소등.
 
     이것이 밝기(heldout_accuracy)를 쓰는 유일한 함수다(§8-2). 노드가 없으면 건너뛴다.
+    `arena_brightness_write`는 그 사실을 flush 리스너로 강제한다(절대 규칙 3) — 다른 코드
+    경로가 brightness를 대입하면 BrightnessWriteBlocked로 실패한다.
     """
     nodes = {
         n.intent_id: n for n in session.scalars(
@@ -88,18 +91,19 @@ def _apply_arena_brightness(session: Session, outcome: ArenaOutcome) -> int:
         )
     }
     count = 0
-    for intent, acc in outcome.node_heldout.items():
-        node = nodes.get(intent)
-        if node is None:
-            continue
-        node.heldout_accuracy = acc
-        # ECE는 이 run의 값으로 덮되, 없으면 None으로 지운다 — heldout·last_arena_run은 새 run인데
-        # ECE만 이전 run 값이 남아 오귀속되는 내부 불일치를 막는다(리뷰 MINOR).
-        node.calibration_ece = outcome.node_ece.get(intent)
-        node.last_arena_run = outcome.run_id
-        node.pending_evaluation = False     # ring 소등 — "훈련됨·검증 대기"가 검증됨(§6-7 [9])
-        count += 1
-    session.flush()
+    with arena_brightness_write(outcome.run_id):
+        for intent, acc in outcome.node_heldout.items():
+            node = nodes.get(intent)
+            if node is None:
+                continue
+            node.heldout_accuracy = acc
+            # ECE는 이 run의 값으로 덮되, 없으면 None으로 지운다 — heldout·last_arena_run은 새
+            # run인데 ECE만 이전 run 값이 남아 오귀속되는 내부 불일치를 막는다(리뷰 MINOR).
+            node.calibration_ece = outcome.node_ece.get(intent)
+            node.last_arena_run = outcome.run_id
+            node.pending_evaluation = False  # ring 소등 — "훈련됨·검증 대기"가 검증됨(§6-7 [9])
+            count += 1
+        session.flush()
     return count
 
 

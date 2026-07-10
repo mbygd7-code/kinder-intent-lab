@@ -19,8 +19,11 @@ const FAKE_BRAIN: ObservatoryBrain = {
   brain_version: 'seed-v0',
   ontology_version: 'onto-1.0',
   ktib_global: null,
+  brain_stage: 0,
+  brain_stage_name: 'Dormant',
   regions: REGIONS.map((r) => ({
     region: r.id, reliability: null, node_count: 15, gold_evidence: 2, synthetic_evidence: 40,
+    stage: 0, stage_name: 'Dormant', measured_count: 0,
   })),
   nodes: makeMockNodes().map((s, i) => ({
     node_id: s.nodeId, intent_id: s.intentId, region: s.region,
@@ -41,8 +44,12 @@ const ARENA_BRAIN: ObservatoryBrain = {
   ...FAKE_BRAIN,
   brain_version: 'v0.21',
   ktib_global: 0.618,
+  brain_stage: 3,
+  brain_stage_name: 'Region Online',
   regions: FAKE_BRAIN.regions.map((r) =>
-    r.region === 'PLAY' ? { ...r, reliability: 0.7 } : r,
+    r.region === 'PLAY'
+      ? { ...r, reliability: 0.7, stage: 3, stage_name: 'Region Online', measured_count: 15 }
+      : r,
   ),
 }
 

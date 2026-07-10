@@ -19,15 +19,19 @@ from app.brain.backfill import aggregate_evidence_stats, bootstrap_nodes
 from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.main import app
-from app.models.arena import ArenaRun
+from app.models.arena import RUN_TYPE_BRAIN, ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, Exemplar
 from app.models.episodes import Episode, Evidence
+from app.models.guards import arena_brightness_write
 
 
 @pytest.fixture(autouse=True)
 def _empty_bank(db_session):
     """정확 카운트 단언은 빈 뱅크 전제 — 실 DB에 에피소드·evidence가 쌓여도 깨지지 않게
     세이브포인트 안에서 비운다(FK 순서: evidence·exemplar → episode → node. 롤백으로 원복)."""
+    db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))
@@ -133,12 +137,19 @@ def test_arena_written_fields_flow_through(api) -> None:
     """Arena가 컬럼을 채우면(시뮬레이션) 그대로 흐른다 — reliability=비null 평균, ktib=metrics."""
     client, db = api
     ints = _seed_brain(db)
+    db.add(KtibVersion(  # arena_runs.ktib_version FK (마이그레이션 0013)
+        ktib_version="ktib-1", seq=1, extractor_versions={}, episode_count=1, content_hash="h",
+    ))
+    db.flush()
     node = db.query(BrainNode).filter_by(intent_id=ints[0]).one()
-    node.heldout_accuracy = 0.62  # Arena 러너 기록 시뮬레이션 (원천은 Arena)
-    node.last_arena_run = "AR_1"
+    # 밝기 쓰기는 Arena 반영 경로에서만 — 그 밖의 대입은 BrightnessWriteBlocked (T5.4 가드)
+    with arena_brightness_write("AR_1"):
+        node.heldout_accuracy = 0.62
+        node.last_arena_run = "AR_1"
+        db.flush()
     db.add(ArenaRun(run_id="AR_1", model_version="seed-v0", ontology_version="onto-1.0",
                     persona_state_version="ps-1", extractor_versions={}, ktib_version="ktib-1",
-                    metrics={"first_intent_accuracy": 0.618}))
+                    run_type=RUN_TYPE_BRAIN, metrics={"first_intent_accuracy": 0.618}))
     db.flush()
     body = client.get("/v1/observatory/brain").json()
     assert body["ktib_global"] == pytest.approx(0.618)
@@ -146,6 +157,8 @@ def test_arena_written_fields_flow_through(api) -> None:
     assert n["heldout_accuracy"] == pytest.approx(0.62)
     region = next(r for r in body["regions"] if r["region"] == n["region"])
     assert region["reliability"] == pytest.approx(0.62)  # 비null 노드 평균
+    assert region["measured_count"] == 1                 # §7-6 — 측정된 노드 1개
+    assert region["stage"] == 1                          # Spark (측정 1건, 비율·신뢰도 미달)
 
 
 def test_adversarial_evidence_not_counted(api) -> None:

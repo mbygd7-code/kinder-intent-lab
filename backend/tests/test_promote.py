@@ -20,7 +20,7 @@ from app.core.config import get_config
 from app.core.db import get_session
 from app.core.ontology import load_ontology
 from app.main import app
-from app.models.arena import ArenaRun
+from app.models.arena import RUN_TYPE_BRAIN, ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, BrainVersion, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.governance import GovernanceEvent
@@ -32,6 +32,9 @@ CFG = get_config()
 def _empty(db_session):
     """brain_versions·이벤트·evidence 비우고, 노드 brightness/pending을 알려진 상태로 리셋
     (세이브포인트 안 — 롤백으로 원복). brain_nodes 자체는 지우지 않는다(brightness 대상)."""
+    db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))
@@ -240,10 +243,14 @@ def test_promote_flows_to_observatory(db_session) -> None:
     node = _intent(0)
     cand = _candidate(db_session)
     # ktib_global(arena metrics)와 node heldout(brain_nodes 컬럼)은 서로 다른 값 — 교차배선 탐지
+    db_session.add(KtibVersion(  # arena_runs.ktib_version FK (마이그레이션 0013)
+        ktib_version="ktib-1", seq=1, extractor_versions={}, episode_count=1, content_hash="h",
+    ))
+    db_session.flush()
     db_session.add(ArenaRun(
         run_id="AR_t46", model_version="v1", ontology_version="onto-1.0",
         persona_state_version="ps-1", extractor_versions={}, ktib_version="ktib-1",
-        metrics={"first_intent_accuracy": 0.71},
+        run_type=RUN_TYPE_BRAIN, metrics={"first_intent_accuracy": 0.71},
     ))
     node_row = db_session.scalar(select(BrainNode).where(BrainNode.intent_id == node))
     node_row.pending_evaluation = True

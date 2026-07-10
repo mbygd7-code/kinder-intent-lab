@@ -130,6 +130,13 @@ class VisualSemanticsConfig(_Section):
     ktib_extractor_pinned: bool
 
 
+class StagesConfig(_Section):
+    """§7-6 성장 스테이지 임계. Stage 5(global)는 arena.first_intent_accuracy_target 재사용."""
+
+    cluster_awake_measured_ratio: float = Field(gt=0, le=1)
+    region_online_reliability: float = Field(gt=0, le=1)
+
+
 class ArenaConfig(_Section):
     schedule: str
     ood_score_threshold: float
@@ -188,6 +195,7 @@ class ExperimentsConfig(_Section):
     label_aggregator: LabelAggregatorConfig
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig
+    stages: StagesConfig
     arena: ArenaConfig
     latency: LatencyConfig
     campaign: CampaignConfig

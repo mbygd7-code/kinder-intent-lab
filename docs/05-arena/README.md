@@ -8,6 +8,7 @@
 | 날짜 | 변경 |
 |---|---|
 | 2026-07-10 | 최초 작성 — Phase 5(T5.1~T5.2)에서 구현된 지표만 기술 |
+| 2026-07-10 | §6 추가 — Arena→Observatory 반영, 밝기 가드, §7-6 스테이지 해석 2건, Persona Overlay |
 
 ---
 
@@ -105,7 +106,54 @@ global과 node별로 계산한다.
 **목표 재확정 제안서**를 담는다. 제안서는 측정값에서 유도한 사실(절대 격차, 상대 오류 감소율)만
 제시하고 **새 목표 수치를 확정하지 않는다** — 확정은 사람 승인 + 설계 문서 Change Log 소관이다.
 
-## 6. 아직 정의되지 않은 지표 (TBD)
+## 6. Arena → Observatory 반영 (§7-5·§7-6)
+
+`app/arena/reflect.py`. **Arena 결과만이** 3D 뇌의 밝기와 edge flicker를 바꾼다.
+
+| 시각 요소 | 저장 위치 | 누가 쓰는가 |
+|---|---|---|
+| Node Brightness | `brain_nodes.heldout_accuracy` | **promote 통과 시에만** (`promote.resolve_candidate`) |
+| Edge Flicker | `confusion_edges.confusion_rate` | 모든 `brain` run (`runner.apply_confusion_edges`) |
+| Pending Ring | `brain_nodes.pending_evaluation` | 훈련이 점등, promote가 소등 (§6-7 [6]→[9]) |
+
+### 강제 수단 (절대 규칙 3)
+
+`models.guards.arena_brightness_write(run_id)` 컨텍스트 + `before_flush` 리스너:
+
+- 컨텍스트 **밖**에서 `heldout_accuracy` / `calibration_ece` / `last_arena_run`을 ORM 대입하면
+  `BrightnessWriteBlocked`로 flush가 실패한다. 훈련(`gym.growth`)·교정(`fast_update`)·
+  `backfill`은 size/density/pending만 만지므로 영향이 없다.
+- 컨텍스트 **안**에서도 노드의 `last_arena_run`이 반영 중인 run_id와 같아야 한다.
+  어느 run이 그 밝기를 만들었는지 귀속되지 않는 값은 §8-2 replay 무결성에서 의미가 없다.
+- 한계: statement 레벨 쓰기(`session.execute(update(...))`)는 이 리스너를 우회한다.
+  `promote_tier()`와 동일한 계약 — 밝기를 쓰는 코드는 반드시 이 컨텍스트를 경유한다.
+
+정기(주간) run은 **밝기를 켜지 않는다.** 승격 없이 밝아지는 경로는 없다(§6-7 "[4]→[6]에서
+밝기가 바로 오르는 지름길은 구조적으로 존재하지 않는다").
+
+### 성장 스테이지 (§7-6) — 구현 시 내린 두 가지 해석
+
+문서 §7-6 표를 그대로 코드로 옮길 수 없는 지점이 두 곳 있었다. **설계를 바꾸지 않고**
+아래처럼 좁게 해석했다. 설계 확정이 필요한 항목이다.
+
+1. **Stage 1~3 기준이 서로 배타적이지 않다.** 예: 측정 비율 40% + region reliability 60%는
+   Stage 1(`reliability < 50%`)에도, Stage 2(`측정 ≥ 50%`)에도, Stage 3(`≥ 70%`)에도
+   해당하지 않는다. → **높은 단계부터 검사해 처음 만족하는 값**을 쓴다(단조 사다리):
+   `3 if reliability ≥ 0.70` → `2 if 측정비율 ≥ 0.50` → `1 if 측정 ≥ 1` → `0`.
+2. **Stage 4(Cross-Region Flow)는 판정하지 않는다.** 판정 기준의 "인접 region"이 설계 어디에도
+   정의돼 있지 않고("주요 confusion edge 감소 추세"도 run 이력 윈도 정의가 없다), 인접성을
+   임의로 만들지 않기로 했다. 따라서 전역 스테이지는 3에서 5로 건너뛴다.
+
+Stage 5(global ≥ 목표)는 `config.arena.first_intent_accuracy_target`을 재사용한다 —
+KTIB 목표가 두 곳에 따로 있으면 안 된다.
+
+### Persona Overlay
+
+`GET /v1/observatory/persona-overlay`. 원천은 `population_priors`(현재 `state_version`) —
+§5-5에서 **LLM 밖에서 activation에 곱해지는 배수**다. 측정된 클러스터별 정확도가 아니다.
+클러스터가 없으면 빈 목록을 돌려준다(분포를 지어내지 않는다).
+
+## 7. 아직 정의되지 않은 지표 (TBD)
 
 §8-2가 "문서 ③"으로 미룬 항목들. **구현되지 않았고, 여기서 임의로 정의하지 않는다.**
 
@@ -116,7 +164,7 @@ global과 node별로 계산한다.
 이 셋은 도메인 합의가 필요하다. 정의가 서기 전까지 Phase 5 완료 게이트는
 `first_intent_accuracy`만으로 판정한다.
 
-## 7. 알려진 공백
+## 8. 알려진 공백
 
 - **`arena.critical_intents`가 빈 목록이다.** §6-6 promote 규칙의 "critical intent 악화 없음"
   조건은 대상이 지정될 때까지 항상 통과한다. 지어낸 목록으로 게이트를 위장하지 않는다.

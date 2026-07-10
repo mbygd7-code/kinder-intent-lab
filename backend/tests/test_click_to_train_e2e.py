@@ -22,6 +22,7 @@ from app.main import app
 from app.models.brain import BrainNode, ConfusionEdge, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import AtlasEntry, CanonicalScenario, FoundryWorkOrder
+from app.models.guards import arena_brightness_write
 from app.models.gym import ChallengePack, GymSession
 from app.models.persona import PersonaCluster, PopulationPrior
 
@@ -196,10 +197,12 @@ def test_finalize_never_changes_brightness(db_session) -> None:
     node = _domain_intents()[0]
     bootstrap_nodes(db_session, approved_by="lab")
     node_row = db_session.scalar(select(BrainNode).where(BrainNode.intent_id == node))
-    node_row.heldout_accuracy = 0.62   # Arena 러너가 기록했다고 가정
-    node_row.calibration_ece = 0.1
-    node_row.last_arena_run = "AR_prev"
-    db_session.flush()
+    # Arena 반영 경로를 흉내낸다 — 이 컨텍스트 밖의 대입은 BrightnessWriteBlocked(T5.4 가드)
+    with arena_brightness_write("AR_prev"):
+        node_row.heldout_accuracy = 0.62
+        node_row.calibration_ece = 0.1
+        node_row.last_arena_run = "AR_prev"
+        db_session.flush()
 
     gp = generate_pack(db_session, node_intent=node, trigger="observatory_click", config=CFG)
     gym, _items, _report = _run_session(

@@ -91,6 +91,12 @@ visual_semantics:
   vocabulary_version: vs-1.0
   ktib_extractor_pinned: true     # KTIB 재추출 금지 (문서 §8-2)
 
+stages:                            # §7-6 성장 스테이지 판정 기준 (전부 Arena 산출)
+  cluster_awake_measured_ratio: 0.50  # Stage 2: region 내 노드 중 heldout 측정 완료 비율
+  region_online_reliability: 0.70     # Stage 3: region reliability
+  # Stage 5(global) 기준은 arena.first_intent_accuracy_target을 재사용한다 — 목표가 둘이면 안 된다.
+  # Stage 4(Cross-Region Flow)는 'region 인접성' 정의가 설계에 없어 미구현 (docs/05-arena §8)
+
 arena:
   schedule: weekly
   ood_score_threshold: 0.25       # OOD 판정 (전 후보 score 미만)

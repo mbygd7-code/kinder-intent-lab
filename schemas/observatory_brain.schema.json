@@ -2,24 +2,29 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "kinder://schemas/observatory_brain.schema.json",
   "title": "ObservatoryBrain",
-  "description": "GET /v1/observatory/brain 응답 — 3D Brain 렌더 상태. brightness 계열(heldout_accuracy/calibration_ece/last_arena_run, region reliability, ktib_global)의 원천은 Arena뿐(원칙 8) — Arena 미실행이면 null이며 지어내지 않는다.",
+  "description": "GET /v1/observatory/brain 응답 — 3D Brain 렌더 상태. brightness 계열(heldout_accuracy/calibration_ece/last_arena_run, region reliability, ktib_global)의 원천은 run_type='brain'인 Arena run뿐(원칙 8) — Arena 미실행이면 null이며 지어내지 않는다. 성장 스테이지(§7-6)도 전부 Arena 산출에서 유도한다. Stage 4(Cross-Region Flow)는 '인접 region' 정의가 없어 판정하지 않는다.",
   "type": "object",
-  "required": ["brain_version", "ontology_version", "ktib_global", "regions", "nodes"],
+  "required": ["brain_version", "ontology_version", "ktib_global", "brain_stage", "brain_stage_name", "regions", "nodes"],
   "properties": {
     "brain_version": {"type": "string"},
     "ontology_version": {"type": "string"},
     "ktib_global": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "brain_stage": {"type": "integer", "minimum": 0, "maximum": 5},
+    "brain_stage_name": {"type": "string"},
     "regions": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["region", "reliability", "node_count", "gold_evidence", "synthetic_evidence"],
+        "required": ["region", "reliability", "node_count", "gold_evidence", "synthetic_evidence", "stage", "stage_name", "measured_count"],
         "properties": {
           "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
           "reliability": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
           "node_count": {"type": "integer", "minimum": 0},
           "gold_evidence": {"type": "integer", "minimum": 0},
-          "synthetic_evidence": {"type": "integer", "minimum": 0}
+          "synthetic_evidence": {"type": "integer", "minimum": 0},
+          "stage": {"type": "integer", "minimum": 0, "maximum": 5},
+          "stage_name": {"type": "string"},
+          "measured_count": {"type": "integer", "minimum": 0}
         }
       }
     },
