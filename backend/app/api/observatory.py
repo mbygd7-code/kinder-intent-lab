@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.arena.reflect import STAGE_NAMES, brain_stage, region_stages
+from app.arena.stages import STAGE_NAMES, brain_stage, region_stages
 from app.brain.diagnosis import diagnose_node
 from app.brain.priors import current_state_version
 from app.brain.version_gate import version_gate_status

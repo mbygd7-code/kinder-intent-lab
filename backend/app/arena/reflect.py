@@ -1,43 +1,39 @@
-"""Arena → Observatory 반영 잡 (§7-5·§7-6, T5.4).
+"""Arena → Observatory 반영 잡 (§7-5·§8-2, T5.4).
 
-**Arena 결과만이 3D 뇌의 brightness와 edge flicker를 바꾼다**(§8-2, 절대 규칙 3 / 원칙 8):
+**Arena 결과만이** 3D 뇌의 brightness와 edge flicker를 바꾼다(절대 규칙 3 / 원칙 8):
 
-| 시각 요소 | 저장 위치 | 이 모듈에서 |
+| 시각 요소 | 저장 위치 | 갱신 시점 |
 |---|---|---|
-| Node Brightness | `brain_nodes.heldout_accuracy` | promote 시에만 (promote.resolve_candidate) |
-| Edge Flicker | `confusion_edges.confusion_rate` | 모든 brain run (runner.apply_confusion_edges) |
-| Pending Ring | `brain_nodes.pending_evaluation` | promote 시 소등 (§6-7 [9]) |
+| Node Brightness | `brain_nodes.heldout_accuracy` | 이 잡 (아래 규칙) |
+| Edge Flicker | `confusion_edges.confusion_rate` | 이 잡 — 모든 brain run |
+| Pending Ring | `brain_nodes.pending_evaluation` | 훈련이 점등, **promote만** 소등 (§6-7 [6]→[9]) |
 
-강제 수단은 `models.guards.arena_brightness_write` 컨텍스트 + flush 리스너다 — 훈련 코드가
-brightness를 대입하면 `BrightnessWriteBlocked`로 실패한다.
+## 밝기는 "현행 뇌"의 heldout이다
 
-`zero_shot_baseline` run은 반영 대상이 아니다(§8-2 베이스라인 규칙) — 여기서 loud-fail한다.
+`arena_runs.model_version`이 어떤 뇌를 쟀는지 말해준다:
 
-§7-6 성장 스테이지도 여기서 계산한다. 전부 Arena 산출에서 유도되며 어떤 값도 저장하지 않는다
-(읽을 때마다 재계산 — 저장된 스테이지가 실제 밝기와 어긋나는 상태를 만들지 않기 위해).
+- **현행 base 버전을 잰 run**(주간 정기 실행) → 그 숫자가 곧 지금 뇌의 밝기다 → 반영한다.
+  단 **pending 링은 끄지 않는다** — 이 run은 candidate에 담긴 훈련을 검증한 것이 아니다.
+- **candidate를 잰 run** → 그 숫자는 아직 뇌의 것이 아니다.
+  - promote → `promote.resolve_candidate`가 밝기를 켜고 링을 끄고 Resonance를 발동한다(§6-7 [9]).
+  - reject → 숫자는 폐기된다. 밝기·링 불변(§6-6).
+- **zero-shot 베이스라인 run** → 3D 반영 대상이 아니다(§8-2). 여기서 loud-fail한다.
+
+훈련(gym)이 밝기를 올리는 지름길은 어느 경로에도 없다 —
+§6-7 "[4]→[6]에서 밝기가 바로 오르는 지름길은 구조적으로 존재하지 않는다".
+강제 수단은 `models.guards.arena_brightness_write` 컨텍스트 + flush 리스너다.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.arena.runner import apply_confusion_edges
+from app.arena.runner import apply_confusion_edges, build_outcome
+from app.brain.promote import apply_arena_brightness
+from app.brain.version_gate import SEED_VERSION, current_base
 from app.core.config import ExperimentsConfig
-from app.core.ontology import CANONICAL_DOMAINS
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
-from app.models.brain import BrainNode
-
-# §7-6 스테이지 이름 (4는 미구현 — 아래 region_stage 참조)
-STAGE_NAMES = {
-    0: "Dormant",
-    1: "Spark",
-    2: "Cluster Awake",
-    3: "Region Online",
-    4: "Cross-Region Flow",
-    5: "Whole Brain Resonance",
-}
 
 
 class BaselineRunNotReflectable(Exception):
@@ -48,84 +44,34 @@ class BaselineRunNotReflectable(Exception):
 class ReflectResult:
     run_id: str
     edges_touched: int
+    nodes_brightened: int
     resonance: bool  # promote 순간의 Full Brain Resonance 발동 여부(§6-6)
+
+
+def measures_current_brain(session: Session, run: ArenaRun) -> bool:
+    """이 run이 현행(promote된) 뇌를 잰 것인가. 아니면 candidate를 잰 것이다."""
+    base = current_base(session)
+    return run.model_version == (base.version if base is not None else SEED_VERSION)
 
 
 def reflect_arena_run(
     session: Session, run: ArenaRun, config: ExperimentsConfig, *, promoted: bool = False
 ) -> ReflectResult:
-    """arena run을 3D 뇌 상태에 반영한다 — edge flicker 갱신 (+ promote면 Resonance 표시).
-
-    brightness는 여기서 쓰지 않는다: promote 판정을 통과한 candidate에 한해
-    `promote.resolve_candidate`가 `arena_brightness_write` 컨텍스트 안에서 쓴다(§6-7 [9]).
-    정기(주간) run은 edge flicker만 갱신한다 — 승격 없이 밝아지는 경로는 없다.
-    """
+    """arena run을 3D 뇌 상태에 반영한다 — edge flicker + (해당하면) 현행 뇌의 밝기."""
     if run.run_type != RUN_TYPE_BRAIN:
         raise BaselineRunNotReflectable(
             f"run {run.run_id}(run_type={run.run_type})은 3D 반영 대상이 아니다 (§8-2)"
         )
     edges = apply_confusion_edges(session, run)
-    return ReflectResult(run_id=run.run_id, edges_touched=edges, resonance=promoted)
 
-
-# --- §7-6 성장 스테이지 (전부 Arena 산출에서 유도) ---
-
-
-@dataclass
-class RegionStage:
-    region: str
-    stage: int
-    stage_name: str
-    reliability: float | None   # 측정된 노드 heldout 평균 (미측정이면 None)
-    node_count: int
-    measured_count: int
-
-
-def region_stage(
-    reliability: float | None, node_count: int, measured_count: int, config: ExperimentsConfig
-) -> int:
-    """§7-6 판정 — 만족하는 가장 높은 단계를 취한다(단조 사다리).
-
-    문서 §7-6의 Stage 1~3 기준은 서로 배타적이지 않다(예: 측정 비율 40% + reliability 60%는
-    어느 줄에도 정확히 걸리지 않는다). 여기서는 **높은 단계부터 검사해 처음 만족하는 값**을
-    쓴다. 이 해석은 docs/05-arena/README.md §8에 기록돼 있다.
-
-    Stage 4(Cross-Region Flow)는 '인접 region' 정의가 설계에 없어 **판정하지 않는다** —
-    없는 개념을 지어내지 않는다. Stage 5는 global 지표이므로 region 단위로 반환하지 않는다.
-    """
-    if measured_count == 0:
-        return 0  # Dormant — 노드 heldout 미측정
-    if reliability is not None and reliability >= config.stages.region_online_reliability:
-        return 3  # Region Online
-    if node_count and (measured_count / node_count) >= config.stages.cluster_awake_measured_ratio:
-        return 2  # Cluster Awake
-    return 1      # Spark — 측정 1회 이상
-
-
-def region_stages(session: Session, config: ExperimentsConfig) -> dict[str, RegionStage]:
-    """region별 스테이지. reliability는 **측정된 노드만** 평균낸다(미측정은 0%가 아니다)."""
-    buckets: dict[str, list[float | None]] = {d: [] for d in CANONICAL_DOMAINS}
-    for node in session.scalars(select(BrainNode)):
-        buckets.setdefault(node.region, []).append(node.heldout_accuracy)
-
-    out: dict[str, RegionStage] = {}
-    for region, values in buckets.items():
-        measured = [v for v in values if v is not None]
-        reliability = round(sum(measured) / len(measured), 4) if measured else None
-        stage = region_stage(reliability, len(values), len(measured), config)
-        out[region] = RegionStage(
-            region=region, stage=stage, stage_name=STAGE_NAMES[stage],
-            reliability=reliability, node_count=len(values), measured_count=len(measured),
+    brightened = 0
+    if promoted:
+        pass  # promote 경로가 이미 밝기를 켜고 링을 껐다 — 두 번 쓰지 않는다
+    elif measures_current_brain(session, run):
+        # 정기 run: 현행 뇌를 다시 잰 숫자 = 지금 밝기. 링은 건드리지 않는다(검증한 바 없다).
+        brightened = apply_arena_brightness(
+            session, build_outcome(run, None, config), clear_pending=False
         )
-    return out
-
-
-def brain_stage(ktib_global: float | None, regions: dict[str, RegionStage],
-                config: ExperimentsConfig) -> int:
-    """전역 스테이지. global ≥ 목표면 5(Whole Brain Resonance), 아니면 region 최고 단계.
-
-    Stage 4는 판정하지 않으므로 3에서 5로 건너뛴다 (§7-6 표의 Cross-Region Flow 미구현).
-    """
-    if ktib_global is not None and ktib_global >= config.arena.first_intent_accuracy_target:
-        return 5
-    return max((r.stage for r in regions.values()), default=0)
+    return ReflectResult(
+        run_id=run.run_id, edges_touched=edges, nodes_brightened=brightened, resonance=promoted
+    )

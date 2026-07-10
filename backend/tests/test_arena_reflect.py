@@ -9,14 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select, update
 
-from app.arena.reflect import (
-    STAGE_NAMES,
-    BaselineRunNotReflectable,
-    brain_stage,
-    reflect_arena_run,
-    region_stage,
-    region_stages,
-)
+from app.arena.reflect import BaselineRunNotReflectable, reflect_arena_run
+from app.arena.stages import STAGE_NAMES, brain_stage, region_stage, region_stages
 from app.brain.backfill import bootstrap_nodes
 from app.brain.promote import ArenaOutcome, resolve_candidate
 from app.core.config import get_config
@@ -137,14 +131,17 @@ def test_promote_path_still_writes_brightness(db_session) -> None:
 # --- 반영 잡: edge flicker + 베이스라인 분리 ---
 
 
-def _run(db, run_type=RUN_TYPE_BRAIN, matrix=None, by_node=None) -> ArenaRun:
-    db.add(KtibVersion(ktib_version="ktib-1", seq=1, extractor_versions={}, episode_count=1,
-                       content_hash="h1"))
-    db.flush()
+def _run(db, run_type=RUN_TYPE_BRAIN, matrix=None, by_node=None,
+         model_version="seed-v0", run_id=None) -> ArenaRun:
+    if db.get(KtibVersion, "ktib-1") is None:
+        db.add(KtibVersion(ktib_version="ktib-1", seq=1, extractor_versions={}, episode_count=1,
+                           content_hash="h1"))
+        db.flush()
     run = ArenaRun(
-        run_id=f"AR_{run_type}", model_version="seed-v0", ontology_version="onto-1.0",
-        persona_state_version="none", extractor_versions={}, ktib_version="ktib-1",
-        run_type=run_type, metrics={"by_node": by_node or {}}, confusion_matrix=matrix or [],
+        run_id=run_id or f"AR_{run_type}_{model_version}", model_version=model_version,
+        ontology_version="onto-1.0", persona_state_version="none", extractor_versions={},
+        ktib_version="ktib-1", run_type=run_type,
+        metrics={"by_node": by_node or {}}, confusion_matrix=matrix or [],
     )
     db.add(run)
     db.flush()
@@ -169,12 +166,45 @@ def test_reflect_updates_edge_flicker(db_session) -> None:
     assert edge.confusion_rate == 0.31 and edge.state == "confirmed"
 
 
-def test_reflect_without_promote_never_brightens(db_session) -> None:
-    """★ 정기 run은 edge만 갱신한다 — 승격 없이 밝아지는 경로는 없다(§6-7 [9])."""
+def test_regular_run_on_base_brightens_but_keeps_pending(db_session) -> None:
+    """정기 run이 **현행 뇌**를 재면 그 숫자가 곧 밝기다 (§7-6 Stage 1 Spark = 측정 1회 이상).
+
+    단 pending 링은 끄지 않는다 — 이 run은 candidate의 훈련을 검증한 것이 아니다(§6-5).
+    """
     a = _intent(0)
-    run = _run(db_session, by_node={a: {"n": 3, "correct": 3, "accuracy": 1.0, "ece": 0.0}})
-    reflect_arena_run(db_session, run, CFG, promoted=False)
+    node = _node(db_session, a)
+    node.pending_evaluation = True     # 훈련됨·검증 대기
+    db_session.flush()
+
+    run = _run(db_session, model_version="seed-v0",  # base(promote 없음) == seed-v0
+               by_node={a: {"n": 3, "correct": 1, "accuracy": 0.31, "ece": 0.12}})
+    result = reflect_arena_run(db_session, run, CFG, promoted=False)
+    assert result.nodes_brightened == 1
+
+    db_session.refresh(node)
+    assert node.heldout_accuracy == 0.31          # §6-7 [0] "brightness 31%"
+    assert node.calibration_ece == 0.12
+    assert node.last_arena_run == run.run_id
+    assert node.pending_evaluation is True        # ★ 링은 promote만 끈다(§6-7 [9])
+
+
+def test_unpromoted_candidate_run_never_brightens(db_session) -> None:
+    """★ candidate를 잰 숫자는 아직 뇌의 것이 아니다 — 승격 없이 밝아지는 경로는 없다(§6-7 [9])."""
+    a = _intent(0)
+    run = _run(db_session, model_version="seed-v0-rc1",  # base가 아니라 candidate를 잼
+               by_node={a: {"n": 3, "correct": 3, "accuracy": 1.0, "ece": 0.0}})
+    result = reflect_arena_run(db_session, run, CFG, promoted=False)
+    assert result.nodes_brightened == 0
     assert _node(db_session, a).heldout_accuracy is None
+
+
+def test_promoted_run_does_not_double_write(db_session) -> None:
+    """promote 경로가 이미 밝기를 켰으므로 반영 잡은 다시 쓰지 않는다."""
+    a = _intent(0)
+    run = _run(db_session, model_version="seed-v0-rc1",
+               by_node={a: {"n": 3, "correct": 3, "accuracy": 1.0, "ece": 0.0}})
+    result = reflect_arena_run(db_session, run, CFG, promoted=True)
+    assert result.nodes_brightened == 0 and result.resonance is True
 
 
 def test_baseline_run_cannot_be_reflected(db_session) -> None:

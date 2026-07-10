@@ -112,9 +112,24 @@ global과 node별로 계산한다.
 
 | 시각 요소 | 저장 위치 | 누가 쓰는가 |
 |---|---|---|
-| Node Brightness | `brain_nodes.heldout_accuracy` | **promote 통과 시에만** (`promote.resolve_candidate`) |
+| Node Brightness | `brain_nodes.heldout_accuracy` | 반영 잡 (아래 규칙) |
 | Edge Flicker | `confusion_edges.confusion_rate` | 모든 `brain` run (`runner.apply_confusion_edges`) |
-| Pending Ring | `brain_nodes.pending_evaluation` | 훈련이 점등, promote가 소등 (§6-7 [6]→[9]) |
+| Pending Ring | `brain_nodes.pending_evaluation` | 훈련이 점등, **promote만** 소등 (§6-7 [6]→[9]) |
+
+### 밝기는 "현행 뇌"의 heldout이다
+
+`arena_runs.model_version`이 **어떤 뇌를 쟀는지** 말해준다. 밝기는 그 귀속을 따른다:
+
+| run이 잰 대상 | 밝기 | pending 링 |
+|---|---|---|
+| 현행 base 버전 (주간 정기 실행) | 갱신 | **건드리지 않음** — 이 run은 candidate의 훈련을 검증한 적이 없다 |
+| candidate → promote | 갱신 (`resolve_candidate`) | 소등 + Full Brain Resonance (§6-7 [9]) |
+| candidate → reject | 불변 (숫자 폐기) | 불변 (§6-6) |
+| `zero_shot_baseline` | 반영 불가 (`BaselineRunNotReflectable`) | — |
+
+> 이 규칙이 §7-6 Stage 1(Spark = "측정 1회 이상")을 가능하게 한다. 밝기를 promote에서만 켜면
+> 첫 promote 이전의 뇌는 영원히 Stage 0에 머물러 §7-6 표와 모순된다.
+> 훈련이 밝기를 올리는 지름길은 여전히 어느 경로에도 없다(§6-7 [4]→[6]).
 
 ### 강제 수단 (절대 규칙 3)
 
@@ -127,9 +142,6 @@ global과 node별로 계산한다.
   어느 run이 그 밝기를 만들었는지 귀속되지 않는 값은 §8-2 replay 무결성에서 의미가 없다.
 - 한계: statement 레벨 쓰기(`session.execute(update(...))`)는 이 리스너를 우회한다.
   `promote_tier()`와 동일한 계약 — 밝기를 쓰는 코드는 반드시 이 컨텍스트를 경유한다.
-
-정기(주간) run은 **밝기를 켜지 않는다.** 승격 없이 밝아지는 경로는 없다(§6-7 "[4]→[6]에서
-밝기가 바로 오르는 지름길은 구조적으로 존재하지 않는다").
 
 ### 성장 스테이지 (§7-6) — 구현 시 내린 두 가지 해석
 

@@ -125,7 +125,8 @@ def main() -> int:
                       f"resonance={reflected.resonance}")
             else:
                 reflected = reflect_arena_run(session, result.run, config, promoted=False)
-                print(f"edges_touched={reflected.edges_touched} (밝기는 promote 시에만 갱신)")
+                print(f"edges_touched={reflected.edges_touched} "
+                      f"nodes_brightened={reflected.nodes_brightened} (현행 뇌 재측정)")
 
             if args.commit:
                 session.commit()

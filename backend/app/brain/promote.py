@@ -78,12 +78,19 @@ def evaluate_promotion(
     return PromotionDecision(promote=not reasons, reasons=reasons)
 
 
-def _apply_arena_brightness(session: Session, outcome: ArenaOutcome) -> int:
-    """Arena 결과를 노드 밝기에 반영 — heldout·ece·last_arena_run + pending 링 소등.
+def apply_arena_brightness(
+    session: Session, outcome: ArenaOutcome, *, clear_pending: bool = True
+) -> int:
+    """Arena 결과를 노드 밝기에 반영 — heldout·ece·last_arena_run (+ 선택적 pending 링 소등).
 
     이것이 밝기(heldout_accuracy)를 쓰는 유일한 함수다(§8-2). 노드가 없으면 건너뛴다.
     `arena_brightness_write`는 그 사실을 flush 리스너로 강제한다(절대 규칙 3) — 다른 코드
     경로가 brightness를 대입하면 BrightnessWriteBlocked로 실패한다.
+
+    `clear_pending`:
+    - promote(§6-7 [9]) → True. 훈련이 검증됐으므로 "훈련됨·검증 대기" 링을 끈다.
+    - 정기 run이 현행 뇌를 다시 잰 경우 → **False**. 그 run은 candidate에 담긴 훈련을 검증한
+      것이 아니다. 링을 끄면 "검증 안 된 훈련이 검증됐다"는 거짓 상태가 된다.
     """
     nodes = {
         n.intent_id: n for n in session.scalars(
@@ -101,7 +108,8 @@ def _apply_arena_brightness(session: Session, outcome: ArenaOutcome) -> int:
             # run인데 ECE만 이전 run 값이 남아 오귀속되는 내부 불일치를 막는다(리뷰 MINOR).
             node.calibration_ece = outcome.node_ece.get(intent)
             node.last_arena_run = outcome.run_id
-            node.pending_evaluation = False  # ring 소등 — "훈련됨·검증 대기"가 검증됨(§6-7 [9])
+            if clear_pending:
+                node.pending_evaluation = False  # ring 소등 (§6-7 [9])
             count += 1
         session.flush()
     return count
@@ -151,7 +159,7 @@ def resolve_candidate(
         return ResolveResult("reject", candidate.version, decision.reasons, 0)
 
     # promote: 밝기의 유일 쓰기 지점 + ring 소등 + Resonance + decision 승격
-    brightened = _apply_arena_brightness(session, outcome)
+    brightened = apply_arena_brightness(session, outcome, clear_pending=True)
     candidate.version = _promoted_version(session)  # rc 접미사 누적 방지(§6-6 clean 버전)
     candidate.decision = "promote"
     candidate.arena_result = arena_result
