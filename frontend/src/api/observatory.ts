@@ -18,8 +18,9 @@ export interface ObservatoryRegion {
 
 /**
  * §7-6 성장 스테이지. region은 0~3만 나온다:
- * 4(Cross-Region Flow)는 '인접 region' 정의가 설계에 없어 판정하지 않고,
- * 5(Whole Brain Resonance)는 global 지표라 brain_stage로만 온다.
+ * 4(Semantic Cross-Region Flow)는 region *쌍* 사이의 흐름이고,
+ * 5(Whole Brain Resonance)는 global 지표라 — 둘 다 brain_stage로만 온다.
+ * 백엔드가 준 값을 그대로 표시한다(보간·추측 금지).
  */
 export type GrowthStage = 0 | 1 | 2 | 3 | 4 | 5
 

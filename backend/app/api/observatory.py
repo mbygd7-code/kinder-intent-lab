@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.arena.stages import STAGE_NAMES, brain_stage, region_stages
+from app.arena.stages import STAGE_NAMES, brain_stage, region_stages, stage4_inputs
 from app.brain.diagnosis import diagnose_node
 from app.brain.priors import current_state_version
 from app.brain.version_gate import version_gate_status
@@ -129,7 +129,12 @@ def brain_state(
     ]
 
     ktib_global = _ktib_global(session)
-    global_stage = brain_stage(ktib_global, stages, config)
+    # Stage 4(Semantic Cross-Region Flow)는 confirmed cross-region edge + 동일 ktib_version의
+    # 최근 W개 brain run 추세가 있어야 판정된다. 근거가 없으면 방출되지 않는다(§7-6).
+    edges, run_history = stage4_inputs(session, config)
+    global_stage = brain_stage(
+        ktib_global, stages, config, edges=edges, run_history=run_history
+    )
     return ObservatoryBrain(
         brain_version=_brain_version(session),
         ontology_version=load_ontology().version,
