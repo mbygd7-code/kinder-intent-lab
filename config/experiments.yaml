@@ -94,6 +94,10 @@ visual_semantics:
 arena:
   schedule: weekly
   ood_score_threshold: 0.25       # OOD 판정 (전 후보 score 미만)
+  ece_bins: 10                    # calibration ECE 등간격 신뢰도 버킷 수 (§8-2 calibration)
+  confusion_confirm_min: 3        # arena 오답이 이 횟수 이상인 pair만 edge state=confirmed (§5-6)
+  critical_intents: []            # promote 규칙의 'critical 악화 없음' 대상 (§6-6). 미지정=빈 목록
+  first_intent_accuracy_target: 0.80  # §10-2 KTIB 1차 목표 — zero-shot 베이스라인 후 재확정 대상
 
 latency:                           # 0b shadow는 비동기라 미적용. live 목표값(참고용, PARTIAL HOLD)
   live_p50_ms: 600

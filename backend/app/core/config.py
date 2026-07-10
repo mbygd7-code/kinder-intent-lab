@@ -133,6 +133,12 @@ class VisualSemanticsConfig(_Section):
 class ArenaConfig(_Section):
     schedule: str
     ood_score_threshold: float
+    ece_bins: int = Field(gt=1)
+    confusion_confirm_min: int = Field(ge=1)
+    # promote 규칙(§6-6)의 'critical intent 악화 없음' 대상. 도메인 합의 전까지 빈 목록 =
+    # 그 조건이 항상 통과 — 지어낸 목록으로 게이트를 위장하지 않는다.
+    critical_intents: list[str]
+    first_intent_accuracy_target: float = Field(gt=0, le=1)
 
 
 class LatencyConfig(_Section):
