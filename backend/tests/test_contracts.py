@@ -70,11 +70,15 @@ def test_every_schema_has_model_and_example() -> None:
 
 
 def test_validate_schemas_script_passes() -> None:
-    """스키마 메타 검증 + examples/ 전체가 jsonschema($ref 포함)를 통과."""
+    """스키마 메타 검증 + examples/ 전체가 jsonschema($ref 포함)를 통과 + risk model 정합."""
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "validate_schemas.py")],
         capture_output=True,
+        # 스크립트는 stdout/stderr을 utf-8로 재설정한다. 여기서 안 맞추면 cp949 콘솔에서
+        # 리더 스레드가 UnicodeDecodeError로 죽어 실패 메시지를 못 읽는다.
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     assert result.returncode == 0, result.stdout + result.stderr
 

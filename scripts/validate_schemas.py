@@ -17,6 +17,41 @@ sys.stderr.reconfigure(encoding="utf-8")
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS = ROOT / "schemas"
 EXAMPLES = ROOT / "examples"
+CONFIG = ROOT / "config" / "experiments.yaml"
+RISK_MODEL = ROOT / "seeds" / "risk_model_v1.yaml"
+
+
+def check_risk_model_coherence() -> int:
+    """config.arena.critical_intents ↔ risk model CRITICAL 집합 정합 (drift 차단).
+
+    순수 yaml 대조라 backend 패키지를 import하지 않는다(이 스크립트의 의존성 유지).
+    config를 비우면 §6-6의 critical 절과 CWAR가 **조용히** 무력화되므로, 그 경로를 여기서 막는다.
+    """
+    try:
+        import yaml
+    except ImportError:
+        print("pyyaml 미설치 — risk model 정합 검사 생략", file=sys.stderr)
+        return 1
+    try:
+        cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+        rm = yaml.safe_load(RISK_MODEL.read_text(encoding="utf-8"))
+        actual = sorted(cfg["arena"]["critical_intents"])
+        expected = sorted(
+            i["intent_id"] for i in rm["intents"] if i["tier"] == "CRITICAL"
+        )
+        if actual != expected:
+            print(
+                f"FAIL risk model 정합: config.arena.critical_intents={actual} != "
+                f"{rm['risk_model_version']} CRITICAL={expected}",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"OK   risk model {rm['risk_model_version']} ↔ config.arena.critical_intents "
+              f"({len(expected)} CRITICAL)")
+        return 0
+    except Exception as e:  # noqa: BLE001
+        print(f"FAIL risk model 정합 검사: {e}", file=sys.stderr)
+        return 1
 
 
 def main() -> int:
@@ -86,6 +121,7 @@ def main() -> int:
             first_line = str(e).splitlines()[0]
             print(f"FAIL examples/{path.name}: {first_line}", file=sys.stderr)
 
+    errors += check_risk_model_coherence()
     return 1 if errors else 0
 
 

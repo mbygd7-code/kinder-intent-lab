@@ -135,6 +135,25 @@ class StagesConfig(_Section):
 
     cluster_awake_measured_ratio: float = Field(gt=0, le=1)
     region_online_reliability: float = Field(gt=0, le=1)
+    # Stage 4 Semantic Cross-Region Flow — 추세 윈도(동일 ktib_version brain run 수)와 판정 임계
+    cross_region_trend_window: int = Field(ge=2)
+    cross_region_trend_min_drop: float = Field(ge=0)
+    cross_region_major_edge_min: float = Field(gt=0, le=1)
+
+
+class GateConfig(_Section):
+    """§10-2 live rollout 준비 게이트 임계 (읽기 전용 판정 — 어떤 서빙 경로도 켜지 않는다)."""
+
+    cwar_max: float = Field(ge=0, le=1)                     # CWAR-fire 상한
+    cwar_min_items: int = Field(ge=1)                       # CWAR-fire 분모 표본 하한
+    cwar_miss_max: float = Field(ge=0, le=1)                # CWAR-miss 상한
+    critical_surface_min_items: int = Field(ge=1)           # critical-gold 표본 하한
+    critical_commit_coverage_min: float = Field(gt=0, le=1)  # CCC 하한(겁쟁이·세탁 방지)
+    recovery_min: float = Field(ge=0, le=1)
+    recovery_min_clarify: int = Field(ge=1)
+    persona_harm_margin: float = Field(ge=0)
+    persona_eval_min_items: int = Field(ge=1)
+    sustained_runs: int = Field(ge=1)
 
 
 class ArenaConfig(_Section):
@@ -196,6 +215,7 @@ class ExperimentsConfig(_Section):
     version_gate: VersionGateConfig
     visual_semantics: VisualSemanticsConfig
     stages: StagesConfig
+    gate: GateConfig
     arena: ArenaConfig
     latency: LatencyConfig
     campaign: CampaignConfig
