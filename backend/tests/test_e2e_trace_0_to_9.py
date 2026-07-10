@@ -50,7 +50,7 @@ from app.models.guards import promote_tier
 from app.models.gym import ChallengePack, GymSession
 from app.models.persona import PersonaCluster, PopulationPrior
 from tests.arena_helpers import add_benchmark_episode
-from tests.brain_helpers import FAST, _SyntheticScorer, _embed, _gold
+from tests.brain_helpers import FAST, _embed, _gold, _SyntheticScorer
 
 CFG = get_config()
 BUCKETS = ("synthetic", "weak_behavioral", "human_confirmed", "gold", "expert")
@@ -306,7 +306,7 @@ def test_e2e_trace_0_to_9(db_session) -> None:
 
 
 def test_e2e_reject_branch_preserves_everything(db_session) -> None:
-    """§6-7 [9] FAIL 경로: reject → evidence 전량 보존, 밝기·링 불변, 원인 리포트, Resonance 없음."""
+    """§6-7 [9] FAIL: reject → evidence 보존, 밝기·링 불변, 원인 리포트, Resonance 없음."""
     node, other = _intents()
     gold_of = {"node": node, "other": other}
 
