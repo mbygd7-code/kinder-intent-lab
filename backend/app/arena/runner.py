@@ -25,13 +25,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.arena.ktib import EmptyKtib, latest_ktib, load_items
-from app.arena.metrics import Prediction, compute_metrics, confusion_matrix
+from app.arena.metrics import (
+    Prediction,
+    compute_metrics,
+    confusion_matrix,
+    critical_metrics,
+    decision_counts,
+    recovery_rate,
+)
+from app.arena.persona import ItemActivation, persona_lift_harm
+from app.brain.decision import decide
 from app.brain.inference import CoreSignals, EmbedFn, infer_core
 from app.brain.priors import current_state_version
 from app.brain.promote import ArenaOutcome
 from app.brain.version_gate import SEED_VERSION
 from app.core.config import ExperimentsConfig
 from app.core.ontology import load_ontology
+from app.core.risk_model import get_risk_model
 from app.llm.client import LLMClient
 from app.models.arena import (
     NO_PERSONA_STATE,
@@ -93,8 +103,11 @@ def run_arena(
 
     ontology = load_ontology()
     regions = {i.intent_id: i.domain for i in ontology.intents if i.domain}
+    # 재정렬에 쓸 prior 버전을 **루프 전에** 고정한다 — 이 run은 이 버전으로만 채점된다(replay).
+    persona_state_version = current_state_version(session) or NO_PERSONA_STATE
 
     predictions: list[Prediction] = []
+    activations: list[ItemActivation] = []
     for item in items:
         result = infer_core(
             session,
@@ -107,19 +120,46 @@ def run_arena(
             cluster_id=None,  # 벤치마크는 persona 클러스터로 조건화하지 않는다
             model=scorer_model,
         )
+        # decision 엔진은 순수 판정이다 — 추가 LLM 호출도, DB 쓰기도 없다(§runtime 4).
+        # UNKNOWN(domain None)은 API와 동일하게 후보에서 제외한다.
+        served = [c["intent_id"] for c in result.candidates if c["domain"] is not None]
+        outcome = decide(
+            candidate_intents=served,
+            top_activation=result.top_activation,
+            confidence=result.confidence,
+            margin=result.margin,
+            config=config,
+        )
         predictions.append(Prediction(
             episode_id=item.episode_id,
             gold_intent=item.gold_intent,
             predicted_intent=result.top_intent,
             confidence=result.confidence,
+            decision=outcome.decision,
+            clarify_top2=tuple(served[:2]),  # decision.py가 제시하는 양자택일 후보
         ))
+        activations.append(ItemActivation(item.gold_intent, dict(result.activations)))
 
     metrics = compute_metrics(predictions, regions, ece_bins=config.arena.ece_bins)
+    # §10-2 게이트 지표 3종 — 전부 **run 시점**에 계산해 동결 저장한다. 게이트는 저장값만 읽는다:
+    # 게이트 시점에 live config/DB로 재계산하면 config 편집만으로 판정이 흔들려 replay가 깨진다.
+    # decision 분포는 오버레이로 남긴다: metrics["abstain_count"]는 후보 0(인식 실패)만 세므로,
+    # "argmax는 맞혔지만 강도가 낮아 행동하지 않은" 브레인은 여기서만 보인다.
+    metrics["decisions"] = decision_counts(predictions)
+    metrics["recovery"] = recovery_rate(predictions)
+    metrics["critical"] = critical_metrics(predictions, list(config.arena.critical_intents))
+    metrics["persona"] = persona_lift_harm(
+        session, activations, persona_state_version, config
+    )
+    # 어느 critical 집합으로 채점됐는지 귀속. replay 4-tuple에는 넣지 않는다 —
+    # 위험 등급 개정마다 비교 축이 흔들리면 안 되기 때문(추론에 영향 없음).
+    metrics["risk_model_version"] = get_risk_model().risk_model_version
+
     run = ArenaRun(
         run_id="AR_" + uuid.uuid4().hex[:12],
         model_version=model_version,
         ontology_version=ontology.version,
-        persona_state_version=current_state_version(session) or NO_PERSONA_STATE,
+        persona_state_version=persona_state_version,
         extractor_versions=dict(ktib.extractor_versions),  # KTIB가 동결한 지문 그대로
         ktib_version=ktib.ktib_version,
         run_type=RUN_TYPE_BRAIN,

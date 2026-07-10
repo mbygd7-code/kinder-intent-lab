@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.config import ExperimentsConfig
 from app.core.datasets import BENCHMARK_SPLIT
 from app.models.arena import KtibItem, KtibVersion
-from app.models.episodes import Episode
+from app.models.episodes import Episode, Evidence
 from app.models.foundry import CanonicalScenario
 
 # 절대 규칙 2 — 벤치마크에서 배제되는 합성 채널
@@ -41,6 +41,10 @@ class EmptyKtib(Exception):
 
 class AmbiguousGoldLabel(Exception):
     """GOLD 에피소드의 label_distribution에 유일 최댓값이 없다 — 정답을 임의로 고르지 않는다."""
+
+
+class AdversarialInBenchmark(Exception):
+    """벤치마크 후보에 adversarial evidence가 붙어 있다 — 자연 분포와 분리한다 (절대 규칙 6)."""
 
 
 @dataclass(frozen=True)
@@ -86,8 +90,30 @@ def _snapshot(session: Session, episode: Episode) -> dict | None:
     return dict(scenario.workspace_state) if scenario else None
 
 
+def assert_no_adversarial(session: Session, episode_ids: list[str]) -> None:
+    """절대 규칙 6: adversarial evidence는 자연 분포 집계에서 분리한다.
+
+    Break the Brain(§8-1) 산출은 구조적으로 `dataset_split=TRAIN`이라 벤치마크에 들어올 수
+    없지만, 수동 UPDATE로 끌어올 수는 있다. 그 경로를 여기서 막는다 — 스트레스 테스트용 발화가
+    자연 분포 벤치마크 점수에 섞이면 그 점수는 무엇도 뜻하지 않는다.
+    """
+    if not episode_ids:
+        return
+    tainted = sorted(set(session.scalars(
+        select(Evidence.episode_id).where(
+            Evidence.episode_id.in_(episode_ids), Evidence.adversarial.is_(True)
+        )
+    )))
+    if tainted:
+        raise AdversarialInBenchmark(
+            f"adversarial evidence가 붙은 벤치마크 후보: {tainted} — 절대 규칙 6 (§8-1)"
+        )
+
+
 def freeze_items(session: Session) -> list[FrozenItem]:
     """자격 에피소드를 동결 스냅샷으로 변환 (DB 기록 없음 — 순수 읽기)."""
+    episodes = eligible_episodes(session)
+    assert_no_adversarial(session, [ep.episode_id for ep in episodes])
     return [
         FrozenItem(
             episode_id=ep.episode_id,
@@ -96,7 +122,7 @@ def freeze_items(session: Session) -> list[FrozenItem]:
             lang=ep.lang,
             workspace_snapshot=_snapshot(session, ep),
         )
-        for ep in eligible_episodes(session)
+        for ep in episodes
     ]
 
 

@@ -104,7 +104,13 @@ def main() -> int:
             m = result.run.metrics
             print(f"run_id={result.run.run_id} "
                   f"first_intent_accuracy={m['first_intent_accuracy']} "
-                  f"ece={m['ece']} abstain={m['abstain_count']}/{m['item_count']}")
+                  f"ece={m['ece']} no_candidate={m['abstain_count']}/{m['item_count']}")
+            print(f"decisions={m['decisions']}")   # decision 단계의 abstain은 여기서만 보인다
+            crit = m["critical"]
+            print(f"CWAR-fire={crit['cwar_fire']} (n={crit['cwar_fire_n']}) "
+                  f"CWAR-miss={crit['cwar_miss']} CCC={crit['ccc']} "
+                  f"critical_gold={crit['o_count']}")
+            print(f"recovery={m['recovery']} persona={m['persona']}")
 
             if args.candidate:
                 try:

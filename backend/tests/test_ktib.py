@@ -10,6 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from app.arena.ktib import (
+    AdversarialInBenchmark,
     AmbiguousGoldLabel,
     EmptyKtib,
     build_ktib,
@@ -246,3 +247,29 @@ def test_ambiguous_gold_label_raises(db_session) -> None:
            dist={"visual_naturalize": 0.5, "text_naturalize": 0.5})
     with pytest.raises(AmbiguousGoldLabel, match="동률"):
         build_ktib(db_session, CFG)
+
+
+def test_adversarial_evidence_blocked_from_benchmark(db_session) -> None:
+    """★ 절대 규칙 6: 스트레스 테스트(Break the Brain) 발화가 자연 분포 벤치마크에 섞이면
+    그 점수는 무엇도 뜻하지 않는다."""
+    _bench(db_session, "EP_ADV", "visual_naturalize")
+    db_session.add(Evidence(
+        evidence_id="EV_ADV", episode_id="EP_ADV", intent_id="visual_naturalize",
+        polarity="supports", strength=0.9, evidence_type="HUMAN_CORRECTION",
+        actor_type="TEACHER_TRAINER", adversarial=True,
+    ))
+    db_session.flush()
+    with pytest.raises(AdversarialInBenchmark, match="절대 규칙 6"):
+        build_ktib(db_session, CFG)
+
+
+def test_natural_evidence_does_not_block_benchmark(db_session) -> None:
+    """adversarial=false evidence는 정상 — 가드가 과잉 차단하지 않는다."""
+    _bench(db_session, "EP_OK", "visual_naturalize")
+    db_session.add(Evidence(
+        evidence_id="EV_OK", episode_id="EP_OK", intent_id="visual_naturalize",
+        polarity="supports", strength=0.9, evidence_type="EXPERT_REVIEW",
+        actor_type="DOMAIN_EXPERT", adversarial=False,
+    ))
+    db_session.flush()
+    assert build_ktib(db_session, CFG).episode_count == 1

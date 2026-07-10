@@ -262,6 +262,10 @@ class InferenceResult:
     fallback_used: bool = False
     prior_tier: str = "neutral"       # individual | population | neutral
     inference_id: str = ""
+    # prior를 곱하기 **전**의 순수 activation (intent → 0~1). §5-5가 prior를 LLM 밖에서 곱하는
+    # 이유 ①("Persona Lift/Harm을 측정 가능")이 여기에 걸려 있다: 이 값이 있으면 LLM을 다시
+    # 부르지 않고 다른 prior로 재정렬해 lift/harm을 잴 수 있다. 소비처는 Arena뿐.
+    activations: dict[str, float] = field(default_factory=dict)
 
 
 def infer(
@@ -359,4 +363,5 @@ def infer_core(
         fallback_used=prior.fallback_used,
         prior_tier=prior.tier,
         inference_id=inference_id,
+        activations={i: a for i, (a, _r) in scored.items()},  # prior 곱하기 전 (§5-5)
     )

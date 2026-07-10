@@ -128,6 +128,41 @@ def test_run_records_replay_four_versions_and_metrics(db_session) -> None:
     assert m["ece"] is not None                       # calibration
 
 
+def test_run_freezes_gate_metrics_into_arena_run(db_session) -> None:
+    """★ §10-2 4지표는 run 시점에 계산돼 metrics에 동결된다 — 게이트는 저장값만 읽는다."""
+    _fixture_brain_and_ktib(db_session)
+    m = _run(db_session).run.metrics
+
+    assert m["risk_model_version"] == "rm-1.0"        # 어느 critical 집합으로 채점됐는지 귀속
+    assert "recovery" in m and "critical" in m and "persona" in m
+    # decision 분포가 남는다 — abstain_count(=후보 0)만으로는 decision abstain이 안 보인다
+    assert set(m["decisions"]) == {"suggest", "clarify", "abstain"}
+    assert sum(m["decisions"].values()) == m["item_count"]
+    # 이 픽스처의 intent(play_*)는 critical이 아니다 → 안전 지표는 측정 대상 없음(null, 0% 아님)
+    crit = m["critical"]
+    assert crit["critical_set_size"] == len(CFG.arena.critical_intents) == 7
+    assert crit["o_count"] == 0
+    assert crit["cwar_fire"] is None and crit["cwar_miss"] is None and crit["ccc"] is None
+    assert m["persona"] is None                       # persona_cluster 0개
+
+
+def test_decision_postprocess_adds_no_inference_logs(db_session) -> None:
+    """decide()·persona 재정렬은 순수 후처리다 — 추가 LLM 호출도, 로그 행도 만들지 않는다(§5-5)."""
+    _fixture_brain_and_ktib(db_session)
+    before = len(db_session.scalars(select(InferenceLog)).all())
+    _run(db_session)
+    after = len(db_session.scalars(select(InferenceLog)).all())
+    assert after - before == 4                        # KTIB 아이템 수만큼만 (재랭킹은 0)
+
+
+def test_predictions_carry_decision_and_top2(db_session) -> None:
+    """Recovery·CWAR의 재료 — 모든 예측이 decision과 clarify 후보를 들고 있다."""
+    _fixture_brain_and_ktib(db_session)
+    preds = _run(db_session).predictions
+    assert all(p.decision in {"suggest", "clarify", "abstain"} for p in preds)
+    assert all(p.clarify_top2 is not None for p in preds)
+
+
 def test_gold_intent_never_enters_inference_input(db_session) -> None:
     """★ 절대 규칙 5: 정답·에피소드 id가 Core 신호에 새지 않는다."""
     ktib, a, b = _fixture_brain_and_ktib(db_session)
