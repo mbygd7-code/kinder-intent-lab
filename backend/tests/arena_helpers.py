@@ -62,14 +62,21 @@ def add_benchmark_episode(db, epid, intent, *, prompt=None, scenario_id=None) ->
     return ep
 
 
-def seed_ktib(db, pairs: list[tuple[str, str]], *, with_scenario: bool = False):
-    """(episode_id, gold_intent) 목록으로 벤치마크를 채우고 ktib_version을 발급한다."""
-    for epid, intent in pairs:
+def seed_ktib(db, rows: list[tuple], *, with_scenario: bool = False):
+    """벤치마크를 채우고 ktib_version을 발급한다.
+
+    rows: `(episode_id, gold_intent)` 또는 `(episode_id, gold_intent, teacher_prompt)`.
+    발화를 생략하면 `발화-<episode_id>`가 되므로, 발화에 계보가 새면 안 되는 테스트는
+    반드시 발화를 명시한다.
+    """
+    for row in rows:
+        epid, intent = row[0], row[1]
+        prompt = row[2] if len(row) > 2 else None
         scenario_id = None
         if with_scenario:
             scenario_id = f"CS_{epid}"
             add_scenario(db, scenario_id)
-        add_benchmark_episode(db, epid, intent, scenario_id=scenario_id)
+        add_benchmark_episode(db, epid, intent, prompt=prompt, scenario_id=scenario_id)
     return build_ktib(db, CFG)
 
 

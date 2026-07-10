@@ -31,10 +31,15 @@ from app.core.config import ExperimentsConfig
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.foundry.agents.runner import AgentOutputError, render_agent_prompt, run_json_agent
 from app.llm.client import LLMClient
-from app.models.arena import RUN_TYPE_BASELINE, ArenaRun, KtibItem, KtibVersion
+from app.models.arena import (
+    NO_PERSONA_STATE,
+    RUN_TYPE_BASELINE,
+    ArenaRun,
+    KtibItem,
+    KtibVersion,
+)
 
 _ZERO_SHOT_PROMPT = load_prompt("zero_shot")
-NO_PERSONA_STATE = "none"  # zero-shot은 prior를 쓰지 않는다 — persona 축이 존재하지 않음을 명시
 
 
 class ZeroShotOutput(BaseModel):

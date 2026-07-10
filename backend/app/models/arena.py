@@ -26,6 +26,10 @@ from app.models.base import Base
 RUN_TYPE_BRAIN = "brain"
 RUN_TYPE_BASELINE = "zero_shot_baseline"
 
+# persona_state_version은 NOT NULL이다. 발급된 persona state가 아직 없을 때 쓰는 명시적 sentinel —
+# 없는 버전을 지어내거나 다른 축(brain 버전)의 이름을 빌려오지 않는다.
+NO_PERSONA_STATE = "none"
+
 
 class KtibVersion(Base):
     __tablename__ = "ktib_versions"

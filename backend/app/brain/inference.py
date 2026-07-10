@@ -273,11 +273,39 @@ def infer(
     model: str = "brain",
 ) -> InferenceResult:
     """4단계 추론을 실행하고 stages를 inference_log에 분리 기록한다."""
-    core = core_signals(request)  # 절대 규칙 5: Core만
-    uvec = embed_fn([core.prompt_text])[0]
-
     profile = request.teacher_context.profile or {}
-    cluster_id = profile.get("persona_cluster")  # 있으면 population prior 콜드스타트
+    return infer_core(
+        session,
+        core_signals(request),  # 절대 규칙 5: Core만
+        client,
+        embed_fn,
+        config,
+        request_id=request.request_id,
+        mode=request.mode,
+        cluster_id=profile.get("persona_cluster"),  # 있으면 population prior 콜드스타트
+        model=model,
+    )
+
+
+def infer_core(
+    session: Session,
+    core: CoreSignals,
+    client: LLMClient,
+    embed_fn: EmbedFn,
+    config: ExperimentsConfig,
+    *,
+    request_id: str,
+    mode: str,
+    cluster_id: str | None = None,
+    model: str = "brain",
+) -> InferenceResult:
+    """Core 신호에서 곧바로 4단계를 실행한다 — HTTP 요청 계약에 묶이지 않는 단일 추론 경로.
+
+    Arena(§8-2)처럼 InferRequest envelope이 없는 호출자가 **같은 파이프라인**을 쓰게 해서
+    '벤치마크는 다른 코드로 돌았다'는 귀속 오류를 구조적으로 없앤다. mode는 inference_log에만
+    남는 관측 라벨이다(계약 enum이 아니다).
+    """
+    uvec = embed_fn([core.prompt_text])[0]
 
     retrieved = retrieve_candidates(session, uvec, config, embed_fn)          # [1]
     scored = score_candidates(client, core, [c.intent_id for c in retrieved], model)  # [2]
@@ -310,8 +338,8 @@ def infer(
     session.add(
         InferenceLog(
             inference_id=inference_id,
-            request_id=request.request_id,
-            mode=request.mode,
+            request_id=request_id,
+            mode=mode,
             top_intent=rank.top_intent,
             confidence=rank.confidence,
             margin=rank.margin,
