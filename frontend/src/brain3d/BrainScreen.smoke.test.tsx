@@ -8,10 +8,14 @@
  * T5.4: §7-6 성장 스테이지 HUD + Persona Overlay(부가 채널 — 절대 규칙 3: 기본 노드
  * 렌더링은 오버레이 ON에서도 불변)도 2D fallback DOM에서 검증한다.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ObservatoryBrain, PersonaOverlay } from '../api/observatory'
+import type {
+  GlobalConfusionEdges,
+  ObservatoryBrain,
+  PersonaOverlay,
+} from '../api/observatory'
 import App from '../App'
 import { BrainScreen } from './BrainScreen'
 import { makeMockNodes } from './mockNodes'
@@ -38,15 +42,31 @@ const FAKE_BRAIN: ObservatoryBrain = {
 // Persona Discovery 미실행 기본값 — clusters 빈 배열(토글 비활성 + 정직한 안내가 AC)
 const EMPTY_OVERLAY: PersonaOverlay = { state_version: null, prior_cap: 0.15, clusters: [] }
 
+// §5-6 SKEPTIC 가설 edge 2개 — 전부 미측정(rate null)이 오늘의 실 DB 상태와 같은 모양
+const FAKE_EDGES: GlobalConfusionEdges = {
+  total: 2,
+  measured_count: 0,
+  edges: [
+    { edge_id: 'CE_1', from_intent: 'play_intent_01', to_intent: 'play_intent_02',
+      confusion_rate: null, state: 'hypothesized', origin: 'SKEPTIC' },
+    { edge_id: 'CE_2', from_intent: 'visual_intent_01', to_intent: 'play_intent_01',
+      confusion_rate: null, state: 'hypothesized', origin: 'SKEPTIC' },
+  ],
+}
+
 function stubFetch(
   ok: boolean,
   brain: ObservatoryBrain = FAKE_BRAIN,
   overlay: PersonaOverlay = EMPTY_OVERLAY,
+  edges: GlobalConfusionEdges = FAKE_EDGES,
 ) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (!ok) throw new Error('connection refused')
     if (String(url).includes('persona-overlay')) {
       return { ok: true, json: async () => overlay } as Response
+    }
+    if (String(url).includes('confusion-edges')) {
+      return { ok: true, json: async () => edges } as Response
     }
     return { ok: true, json: async () => brain } as Response
   }))
@@ -72,6 +92,8 @@ beforeEach(() => {
     regionScores: {}, ktibGlobal: null, brainVersion: null, brainStage: null,
     brainStageName: null, dataSource: 'loading', personaOverlay: null,
     personaOverlayStatus: 'loading', overlayClusterId: null, pulsingNodeIds: new Set(),
+    confusionEdges: null, confusionEdgesStatus: 'loading', edgeDisplayMode: 'focus',
+    hoveredRegionId: null,
   })
 })
 
@@ -85,8 +107,10 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     stubFetch(true)
     render(<BrainScreen />)
     expect(screen.getByRole('img', { name: /2d fallback/i })).toBeTruthy()
-    expect(screen.queryByRole('button')).toBeNull() // 빈 3D 뷰로 들어갈 길 자체가 없다
+    // 빈 3D 뷰로 들어갈 길 자체가 없다 (HUD의 범례·edge 칩 버튼과는 무관)
+    expect(screen.queryByRole('button', { name: /뇌로 보기|지도로 보기/ })).toBeNull()
     await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    expect(screen.queryByRole('button', { name: /뇌로 보기|지도로 보기/ })).toBeNull()
   })
 
   it('AC2: 7개 region 라벨이 각자의 region 색으로 렌더된다 (색+라벨 축)', () => {
@@ -99,7 +123,7 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     }
   })
 
-  it('live: 실 API 노드가 100+ 렌더되고 점 클릭 → 선택 칩 (MOCK 배지 없음)', async () => {
+  it('live: 실 API 노드가 100+ 렌더되고 점 클릭 → 노드 선택 (MOCK 배지 없음)', async () => {
     stubFetch(true)
     const { container } = render(<BrainScreen />)
     await waitFor(() => {
@@ -112,10 +136,10 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     const dots = [...container.querySelectorAll('svg circle')].filter(
       (c) => Number(c.getAttribute('r')) < 0.1,
     )
+    // 선택은 이제 store로만 반영된다(노드 이름 표시는 우측 NodePanel 담당 — 중복 칩 제거)
+    expect(useBrainStore.getState().selectedNodeId).toBeNull()
     fireEvent.click(dots[0])
-    const chip = container.querySelector('.selected-chip')
-    expect(chip).toBeTruthy()
-    expect(chip!.querySelector('strong')!.textContent).toMatch(/_intent_/)
+    expect(useBrainStore.getState().selectedNodeId).toBeTruthy()
   })
 
   it('Arena 데이터가 오면 KTIB %·region 점수·버전이 그대로 흐른다 (지어내지도 잃지도 않음)', async () => {
@@ -164,6 +188,90 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
       (c) => Number(c.getAttribute('r')) < 0.1,
     )
     expect(dots.length).toBeGreaterThanOrEqual(100)
+  })
+
+  it('§5-6 HUD: 혼동 edge 칩이 정직 카운트(가설 N · 측정 M)를 표시한다', async () => {
+    stubFetch(true)
+    render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().confusionEdgesStatus).toBe('ready'))
+    expect(screen.getByText(/가설 2 · 측정 0/)).toBeTruthy()
+    // 토글: 기본 focus → '전체 보기' 클릭 시 all
+    fireEvent.click(screen.getByRole('button', { name: '전체 보기' }))
+    expect(useBrainStore.getState().edgeDisplayMode).toBe('all')
+    expect(screen.getByRole('button', { name: '핵심만 보기' })).toBeTruthy()
+  })
+
+  it('범례: Arena 측정 전(live·ktib null)이면 "어두운 것이 정상" 상태줄 + 인코딩 행', async () => {
+    stubFetch(true) // FAKE_BRAIN: ktib null
+    render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    expect(screen.getByText(/Arena 측정 전 — 뇌가 어두운 것이 정상이에요/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '펼치기' }))
+    expect(screen.getByText('훈련량 (evidence 총량)')).toBeTruthy()
+    expect(screen.getByText('정확도 — Arena 측정만')).toBeTruthy()
+  })
+
+  it('2D: 노드 선택 시 그 노드의 혼동 edge가 점선(미측정)으로 그려진다 (§5-6 parity)', async () => {
+    stubFetch(true)
+    const { container } = render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().confusionEdgesStatus).toBe('ready'))
+    expect(container.querySelectorAll('.confusion-2d-edge').length).toBe(0) // 미선택 = 없음
+    // play_intent_01 노드 선택 → CE_1(출발) + CE_2(도착) 2개가 보인다
+    useBrainStore.setState({ selectedNodeId: 'BN_play_intent_01' })
+    await waitFor(() =>
+      expect(container.querySelectorAll('.confusion-2d-edge').length).toBe(2),
+    )
+    // 전부 미측정(rate null) → 점선 표기
+    for (const line of container.querySelectorAll('.confusion-2d-edge')) {
+      expect(line.getAttribute('stroke-dasharray')).toBeTruthy()
+    }
+  })
+
+  it('region 호버(2D): 원에 마우스 오버 → store 공유 + 시각 강조, 아웃 → 해제', async () => {
+    stubFetch(true)
+    const { container } = render(<BrainScreen />)
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    // region 원 = 큰 반지름 원(노드 점 r<0.1과 구분)
+    const regionCircle = [...container.querySelectorAll('svg circle')].find(
+      (c) => Number(c.getAttribute('r')) > 0.2,
+    )!
+    expect(regionCircle.getAttribute('fill-opacity')).toBe('0.08')
+    fireEvent.mouseOver(regionCircle)
+    expect(useBrainStore.getState().hoveredRegionId).not.toBeNull()
+    await waitFor(() => expect(regionCircle.getAttribute('fill-opacity')).toBe('0.18'))
+    fireEvent.mouseOut(regionCircle)
+    await waitFor(() => expect(useBrainStore.getState().hoveredRegionId).toBeNull())
+  })
+
+  it('도움말: 헤더 버튼 → 오버레이(탭 4개), 탭 전환·닫기 동작', async () => {
+    stubFetch(true)
+    render(<App />) // 도움말 버튼은 헤더(App)에 있다
+    expect(screen.queryByRole('dialog', { name: '도움말' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /도움말/ }))
+    const dialog = screen.getByRole('dialog', { name: '도움말' })
+    // 기본 탭 = 서비스 설명서 (핵심 개념 문구)
+    expect(within(dialog).getByText(/말귀를 알아듣는 뇌/)).toBeTruthy()
+    // 사용설명서 탭 전환 — 강화하기 안내가 보인다
+    fireEvent.click(within(dialog).getByRole('button', { name: '사용설명서' }))
+    expect(within(dialog).getByText(/뇌 가르치기 — 강화하기/)).toBeTruthy()
+    // 시험 문항 만들기 탭 — 다운로드 링크 2개(YAML·PDF)
+    fireEvent.click(within(dialog).getByRole('button', { name: '시험 문항 만들기' }))
+    const csvSeed = within(dialog).getByRole('link', { name: /시작 양식 \(CSV/ }) as HTMLAnchorElement
+    expect(csvSeed.getAttribute('href')).toBe('/ktib_seed_template.csv')
+    const yaml = within(dialog).getByRole('link', { name: /시작 양식 \(YAML/ }) as HTMLAnchorElement
+    expect(yaml.getAttribute('href')).toBe('/ktib_seed_template.yaml')
+    expect(within(dialog).getByRole('link', { name: /안내서 PDF/ })).toBeTruthy()
+    // 시험지 업로드 버튼 + 작성자/승인자 입력 (플로우는 브라우저에서 검증)
+    expect(within(dialog).getByRole('button', { name: /시험지 파일 선택/ })).toBeTruthy()
+    expect(within(dialog).getByPlaceholderText(/CSV 업로드 시 필요/)).toBeTruthy()
+    // 공부 문항 보기 탭 — CSV 다운로드 + 의도별 실시간 개수(FAKE_BRAIN 노드에서)
+    fireEvent.click(within(dialog).getByRole('button', { name: '공부 문항 보기' }))
+    const csv = within(dialog).getByRole('link', { name: /전체 내려받기/ }) as HTMLAnchorElement
+    expect(csv.getAttribute('href')).toBe('/study_pool_snapshot.csv')
+    expect(within(dialog).getByText(/공부"를 하면/)).toBeTruthy() // 자동 증가 설명
+    expect(within(dialog).getByText(/시험\(Arena\)/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: '닫기' }))
+    expect(screen.queryByRole('dialog', { name: '도움말' })).toBeNull()
   })
 
   it('T4.3: bumpReload → 실제로 refetch가 한 번 더 나간다 (§6-7 [6] 갱신 배선 고정)', async () => {

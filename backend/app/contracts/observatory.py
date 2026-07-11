@@ -32,6 +32,9 @@ class ObservatoryNode(Contract):
     calibration_ece: float | None = None
     last_arena_run: str | None = None
     pending_evaluation: bool                    # §7-5 Pending Ring
+    # §3-1 evidence 버킷별 개수(synthetic/weak_behavioral/human_confirmed/gold/expert).
+    # 3D evidence 파티클의 원천(gold+expert = 스파크). 옵셔널 — 구 fixture 호환.
+    evidence_buckets: dict[str, int] | None = None
 
 
 class ObservatoryBrain(Contract):

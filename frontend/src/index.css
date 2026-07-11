@@ -41,7 +41,25 @@ body {
   padding: 1.1rem 1.5rem 0.4rem;
   text-align: center;
   z-index: 2;
+  position: relative; /* .header-help 절대 배치 기준 */
 }
+
+/* 도움말 — 헤더 우측 상단 (제목 줄 오른쪽) */
+.header-help {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  z-index: 3;
+}
+.header-help:hover { border-color: var(--accent); }
 
 .observatory-header h1 {
   font-weight: 600;
@@ -132,7 +150,14 @@ body {
   pointer-events: none;
 }
 .side-panel-left { left: 0.75rem; }
-.side-panel-right { right: 0.75rem; }
+/* 우측 패널은 상단 HUD(토글·오버레이·선택칩) 아래에서 시작한다 — 실측 높이 --hud-h만큼
+   내려 컨트롤을 가리지 않는다(BrainScreen이 ResizeObserver로 발행). 미측정 시 0 폴백. */
+.side-panel-right {
+  right: 0.75rem;
+  /* 상단 HUD(페르소나 카드) 실측 높이 아래에서 시작 — 카드 간 간격(0.6rem)과 맞춰 한 컬럼처럼 */
+  top: calc(0.75rem + var(--hud-h, 0px) + 0.6rem);
+  transition: top 0.15s ease;
+}
 
 .panel-card {
   pointer-events: auto;
@@ -187,6 +212,8 @@ body {
 }
 .region-row:hover { background: rgba(255, 255, 255, 0.04); }
 .region-row-active { background: rgba(255, 255, 255, 0.06); }
+/* 3D 호버와 양방향 동기 — 뇌에서 호버해도 이 행이 살아난다 */
+.region-row-hovered { background: rgba(255, 255, 255, 0.05); }
 .region-swatch { width: 0.7rem; height: 0.7rem; border-radius: 3px; flex: none; }
 .region-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .region-row-name { font-size: 0.82rem; font-weight: 600; }
@@ -230,6 +257,23 @@ body {
 .confusion-arrow { font-weight: 700; }
 .confusion-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .confusion-rate { font-weight: 700; }
+/* §5-6 Arena 측정 전 rate — 지어낸 %가 아니라 "측정 전"임을 muted로 구분 */
+.confusion-rate.unmeasured { color: var(--muted); font-weight: 500; font-size: 0.72rem; }
+/* confusion edge state 칩 — 가설/관측/확정 (§5-6 상태 사다리) */
+.confusion-state {
+  font-size: 0.58rem; letter-spacing: 0.04em; font-weight: 700;
+  padding: 0.04rem 0.32rem; border-radius: 0.3rem; flex: none;
+}
+.state-hypothesized {
+  color: #94a3b8; background: rgba(100, 116, 139, 0.16); border: 1px solid rgba(100, 116, 139, 0.3);
+}
+.state-observed {
+  color: #fbbf24; background: rgba(180, 120, 20, 0.16); border: 1px solid rgba(234, 179, 8, 0.35);
+}
+.state-confirmed {
+  color: #f87171; background: rgba(120, 30, 30, 0.22); border: 1px solid rgba(248, 113, 113, 0.4);
+}
+.confusion-note { margin-top: 0.4rem; }
 
 .axis-rows { display: flex; flex-direction: column; gap: 0.35rem; }
 .axis-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
@@ -287,6 +331,7 @@ body {
 /* region 라벨(3D)도 클릭 가능한 버튼 — 기본 버튼 스타일 리셋 */
 .region-label { cursor: pointer; font-family: inherit; }
 .region-label-active { box-shadow: 0 0 16px rgba(53, 224, 210, 0.35); }
+.region-label-hovered { box-shadow: 0 0 14px rgba(255, 255, 255, 0.22); }
 
 /* --- Gym 모드 선택 (강화하기 브리핑) --- */
 .gym-mode-pick { font-size: 0.7rem; color: var(--muted); margin: 0.5rem 0 0.3rem; letter-spacing: 0.06em; }
@@ -385,12 +430,23 @@ body {
 .brain-hud {
   position: absolute;
   top: 0.75rem;
-  right: 1rem;
+  right: 0.75rem; /* 우측 노드 패널과 같은 오른쪽 여백 — 하나의 우측 컬럼으로 정렬 */
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.5rem;
-  z-index: 3;
+  gap: 0.6rem;
+  /* 우측 노드 패널(z-index 4)보다 위 — 오버레이 펼침 등으로 살짝 겹쳐도 클릭 가능하게 */
+  z-index: 5;
+}
+
+/* 뷰 전환 토글 독 — 하단 중앙 (구 rotate-hint 자리) */
+.view-toggle-dock {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: auto;
 }
 
 .view-toggle {
@@ -407,37 +463,26 @@ body {
   border-color: var(--accent);
 }
 
-.selected-chip {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 0.6rem;
-  padding: 0.45rem 0.7rem;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.85rem;
-}
-
-.selected-region {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-/* --- T5.4 Persona Overlay 컨트롤 (§7-6) — brain-hud 카드 --- */
+/* --- T5.4 Persona Overlay 컨트롤 (§7-6) — 아래 노드 패널 카드와 동일 규격으로 통일 --- */
 .persona-card {
   pointer-events: auto;
-  background: var(--panel);
+  /* .panel-card와 동일한 카드 룩 (배경·테두리·라운드·패딩·블러·그림자·폭) */
+  background: rgba(9, 14, 28, 0.78);
   border: 1px solid var(--panel-border);
-  border-radius: 0.6rem;
-  padding: 0.5rem 0.65rem;
-  width: 15.5rem;
+  border-radius: 0.7rem;
+  padding: 0.8rem 0.9rem;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 22px rgba(6, 12, 28, 0.5);
+  width: 19rem;
+  max-width: 32vw;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   font-size: 0.75rem;
 }
 .persona-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.persona-title { font-size: 0.64rem; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; }
+/* .panel-subhead와 동일한 헤더 타이포 */
+.persona-title { font-size: 0.68rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
 .persona-toggle:disabled { opacity: 0.45; cursor: default; }
 .persona-toggle:disabled:hover { border-color: var(--panel-border); }
 .persona-empty { color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
@@ -458,6 +503,100 @@ body {
 .persona-swatch { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
 .persona-swatch-neutral { background: transparent; border: 1px dashed var(--muted); }
 .persona-cap-note { color: var(--muted); font-size: 0.66rem; line-height: 1.5; }
+
+/* --- 연결 사유 칩 (선택 노드의 상대 노드 위, §5-6) --- */
+.edge-info-wrap { pointer-events: none; }
+.edge-info-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  background: rgba(9, 14, 28, 0.88);
+  border: 1px solid rgba(143, 163, 196, 0.45); /* 미측정 slate — edge 색과 동일 계열 */
+  border-radius: 0.45rem;
+  padding: 0.28rem 0.45rem;
+  font-size: 0.58rem;
+  line-height: 1.35;
+  color: var(--fg);
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.edge-info-measured { border-color: rgba(245, 158, 11, 0.6); } /* 측정 amber */
+.edge-info-title { font-size: 0.62rem; }
+.edge-info-line { color: var(--muted); }
+.edge-info-reason { letter-spacing: 0.02em; }
+
+/* --- 도움말 오버레이 (교사용 설명서 — gym-modal 규격 공유) --- */
+.help-modal { width: min(46rem, 94vw); max-height: 86vh; display: flex; flex-direction: column; }
+.help-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.7rem; }
+.help-title { font-size: 1rem; letter-spacing: 0.06em; color: var(--accent); }
+.help-tabs { display: flex; gap: 0.4rem; }
+.help-tab-active { border-color: var(--accent); color: var(--accent); }
+.help-body { overflow-y: auto; padding-right: 0.4rem; }
+.help-doc { font-size: 1rem; line-height: 1.8; color: var(--fg); }
+.help-doc h3 {
+  font-size: 1.02rem; letter-spacing: 0.06em; color: #67e8f9;
+  margin: 1.3rem 0 0.45rem; border-bottom: 1px solid var(--panel-border); padding-bottom: 0.3rem;
+}
+.help-doc h3:first-child { margin-top: 0; }
+.help-doc p { margin: 0.4rem 0; }
+.help-doc ul, .help-doc ol { margin: 0.4rem 0 0.4rem 1.2rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.help-doc b, .help-doc strong { color: #a5f3fc; font-weight: 700; }
+.help-note {
+  background: rgba(8, 51, 68, 0.45); border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 0.5rem; padding: 0.55rem 0.75rem; font-size: 0.95rem;
+}
+.help-table { border-collapse: collapse; width: 100%; margin: 0.4rem 0; font-size: 0.95rem; }
+.help-table td { border: 1px solid var(--panel-border); padding: 0.4rem 0.6rem; }
+.help-table td:first-child { white-space: nowrap; color: #a5f3fc; }
+.help-faq li { margin-bottom: 0.3rem; }
+.help-doc code {
+  font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.07); padding: 0.05rem 0.3rem; border-radius: 0.3rem;
+}
+/* 다운로드 버튼 (시험 문항 탭) */
+.help-download { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
+.help-dl-btn {
+  text-decoration: none; font-size: 0.9rem; padding: 0.5rem 0.8rem;
+  border-color: rgba(34, 211, 238, 0.5); color: #67e8f9;
+}
+.help-dl-btn:hover { border-color: var(--accent); background: rgba(34, 211, 238, 0.08); }
+.help-live { font-size: 0.78rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+/* 공부 문항 실시간 개수 표 — 스크롤 영역 안에서 헤더 고정 */
+.help-scroll { max-height: 15rem; overflow-y: auto; border: 1px solid var(--panel-border); border-radius: 0.5rem; }
+.help-count-table { margin: 0; font-size: 0.9rem; }
+.help-count-table th {
+  position: sticky; top: 0; background: rgba(9, 14, 28, 0.98); color: #a5f3fc;
+  text-align: left; padding: 0.4rem 0.6rem; font-size: 0.82rem;
+}
+.help-count-table td { border: 1px solid var(--panel-border); padding: 0.35rem 0.6rem; }
+.help-count-table td:nth-child(2), .help-count-table td:nth-child(3) { text-align: right; white-space: nowrap; }
+/* 시험지 업로드 결과 */
+.help-upload-err {
+  color: #fca5a5; font-size: 0.9rem; background: rgba(120, 30, 30, 0.25);
+  border: 1px solid rgba(248, 113, 113, 0.4); border-radius: 0.5rem; padding: 0.5rem 0.7rem;
+}
+.help-upload-ok { border-color: rgba(74, 222, 128, 0.4); }
+.help-upload-confirm { margin-top: 0.55rem; }
+/* 시험지 업로드 — 작성자/승인자 입력 */
+.help-form { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.5rem 0 0.2rem; }
+.help-field {
+  display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem;
+  color: var(--muted); flex: 1; min-width: 11rem;
+}
+.help-input {
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--panel-border);
+  color: var(--fg); border-radius: 0.4rem; padding: 0.4rem 0.5rem; font-size: 0.9rem;
+  font-family: inherit;
+}
+.help-input:focus { outline: none; border-color: var(--accent); }
+
+/* --- 인코딩 범례 + 혼동 edge HUD 칩 (persona-card 규격 공유) --- */
+.legend-rows { list-style: none; display: flex; flex-direction: column; gap: 0.28rem; margin-top: 0.15rem; }
+.legend-row { display: flex; gap: 0.5rem; font-size: 0.72rem; color: var(--fg); align-items: baseline; }
+.legend-key { color: #67e8f9; font-size: 0.64rem; letter-spacing: 0.05em; min-width: 3.2rem; flex: none; }
+.legend-state { margin-top: 0.25rem; }
+.edge-counts { line-height: 1.5; }
 
 .badge-mock {
   background: #7c2d12;

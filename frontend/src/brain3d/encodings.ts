@@ -47,16 +47,18 @@ export interface NodeVisual {
 /** heldout 미측정(Dormant) 노드의 밝기 — §7-6 Stage 0 "어둡게" */
 export const DORMANT_BRIGHTNESS = 0.22
 
-// 표현 상수(프레젠테이션) — 실험 임계값 아님
-const SIZE_MIN = 0.03
-const SIZE_MAX = 0.062
+// 표현 상수(프레젠테이션) — 실험 임계값 아님.
+// 크기 범위는 파티클 필드와 어울리게 절제 — 노드가 "큰 원판"으로 화면을 지배하지 않게
+// (2026-07-11 사용자 피드백). 단조성(§7-5 Size ← Training Volume)은 그대로다.
+const SIZE_MIN = 0.022
+const SIZE_MAX = 0.048
 const SIZE_HALF = 60 // evidence_total이 이 값일 때 크기 절반 지점(포화 곡선)
 const BRIGHT_MIN = 0.3 // 측정된 0%도 Dormant보다 아주 살짝 구분
 const BRIGHT_MAX = 1.25 // 고정확 노드는 블룸 임계 위 — 밝은 노드가 빛난다
 
 /** T3.4 스켈레톤/데이터 부재 기본값: 동일 크기·Dormant (지어낸 값 없음) */
 export const SKELETON_VISUAL: NodeVisual = {
-  size: 0.035,
+  size: 0.028,
   brightness: DORMANT_BRIGHTNESS,
   density: 0,
   pulse: false,

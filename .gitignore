@@ -19,3 +19,6 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# Claude Code — 로컬 전용 설정(머신별)
+.claude/settings.local.json

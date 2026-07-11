@@ -37,19 +37,34 @@ const BRAIN: ObservatoryBrain = {
   ],
 }
 
-// 노드 4축 진단(§7-3) 응답 스텁 — 기본은 데이터 없음(모두 null). 개별 테스트가 덮어쓸 수 있다.
-function stubDiagnosis(diag?: Partial<Record<string, { value: number | null; level: string | null }>>) {
+// §5-6 혼동쌍 응답 스텁 — 기본은 가설 1건(측정 전). 개별 테스트가 confusions로 덮어쓸 수 있다.
+const DEFAULT_CONFUSIONS = {
+  intent_id: 'play_a',
+  measured: false,
+  edges: [{ to_predicted: 'play_b', confusion_rate: null, state: 'hypothesized', origin: 'SKEPTIC' }],
+}
+
+// 노드 4축 진단(§7-3) + 혼동쌍(§5-6) 응답 스텁 — URL로 분기. 기본은 데이터 없음/가설.
+function stubDiagnosis(
+  diag?: Partial<Record<string, { value: number | null; level: string | null }>>,
+  confusions: unknown = DEFAULT_CONFUSIONS,
+) {
   const nul = { value: null, level: null }
-  vi.stubGlobal('fetch', vi.fn(async () => ({
-    ok: true,
-    json: async () => ({
-      intent_id: 'play_a',
-      ambiguous_language: diag?.ambiguous_language ?? nul,
-      screen_context_coverage: diag?.screen_context_coverage ?? nul,
-      persona_diversity: diag?.persona_diversity ?? nul,
-      gold_data: diag?.gold_data ?? nul,
-    }),
-  }) as Response))
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/confusions')) {
+      return { ok: true, json: async () => confusions } as Response
+    }
+    return {
+      ok: true,
+      json: async () => ({
+        intent_id: 'play_a',
+        ambiguous_language: diag?.ambiguous_language ?? nul,
+        screen_context_coverage: diag?.screen_context_coverage ?? nul,
+        persona_diversity: diag?.persona_diversity ?? nul,
+        gold_data: diag?.gold_data ?? nul,
+      }),
+    } as Response
+  }))
 }
 
 // T4.3 §7-4 브리핑용 실 pack 응답(POST /v1/gym/pack, T4.2 계약) — persona_mix는 의도적 부재
@@ -99,6 +114,10 @@ function stubGymFlow() {
     // 미지의 POST는 시끄럽게 실패 — 엔드포인트 회귀가 ok:true 캐치올 뒤로 숨지 못하게
     if ((init?.method ?? 'GET') !== 'GET') {
       return { ok: false, status: 404, json: async () => ({}) } as Response
+    }
+    // §5-6 혼동쌍 GET — 가설 1건(측정 전)
+    if (url.includes('/confusions')) {
+      return { ok: true, json: async () => DEFAULT_CONFUSIONS } as Response
     }
     // 그 외 GET = 노드 4축 진단(§7-3) — 데이터 없음(모두 null)
     const nul = { value: null, level: null }
@@ -179,13 +198,19 @@ describe('NodePanel (§7-3)', () => {
     expect(container.querySelector('.side-panel-right')).toBeNull()
   })
 
-  it('선택 노드: 실 KEY METRICS + 혼동(mock 라벨) + 실계산 4축(데이터 없으면 "—")', () => {
-    useBrainStore.setState({ selectedNodeId: 'N_play_a' }) // stubDiagnosis 기본=모두 null
+  it('선택 노드: 실 KEY METRICS + 실 혼동쌍(§5-6, 측정 전) + 실계산 4축(데이터 없으면 "—")', async () => {
+    useBrainStore.setState({ selectedNodeId: 'N_play_a' }) // stubDiagnosis 기본=진단 null·혼동 가설1
     const { container } = render(<NodePanel />)
     expect(screen.getByText('play_a')).toBeTruthy()
-    // 방향성 혼동은 mock(§5-6 미적재) — 라벨 필수, 후보가 있으면 행 렌더(vacuous 방지)
-    expect(container.querySelectorAll('.confusion-row').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('미리보기 · mock')).toBeTruthy()
+    // 방향성 혼동은 실 confusion_edges(§5-6) — mock 배지 사라지고 §5-6 실데이터 배지
+    expect(screen.getByText('§5-6')).toBeTruthy()
+    expect(screen.queryByText('미리보기 · mock')).toBeNull()
+    await waitFor(() =>
+      expect(container.querySelectorAll('.confusion-row').length).toBeGreaterThanOrEqual(1),
+    )
+    expect(screen.getByText('play b')).toBeTruthy() // labelOf(play_b) — 실 edge 대상
+    expect(screen.getByText('가설')).toBeTruthy() // 상태칩 (hypothesized)
+    expect(screen.getByText('측정 전')).toBeTruthy() // 미측정 rate — 지어낸 % 아님
     // 실 지표 4종 (KEY METRICS 전부 실데이터)
     expect(screen.getByText('Evidence Total').previousSibling?.textContent).toBe('30')
     expect(screen.getByText('Gold').previousSibling?.textContent).toBe('12')
@@ -348,13 +373,26 @@ describe('NodePanel (§7-3)', () => {
     void sent
   })
 
-  it('mock 진단은 결정론 — 같은 노드 재렌더에 혼동 목록이 동일', () => {
+  it('§5-6 실 혼동쌍: 측정된 edge는 rate %+확정 칩, 미측정은 "측정 전"+가설 칩', async () => {
+    stubDiagnosis(undefined, {
+      intent_id: 'play_a',
+      measured: true,
+      edges: [
+        { to_predicted: 'vis_a', confusion_rate: 0.38, state: 'confirmed', origin: 'ARENA_MATRIX' },
+        { to_predicted: 'play_b', confusion_rate: null, state: 'hypothesized', origin: 'SKEPTIC' },
+      ],
+    })
     useBrainStore.setState({ selectedNodeId: 'N_play_a' })
-    const first = render(<NodePanel />)
-    const a = [...first.container.querySelectorAll('.confusion-name')].map((e) => e.textContent)
-    cleanup()
-    render(<NodePanel />)
-    const b = [...document.querySelectorAll('.confusion-name')].map((e) => e.textContent)
-    expect(a).toEqual(b)
+    const { container } = render(<NodePanel />)
+    await waitFor(() => expect(container.querySelectorAll('.confusion-row').length).toBe(2))
+    const rows = [...container.querySelectorAll('.confusion-row')] as HTMLElement[]
+    // 백엔드 정렬 그대로: 측정된 confirmed(0.38)가 먼저 — rate %와 확정 칩
+    expect(within(rows[0]).getByText('38%')).toBeTruthy()
+    expect(within(rows[0]).getByText('확정')).toBeTruthy()
+    // 미측정 가설은 "측정 전"(지어낸 % 아님) + 가설 칩
+    expect(within(rows[1]).getByText('측정 전')).toBeTruthy()
+    expect(within(rows[1]).getByText('가설')).toBeTruthy()
+    // measured=true → 하단 "SKEPTIC 가설 단계" 안내문구는 뜨지 않는다
+    expect(screen.queryByText(/SKEPTIC 가설 단계 혼동쌍/)).toBeNull()
   })
 })

@@ -3,13 +3,14 @@
  *
  * 실데이터: 노드의 evidence 지표(총량/gold/다양성/exemplar) + **WHY-WEAK 4축 실계산**(T4.1,
  * /v1/observatory/node/{intent}/diagnosis) — 데이터 없는 축은 "—"(지어내지 않음).
- * mock(labeled): 방향성 혼동 목록만 — confusion_edges(§5-6) 미적재 구간이라 "미리보기·mock".
+ * 방향성 혼동쌍(§5-6): /v1/observatory/node/{intent}/confusions 실 confusion_edges. rate는
+ * Arena만 채우므로 측정 전이면 "측정 전" + 상태칩(가설/관측/확정)으로 정직하게 표기(날조 없음).
  *
  * 강화하기(T4.3, §6-7 클릭-투-트레인): POST /v1/gym/pack(서버측 진단)으로 실 Challenge Pack을
  * 만들어 §7-4 브리핑을 띄우고 → 모드 선택 → 세션 → 제출 완료 시 bumpReload로 뇌 재조회.
  * 브리핑 값은 전부 실 pack 필드 — 없는 필드는 "—"/부재 문구(지어내지 않음).
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   generatePack,
@@ -18,15 +19,29 @@ import {
   type GymMode,
   type GymSessionStart,
 } from '../api/gym'
-import { fetchNodeDiagnosis, type DiagnosisAxis, type NodeDiagnosis } from '../api/observatory'
+import {
+  fetchNodeConfusions,
+  fetchNodeDiagnosis,
+  type ConfusionState,
+  type DiagnosisAxis,
+  type NodeConfusions,
+  type NodeDiagnosis,
+  type WeakLevel,
+} from '../api/observatory'
 import { REGION_BY_ID, type RegionId } from '../brain3d/regions'
 import { useBrainStore } from '../brain3d/store'
-import { mockDiagnosis, type WeakLevel } from './diagnosis'
 import { GymOverlay } from './GymOverlay'
 import { GYM_MODE_LABEL_KO, labelOf } from './intentLabels'
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
 const LEVEL_CLASS: Record<WeakLevel, string> = { HIGH: 'lvl-high', MED: 'lvl-med', LOW: 'lvl-low' }
+
+/** §5-6 confusion edge state 한글 칩 — 가설(SKEPTIC) → 관측 → 확정(Arena 검증) */
+const CONFUSION_STATE_KO: Record<ConfusionState, string> = {
+  hypothesized: '가설',
+  observed: '관측',
+  confirmed: '확정',
+}
 const GYM_MODES: GymMode[] = ['guess_my_intent', 'choose_right_meaning', 'correction_drill']
 
 /** §7-4 브리핑 표기 — pack.strategy 코드의 한글 칩(미지 코드는 코드 그대로, 날조 없음) */
@@ -72,22 +87,30 @@ export function NodePanel() {
   const [starting, setStarting] = useState<GymMode | null>(null)
   const [gymError, setGymError] = useState<string | null>(null)
   const [why, setWhy] = useState<NodeDiagnosis | null>(null) // §7-3 4축 실계산
+  const [confusions, setConfusions] = useState<NodeConfusions | null>(null) // §5-6 실 혼동쌍
 
   const node = brain?.nodes.find((n) => n.node_id === selectedNodeId) ?? null
   const nodeIntent = node?.intent_id ?? null
 
-  // 노드 선택이 바뀌면 4축 진단을 실제 계산으로 가져온다
+  // 노드 선택이 바뀌면 4축 진단(§7-3)과 방향성 혼동쌍(§5-6)을 실데이터로 가져온다
   useEffect(() => {
     if (!node) {
       setWhy(null)
+      setConfusions(null)
       return
     }
     const ctrl = new AbortController()
     setWhy(null)
+    setConfusions(null)
     fetchNodeDiagnosis(node.intent_id, ctrl.signal)
       .then(setWhy)
       .catch((e: unknown) => {
         if (!ctrl.signal.aborted) console.warn('node diagnosis 미연결:', e)
+      })
+    fetchNodeConfusions(node.intent_id, ctrl.signal)
+      .then(setConfusions)
+      .catch((e: unknown) => {
+        if (!ctrl.signal.aborted) console.warn('node confusions 미연결:', e)
       })
     return () => ctrl.abort()
   }, [node])
@@ -102,13 +125,7 @@ export function NodePanel() {
     setGymError(null)
   }, [nodeIntent])
 
-  const allIntents = useMemo(() => (brain?.nodes ?? []).map((n) => n.intent_id), [brain])
-  const diag = useMemo(
-    () => (node ? mockDiagnosis(node.node_id, allIntents, node.intent_id) : null),
-    [node, allIntents],
-  )
-
-  if (!node || !diag) return null
+  if (!node) return null
   // 미지의 region 문자열이 와도 패널이 통째로 죽지 않게 방어(계약상 7개 고정이지만 신규 코드)
   const color = REGION_BY_ID[node.region as RegionId]?.color ?? '#94a3b8'
 
@@ -168,6 +185,9 @@ export function NodePanel() {
   // 노드 전환 직후 한 프레임 동안 이전 노드의 실계산 레벨이 잔류하지 않게 intent로 게이트
   // (why 초기화는 effect에서 paint 후에야 돈다 — 지금 노드가 아니면 "—"로 보인다)
   const currentWhy = why?.intent_id === node.intent_id ? why : null
+  // 혼동쌍도 같은 정직성 게이트 — 노드 전환 직후 이전 노드의 목록이 잔류하지 않게 intent로 게이트
+  const currentConfusions =
+    confusions?.intent_id === node.intent_id ? confusions : null
 
   return (
     <aside className="side-panel side-panel-right">
@@ -205,20 +225,37 @@ export function NodePanel() {
       <section className="panel-card">
         <div className="panel-subhead">
           대표 혼동 관계 <span className="dir-hint">(방향성)</span>
-          <span className="mock-badge">미리보기 · mock</span>
+          <span className="calc-badge">§5-6</span>
         </div>
-        {diag.confusions.length === 0 ? (
+        {/* §5-6 실 confusion_edges — rate는 Arena만 채운다. 측정 전이면 "측정 전"(지어내지 않음) */}
+        {currentConfusions === null ? (
+          <div className="panel-empty">불러오는 중…</div>
+        ) : (currentConfusions.edges?.length ?? 0) === 0 ? (
           <div className="panel-empty">혼동 관계 데이터 없음 (측정 전)</div>
         ) : (
-          <ul className="confusion-list">
-            {diag.confusions.map((c) => (
-              <li key={c.intentId} className="confusion-row">
-                <span className="confusion-arrow" style={{ color }}>→</span>
-                <span className="confusion-name">{labelOf(c.intentId)}</span>
-                <span className="confusion-rate">{pct(c.rate)}</span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="confusion-list">
+              {(currentConfusions.edges ?? []).slice(0, 4).map((c) => (
+                <li key={c.to_predicted} className="confusion-row">
+                  <span className="confusion-arrow" style={{ color }}>→</span>
+                  <span className="confusion-name">{labelOf(c.to_predicted)}</span>
+                  <span className={`confusion-state state-${c.state}`}>
+                    {CONFUSION_STATE_KO[c.state]}
+                  </span>
+                  <span
+                    className={`confusion-rate${c.confusion_rate === null ? ' unmeasured' : ''}`}
+                  >
+                    {c.confusion_rate === null ? '측정 전' : pct(c.confusion_rate)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {!currentConfusions.measured && (
+              <p className="panel-hint confusion-note">
+                Arena 측정 전 — SKEPTIC 가설 단계 혼동쌍 (실측 rate는 Arena run 이후)
+              </p>
+            )}
+          </>
         )}
       </section>
 

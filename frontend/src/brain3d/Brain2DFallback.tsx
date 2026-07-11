@@ -9,6 +9,7 @@
  * 마크 계산은 personaOverlay.markFromPrior(3D 레이어와 동일 원천)만 쓴다.
  */
 import { dot2d, DOT_R, DOT_R_SELECTED, POS_2D, REGION_R } from './brain2dLayout'
+import { edgeVisual } from './edges'
 import type { PlacedNode } from './layout'
 import { BOOST_COLOR, DAMP_COLOR, markFromPrior } from './personaOverlay'
 import { REGION_BY_ID, type RegionId } from './regions'
@@ -23,6 +24,20 @@ interface Props {
 export function Brain2DFallback({ nodes, overlayPriors }: Props) {
   const selectedNodeId = useBrainStore((s) => s.selectedNodeId)
   const select = useBrainStore((s) => s.select)
+  const confusionEdges = useBrainStore((s) => s.confusionEdges)
+  const hoveredRegionId = useBrainStore((s) => s.hoveredRegionId)
+  const setHoveredRegion = useBrainStore((s) => s.setHoveredRegion)
+
+  // §5-6 선택 노드의 혼동 edge — 3D와 같은 원천(edges.ts edgeVisual). 점선 = 미측정.
+  const selected = nodes.find((n) => n.nodeId === selectedNodeId) ?? null
+  const byIntent = new Map(nodes.map((n) => [n.intentId, n]))
+  const selectedEdges =
+    selected && confusionEdges
+      ? confusionEdges.edges.filter(
+          (e) =>
+            e.from_intent === selected.intentId || e.to_intent === selected.intentId,
+        )
+      : []
   return (
     <svg
       className="brain-2d"
@@ -33,10 +48,22 @@ export function Brain2DFallback({ nodes, overlayPriors }: Props) {
     >
       {Object.entries(POS_2D).map(([id, [x, y]]) => {
         const region = REGION_BY_ID[id as RegionId]
+        const hovered = hoveredRegionId === id
         return (
           <g key={id}>
-            <circle cx={x} cy={y} r={REGION_R} fill={region.color} fillOpacity={0.08}
-              stroke={region.color} strokeOpacity={0.5} strokeWidth={0.008} />
+            {/* 호버 = region 활성화 — 채움·테두리가 살아난다 (3D 글로우와 같은 store 공유) */}
+            <circle
+              cx={x}
+              cy={y}
+              r={REGION_R}
+              fill={region.color}
+              fillOpacity={hovered ? 0.18 : 0.08}
+              stroke={region.color}
+              strokeOpacity={hovered ? 0.95 : 0.5}
+              strokeWidth={hovered ? 0.012 : 0.008}
+              onMouseEnter={() => setHoveredRegion(id as RegionId)}
+              onMouseLeave={() => setHoveredRegion(null)}
+            />
             <text x={x} y={y + REGION_R + 0.09} textAnchor="middle" fill={region.color}
               fontSize={0.085} fontWeight={600}>
               {region.label}
@@ -44,6 +71,33 @@ export function Brain2DFallback({ nodes, overlayPriors }: Props) {
           </g>
         )
       })}
+      {/* §5-6 선택 노드 혼동 edge — 미배치 intent는 그리지 않는다(허공 선 금지) */}
+      {selectedEdges.length > 0 && (
+        <g className="confusion-2d" pointerEvents="none">
+          {selectedEdges.map((e) => {
+            const from = byIntent.get(e.from_intent)
+            const to = byIntent.get(e.to_intent)
+            if (!from || !to) return null
+            const [x1, y1] = dot2d(from.nodeId, from.region)
+            const [x2, y2] = dot2d(to.nodeId, to.region)
+            const v = edgeVisual(e)
+            return (
+              <line
+                key={e.edge_id}
+                className="confusion-2d-edge"
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={v.colorTo}
+                strokeOpacity={Math.min(0.95, v.opacity * 2)}
+                strokeWidth={0.004 * v.width}
+                strokeDasharray={v.dashed ? '0.02 0.014' : undefined}
+              />
+            )
+          })}
+        </g>
+      )}
       {/* T5.4 persona 마크 — 노드 점 밑의 부가 링. 중립/부재 prior는 마크 자체가 없다 */}
       {overlayPriors && (
         <g className="persona-marks" pointerEvents="none">

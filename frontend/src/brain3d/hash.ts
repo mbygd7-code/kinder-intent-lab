@@ -1,6 +1,6 @@
 /**
  * 결정론 해시·PRNG — brain3d 전 레이어 공용 (Math.random 금지: 리로드·재렌더 좌표 불변).
- * layout.ts(3D 배치)·brain2dLayout.ts(2D 배치)·ParticleLayer(장식 산포)가 공유한다.
+ * layout.ts(3D 배치)·brain2dLayout.ts(2D 배치)·particles.ts(evidence 산포)가 공유한다.
  * 계약은 hash.test.ts가 알려진 입출력 쌍으로 고정한다.
  */
 

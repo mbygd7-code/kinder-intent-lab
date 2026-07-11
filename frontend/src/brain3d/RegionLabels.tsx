@@ -30,6 +30,8 @@ export function RegionLabels() {
   const brain = useBrainStore((s) => s.brain)
   const selectRegion = useBrainStore((s) => s.selectRegion)
   const selectedRegionId = useBrainStore((s) => s.selectedRegionId)
+  const hoveredRegionId = useBrainStore((s) => s.hoveredRegionId)
+  const setHoveredRegion = useBrainStore((s) => s.setHoveredRegion)
   return (
     <>
       {REGIONS.map((r) => {
@@ -38,23 +40,26 @@ export function RegionLabels() {
         // §7-6 stage_name — API 도착 전엔 표기하지 않는다(지어내지 않음)
         const stageName = brain?.regions.find((x) => x.region === r.id)?.stage_name ?? null
         const active = selectedRegionId === r.id
+        const hovered = hoveredRegionId === r.id
         return (
           <group key={r.id}>
             <Line
               points={[r.center as unknown as [number, number, number], pos]}
               color={r.color}
-              lineWidth={active ? 2 : 1}
+              lineWidth={active || hovered ? 2 : 1}
               transparent
-              opacity={active ? 0.9 : 0.55}
+              opacity={active ? 0.9 : hovered ? 0.8 : 0.55}
               raycast={() => null}
             />
             {/* distanceFactor 미사용 — 라벨은 깊이와 무관한 고정 크기 UI 콜아웃(레퍼런스 스타일) */}
             <Html position={pos} center wrapperClass="region-label-wrap" zIndexRange={[2, 0]}>
               <button
                 type="button"
-                className={`region-label${active ? ' region-label-active' : ''}`}
-                style={active ? { borderColor: r.color } : undefined}
+                className={`region-label${active ? ' region-label-active' : ''}${hovered ? ' region-label-hovered' : ''}`}
+                style={active || hovered ? { borderColor: r.color } : undefined}
                 onClick={() => selectRegion(active ? null : r.id)}
+                onMouseEnter={() => setHoveredRegion(r.id)}
+                onMouseLeave={() => setHoveredRegion(null)}
               >
                 <span className="region-dot" style={{ backgroundColor: r.color }} />
                 <span className="region-name">{r.label}</span>

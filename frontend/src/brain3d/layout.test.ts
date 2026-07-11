@@ -1,13 +1,14 @@
 /**
- * T3.4 AC — 노드 배치: 결정론 + 위치 인코딩 정직성 (§7-5).
+ * T3.4 AC + 배치 v2 — 노드 배치: 결정론 + 위치 인코딩 정직성 (§7-5).
  *
  * 노드 수 = intent 수(~100, §5 노드 정의). AC는 100개 기준이므로 100+로 검증한다.
- * 위치는 3중 인코딩의 한 축 — 노드가 소속 region 구름 안에만 있어야
- * "보이는 위치 = 실제 소속"이 성립한다.
+ * v2: 노드는 소속 region 구름 ∩ 뇌 내부(insideBrain)에 놓여 파티클·쉘과 같은
+ * 공간에 안착하고, 같은 region 안에서 blue-noise 간격을 가진다.
  */
 import { describe, expect, it } from 'vitest'
 
-import { layoutNodes } from './layout'
+import { insideBrain, nearestRegion } from './brainShape'
+import { layoutNodes, MIN_SEP } from './layout'
 import { makeMockNodes } from './mockNodes'
 import { REGIONS, REGION_BY_ID } from './regions'
 
@@ -27,7 +28,15 @@ describe('layoutNodes — 결정론적 배치', () => {
     expect(a).toEqual(b)
   })
 
-  it('위치 정직성: 모든 노드가 소속 region 반경 안에 있다', () => {
+  it('입력 순서 무관: 뒤섞어 넣어도 nodeId별 좌표는 동일 (nodeId 정렬 순회)', () => {
+    const byId = new Map(layoutNodes(seeds).map((n) => [n.nodeId, n.position]))
+    const shuffled = [...seeds].reverse()
+    for (const n of layoutNodes(shuffled)) {
+      expect(n.position).toEqual(byId.get(n.nodeId))
+    }
+  })
+
+  it('위치 정직성: 모든 노드가 소속 region 반경 안 + 뇌 내부 + 자기 Voronoi 셀', () => {
     for (const n of layoutNodes(seeds)) {
       const { center, radius } = REGION_BY_ID[n.region]
       const d = Math.hypot(
@@ -36,25 +45,32 @@ describe('layoutNodes — 결정론적 배치', () => {
         n.position[2] - center[2],
       )
       expect(d).toBeLessThanOrEqual(radius + 1e-9)
+      expect(insideBrain(n.position), `${n.nodeId} 뇌 밖`).toBe(true)
+      expect(nearestRegion(n.position)).toBe(n.region)
     }
   })
 
-  it('위치 정직성: 모든 노드의 최근접 region 중심 = 소속 region (겹침 없음)', () => {
-    for (const n of layoutNodes(seeds)) {
-      let nearest = ''
-      let best = Infinity
-      for (const r of REGIONS) {
-        const d = Math.hypot(
-          n.position[0] - r.center[0],
-          n.position[1] - r.center[1],
-          n.position[2] - r.center[2],
-        )
-        if (d < best) {
-          best = d
-          nearest = r.id
+  it('폴백 안전성: 전 region 중심이 뇌 내부 + 자기 Voronoi (전멸 시 착지 지점)', () => {
+    for (const r of REGIONS) {
+      expect(insideBrain(r.center), `${r.id} 중심이 뇌 밖`).toBe(true)
+      expect(nearestRegion(r.center)).toBe(r.id)
+    }
+  })
+
+  it('blue-noise: 같은 region 노드 간 최소 간격 ≥ MIN_SEP', () => {
+    const placed = layoutNodes(seeds)
+    for (const r of REGIONS) {
+      const group = placed.filter((n) => n.region === r.id)
+      for (let i = 0; i < group.length; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          const d = Math.hypot(
+            group[i].position[0] - group[j].position[0],
+            group[i].position[1] - group[j].position[1],
+            group[i].position[2] - group[j].position[2],
+          )
+          expect(d, `${group[i].nodeId} ↔ ${group[j].nodeId}`).toBeGreaterThanOrEqual(MIN_SEP)
         }
       }
-      expect(nearest).toBe(n.region)
     }
   })
 

@@ -1,0 +1,101 @@
+# =====================================================================
+#  KTIB 시험 문항 시작 양식 (63개 의도 × 예시 1문항)
+# =====================================================================
+#  ★ 이 파일은 "초안"입니다. 아래 발화(teacher_prompt)는 예시일 뿐이니,
+#     전문가가 실제 현장 표현으로 검토·교체·추가해 주세요.
+#
+#  ★ 절대 규칙
+#   - 발화는 반드시 사람이 쓰거나 수집한 진짜 표현이어야 합니다.
+#     (컴퓨터/LLM이 지어낸 문장을 넣으면 시험 점수가 무의미해집니다)
+#   - intent 는 아래 63개 온톨로지 id 중 하나여야 합니다.
+#   - BENCHMARK_HOLDOUT 문항은 서로 다른 검수자 2명 이상 + 일치도(kappa) 기록이 필수입니다.
+#
+#  실행 순서
+#   1) python scripts/ingest_expert_episodes.py --file seeds/ktib_seed_template.yaml --commit
+#   2) python scripts/run_ktib_build.py --commit
+#   3) python scripts/run_arena.py --commit      # ← 여기서 채점되어 점수가 올라갑니다
+# =====================================================================
+
+authored_by: "<저작자 이름·소속·경력을 적어주세요>"
+approved_by: "<승인자 이름을 적어주세요>"
+origin_channel: EXPERT_AUTHORED        # 사람 저작 (합성 금지)
+dataset_split: BENCHMARK_HOLDOUT       # 시험지 칸
+
+# 모든 문항 공통: lang=ko, reviewers 2명 이상, agreement_kappa 기록
+episodes:
+  # ── PLAY (놀이) ──────────────────────────────────────────────
+  - {episode_id: EP_KTIB_PLAY_01, intent: play_expand,               lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "블록 놀이 이거 좀 더 재밌게 못 하나?"}
+  - {episode_id: EP_KTIB_PLAY_02, intent: play_transition_next_step, lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이제 슬슬 다른 거 할 때 됐는데 뭐 하지?"}
+  - {episode_id: EP_KTIB_PLAY_03, intent: play_flow_naturalize,      lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "놀이가 자꾸 뚝뚝 끊기는데 자연스럽게 이어줄 방법 없을까?"}
+  - {episode_id: EP_KTIB_PLAY_04, intent: play_material_suggest,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "여기다 뭐 더 놔주면 좋을까?"}
+  - {episode_id: EP_KTIB_PLAY_05, intent: play_scenario_generate,    lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "가게 놀이 이야기 하나 짜줘"}
+  - {episode_id: EP_KTIB_PLAY_06, intent: play_inquiry_question,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이럴 때 아이들한테 뭐라고 물어보면 좋을까?"}
+  - {episode_id: EP_KTIB_PLAY_07, intent: play_level_adapt,          lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "민준이한테는 좀 어려운 거 같은데 쉽게 바꿔줘"}
+  - {episode_id: EP_KTIB_PLAY_08, intent: play_revive_stalled,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "애들이 이 놀이 금방 시들해졌어, 어떡하지?"}
+  - {episode_id: EP_KTIB_PLAY_09, intent: play_environment_setup,    lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "역할놀이 코너 좀 꾸며보자"}
+
+  # ── OBSERVATION (관찰) ───────────────────────────────────────
+  - {episode_id: EP_KTIB_OBS_01, intent: obs_record_moment,          lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "방금 서연이 이거 한 거 기록해둬"}
+  - {episode_id: EP_KTIB_OBS_02, intent: obs_capture_scene,          lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "지금 이 장면 남겨놓자"}
+  - {episode_id: EP_KTIB_OBS_03, intent: obs_tag_children,           lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 사진에 누구누구 있는지 표시해줘"}
+  - {episode_id: EP_KTIB_OBS_04, intent: obs_classify_development,   lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이건 어느 발달 영역에 들어가?"}
+  - {episode_id: EP_KTIB_OBS_05, intent: obs_summarize_child,        lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "민준이 요즘 어떤지 정리해줘"}
+  - {episode_id: EP_KTIB_OBS_06, intent: obs_detect_behavior_change, lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "서연이 요새 좀 달라진 거 같지 않아?"}
+  - {episode_id: EP_KTIB_OBS_07, intent: obs_recommend_focus,        lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "다음엔 뭘 눈여겨봐야 할까?"}
+  - {episode_id: EP_KTIB_OBS_08, intent: obs_set_watchpoint,         lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 아이 이 부분 계속 지켜봐야겠어"}
+  - {episode_id: EP_KTIB_OBS_09, intent: obs_search_records,         lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "지난달 서연이 관찰한 거 어디 있지?"}
+
+  # ── DOCUMENT (문서) ──────────────────────────────────────────
+  - {episode_id: EP_KTIB_DOC_01, intent: text_naturalize,           lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 문장 좀 매끄럽게 고쳐줘"}
+  - {episode_id: EP_KTIB_DOC_02, intent: write_activity_followup,    lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "오늘 물감놀이 한 거 기록으로 남겨줘"}
+  - {episode_id: EP_KTIB_DOC_03, intent: doc_observation_record,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "민준이 오늘 블록 쌓은 거 관찰일지에 적어줘"}
+  - {episode_id: EP_KTIB_DOC_04, intent: doc_notice_draft,           lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "내일 소풍 알림장 하나 써줘"}
+  - {episode_id: EP_KTIB_DOC_05, intent: doc_plan_draft,             lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "다음 주 활동계획안 초안 좀"}
+  - {episode_id: EP_KTIB_DOC_06, intent: doc_summarize,              lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이거 너무 기니까 짧게 줄여줘"}
+  - {episode_id: EP_KTIB_DOC_07, intent: doc_expand_text,            lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "메모만 해놨는데 이거 좀 풀어서 써줘"}
+  - {episode_id: EP_KTIB_DOC_08, intent: doc_proofread,              lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "맞춤법 틀린 거 없나 봐줘"}
+  - {episode_id: EP_KTIB_DOC_09, intent: doc_portfolio_comment,      lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "서연이 포트폴리오에 한마디 달아줘"}
+
+  # ── VISUAL (시각) ────────────────────────────────────────────
+  - {episode_id: EP_KTIB_VIS_01, intent: visual_naturalize,         lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "사진이 좀 어두운데 자연스럽게 보정해줘"}
+  - {episode_id: EP_KTIB_VIS_02, intent: visual_layout_refine,      lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "게시판에 붙일 건데 배치 좀 예쁘게"}
+  - {episode_id: EP_KTIB_VIS_03, intent: visual_photo_organize,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "오늘 찍은 사진들 좀 정리해줘"}
+  - {episode_id: EP_KTIB_VIS_04, intent: visual_photo_pick_best,    lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 중에서 제일 잘 나온 거 골라줘"}
+  - {episode_id: EP_KTIB_VIS_05, intent: visual_image_generate,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "가을 나뭇잎 그림 하나 만들어줘"}
+  - {episode_id: EP_KTIB_VIS_06, intent: visual_privacy_mask,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "다른 반 아이 얼굴은 가려줘"}
+  - {episode_id: EP_KTIB_VIS_07, intent: visual_crop_focus,         lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "민준이만 딱 크게 잘라줘"}
+  - {episode_id: EP_KTIB_VIS_08, intent: visual_decorate,           lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 사진에 스티커 좀 꾸며줘"}
+  - {episode_id: EP_KTIB_VIS_09, intent: visual_collage_compose,    lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "사진 여러 장 한 장으로 모아줘"}
+
+  # ── COMMUNICATION (소통) ─────────────────────────────────────
+  - {episode_id: EP_KTIB_COMM_01, intent: comm_draft_parent_notice,        lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "학부모님들께 공지 하나 돌려야 해"}
+  - {episode_id: EP_KTIB_COMM_02, intent: comm_message_individual_parent,  lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "서연이 어머님께만 따로 연락드려야겠어"}
+  - {episode_id: EP_KTIB_COMM_03, intent: comm_share_media_with_parents,   lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "오늘 사진 부모님들께 보내드리자"}
+  - {episode_id: EP_KTIB_COMM_04, intent: comm_share_with_colleague,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "옆 반 선생님한테 이거 공유해줘"}
+  - {episode_id: EP_KTIB_COMM_05, intent: comm_present_to_children,        lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이거 애들한테 화면으로 보여주자"}
+  - {episode_id: EP_KTIB_COMM_06, intent: comm_schedule_send,              lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 알림 내일 아침에 나가게 예약해줘"}
+  - {episode_id: EP_KTIB_COMM_07, intent: comm_translate_for_family,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 가정통신문 베트남어로도 보내야 해"}
+  - {episode_id: EP_KTIB_COMM_08, intent: comm_collect_parent_responses,   lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "누구누구 답장 왔는지 모아줘"}
+  - {episode_id: EP_KTIB_COMM_09, intent: comm_request_consent,            lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "현장학습 동의서 받아야 해"}
+
+  # ── OPERATION (운영) ─────────────────────────────────────────
+  - {episode_id: EP_KTIB_OP_01, intent: op_schedule_update,        lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "다음 주 일정 이거 바뀌었어, 반영해줘"}
+  - {episode_id: EP_KTIB_OP_02, intent: op_schedule_check,         lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "내일 몇 시에 뭐 있더라?"}
+  - {episode_id: EP_KTIB_OP_03, intent: op_material_prepare,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "내일 활동 준비물 뭐뭐 챙겨야 하지?"}
+  - {episode_id: EP_KTIB_OP_04, intent: op_document_export,        lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 문서 PDF로 뽑아줘"}
+  - {episode_id: EP_KTIB_OP_05, intent: op_attendance_record,      lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "오늘 결석한 애들 체크해줘"}
+  - {episode_id: EP_KTIB_OP_06, intent: op_notice_send,            lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 알림 지금 보내줘"}
+  - {episode_id: EP_KTIB_OP_07, intent: op_workspace_organize,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "자료함이 너무 엉망이야, 정리 좀"}
+  - {episode_id: EP_KTIB_OP_08, intent: op_workspace_search,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "작년 봄 소풍 자료 어디 있지?"}
+  - {episode_id: EP_KTIB_OP_09, intent: op_workspace_delete,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 오래된 파일들 이제 지워도 돼"}
+
+  # ── REFLECTION (성찰) ────────────────────────────────────────
+  - {episode_id: EP_KTIB_REFL_01, intent: refl_activity_review,           lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "오늘 활동 어땠는지 좀 짚어보자"}
+  - {episode_id: EP_KTIB_REFL_02, intent: refl_child_progress_review,     lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "서연이 이번 학기 얼마나 컸나 볼까?"}
+  - {episode_id: EP_KTIB_REFL_03, intent: refl_milestone_check,           lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이 나이에 이 정도면 발달상 괜찮은 거야?"}
+  - {episode_id: EP_KTIB_REFL_04, intent: refl_goal_alignment_check,      lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이번 달 목표대로 잘 가고 있나?"}
+  - {episode_id: EP_KTIB_REFL_05, intent: refl_self_journal,              lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "오늘 수업 소감 일지에 적어둬야지"}
+  - {episode_id: EP_KTIB_REFL_06, intent: refl_teaching_pattern_insight,  lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "내 수업 방식에 어떤 패턴이 있나 궁금해"}
+  - {episode_id: EP_KTIB_REFL_07, intent: refl_improvement_suggest,       lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "뭘 더 바꾸면 좋을까?"}
+  - {episode_id: EP_KTIB_REFL_08, intent: refl_support_need_scan,         lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "요즘 특별히 손이 더 가는 아이 있나?"}
+  - {episode_id: EP_KTIB_REFL_09, intent: refl_period_retrospective,      lang: ko, reviewers: ["검수자1", "검수자2"], agreement_kappa: 1.0, teacher_prompt: "이번 학기 전체적으로 돌아보자"}

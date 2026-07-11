@@ -1,0 +1,64 @@
+﻿의도 id,의도(참고용·수정불필요),시험 발화(교사 말),검수자1,검수자2,일치도(0~1)
+play_expand,놀이 더 키우기,블록 놀이 이거 좀 더 재밌게 못 하나?,검수자1,검수자2,1.0
+play_transition_next_step,다음 활동 제안,이제 슬슬 다른 거 할 때 됐는데 뭐 하지?,검수자1,검수자2,1.0
+play_flow_naturalize,놀이 흐름 다듬기,놀이가 자꾸 뚝뚝 끊기는데 자연스럽게 이어줄 방법 없을까?,검수자1,검수자2,1.0
+play_material_suggest,놀잇감 추천,여기다 뭐 더 놔주면 좋을까?,검수자1,검수자2,1.0
+play_scenario_generate,놀이 시나리오 만들기,가게 놀이 이야기 하나 짜줘,검수자1,검수자2,1.0
+play_inquiry_question,발문(질문) 만들기,이럴 때 아이들한테 뭐라고 물어보면 좋을까?,검수자1,검수자2,1.0
+play_level_adapt,난이도 맞추기,민준이한테는 좀 어려운 거 같은데 쉽게 바꿔줘,검수자1,검수자2,1.0
+play_revive_stalled,시든 놀이 살리기,"애들이 이 놀이 금방 시들해졌어, 어떡하지?",검수자1,검수자2,1.0
+play_environment_setup,놀이 환경 꾸미기,역할놀이 코너 좀 꾸며보자,검수자1,검수자2,1.0
+obs_record_moment,순간 관찰 기록,방금 서연이 이거 한 거 기록해둬,검수자1,검수자2,1.0
+obs_capture_scene,활동 장면 담기,지금 이 장면 남겨놓자,검수자1,검수자2,1.0
+obs_tag_children,사진 속 아이 태그,이 사진에 누구누구 있는지 표시해줘,검수자1,검수자2,1.0
+obs_classify_development,발달 영역 분류,이건 어느 발달 영역에 들어가?,검수자1,검수자2,1.0
+obs_summarize_child,아이별 관찰 요약,민준이 요즘 어떤지 정리해줘,검수자1,검수자2,1.0
+obs_detect_behavior_change,행동 변화 감지,서연이 요새 좀 달라진 거 같지 않아?,검수자1,검수자2,1.0
+obs_recommend_focus,관찰 포커스 추천,다음엔 뭘 눈여겨봐야 할까?,검수자1,검수자2,1.0
+obs_set_watchpoint,관찰 포인트 설정,이 아이 이 부분 계속 지켜봐야겠어,검수자1,검수자2,1.0
+obs_search_records,관찰 기록 검색,지난달 서연이 관찰한 거 어디 있지?,검수자1,검수자2,1.0
+text_naturalize,글 자연스럽게 다듬기,이 문장 좀 매끄럽게 고쳐줘,검수자1,검수자2,1.0
+write_activity_followup,활동 후속 기록 쓰기,오늘 물감놀이 한 거 기록으로 남겨줘,검수자1,검수자2,1.0
+doc_observation_record,관찰 기록문 쓰기,민준이 오늘 블록 쌓은 거 관찰일지에 적어줘,검수자1,검수자2,1.0
+doc_notice_draft,알림장 초안 쓰기,내일 소풍 알림장 하나 써줘,검수자1,검수자2,1.0
+doc_plan_draft,활동계획안 쓰기,다음 주 활동계획안 초안 좀,검수자1,검수자2,1.0
+doc_summarize,글 요약하기,이거 너무 기니까 짧게 줄여줘,검수자1,검수자2,1.0
+doc_expand_text,짧은 메모 늘려 쓰기,메모만 해놨는데 이거 좀 풀어서 써줘,검수자1,검수자2,1.0
+doc_proofread,맞춤법 교정,맞춤법 틀린 거 없나 봐줘,검수자1,검수자2,1.0
+doc_portfolio_comment,포트폴리오 코멘트 쓰기,서연이 포트폴리오에 한마디 달아줘,검수자1,검수자2,1.0
+visual_naturalize,사진 자연스럽게 보정,사진이 좀 어두운데 자연스럽게 보정해줘,검수자1,검수자2,1.0
+visual_layout_refine,게시물 배치 다듬기,게시판에 붙일 건데 배치 좀 예쁘게,검수자1,검수자2,1.0
+visual_photo_organize,사진 정리,오늘 찍은 사진들 좀 정리해줘,검수자1,검수자2,1.0
+visual_photo_pick_best,베스트 사진 고르기,이 중에서 제일 잘 나온 거 골라줘,검수자1,검수자2,1.0
+visual_image_generate,그림 만들기,가을 나뭇잎 그림 하나 만들어줘,검수자1,검수자2,1.0
+visual_privacy_mask,얼굴 모자이크 처리,다른 반 아이 얼굴은 가려줘,검수자1,검수자2,1.0
+visual_crop_focus,사진 크롭·확대,민준이만 딱 크게 잘라줘,검수자1,검수자2,1.0
+visual_decorate,사진 꾸미기,이 사진에 스티커 좀 꾸며줘,검수자1,검수자2,1.0
+visual_collage_compose,콜라주 만들기,사진 여러 장 한 장으로 모아줘,검수자1,검수자2,1.0
+comm_draft_parent_notice,학급 알림장 쓰기,학부모님들께 공지 하나 돌려야 해,검수자1,검수자2,1.0
+comm_message_individual_parent,개별 학부모 메시지,서연이 어머님께만 따로 연락드려야겠어,검수자1,검수자2,1.0
+comm_share_media_with_parents,학부모에 사진 공유,오늘 사진 부모님들께 보내드리자,검수자1,검수자2,1.0
+comm_share_with_colleague,동료 교사와 공유,옆 반 선생님한테 이거 공유해줘,검수자1,검수자2,1.0
+comm_present_to_children,아이들에게 보여주기,이거 애들한테 화면으로 보여주자,검수자1,검수자2,1.0
+comm_schedule_send,발송 예약,이 알림 내일 아침에 나가게 예약해줘,검수자1,검수자2,1.0
+comm_translate_for_family,가정용 번역,이 가정통신문 베트남어로도 보내야 해,검수자1,검수자2,1.0
+comm_collect_parent_responses,학부모 회신 모으기,누구누구 답장 왔는지 모아줘,검수자1,검수자2,1.0
+comm_request_consent,동의 요청 보내기,현장학습 동의서 받아야 해,검수자1,검수자2,1.0
+op_schedule_update,일정 업데이트,"다음 주 일정 이거 바뀌었어, 반영해줘",검수자1,검수자2,1.0
+op_schedule_check,일정 확인,내일 몇 시에 뭐 있더라?,검수자1,검수자2,1.0
+op_material_prepare,준비물 챙기기,내일 활동 준비물 뭐뭐 챙겨야 하지?,검수자1,검수자2,1.0
+op_document_export,문서 내보내기,이 문서 PDF로 뽑아줘,검수자1,검수자2,1.0
+op_attendance_record,출결 기록,오늘 결석한 애들 체크해줘,검수자1,검수자2,1.0
+op_notice_send,알림 보내기,이 알림 지금 보내줘,검수자1,검수자2,1.0
+op_workspace_organize,자료 정리,"자료함이 너무 엉망이야, 정리 좀",검수자1,검수자2,1.0
+op_workspace_search,자료 검색,작년 봄 소풍 자료 어디 있지?,검수자1,검수자2,1.0
+op_workspace_delete,자료 삭제,이 오래된 파일들 이제 지워도 돼,검수자1,검수자2,1.0
+refl_activity_review,활동 돌아보기,오늘 활동 어땠는지 좀 짚어보자,검수자1,검수자2,1.0
+refl_child_progress_review,아이 성장 돌아보기,서연이 이번 학기 얼마나 컸나 볼까?,검수자1,검수자2,1.0
+refl_milestone_check,발달 이정표 점검,이 나이에 이 정도면 발달상 괜찮은 거야?,검수자1,검수자2,1.0
+refl_goal_alignment_check,목표 점검,이번 달 목표대로 잘 가고 있나?,검수자1,검수자2,1.0
+refl_self_journal,교사 성찰일지,오늘 수업 소감 일지에 적어둬야지,검수자1,검수자2,1.0
+refl_teaching_pattern_insight,수업 패턴 살펴보기,내 수업 방식에 어떤 패턴이 있나 궁금해,검수자1,검수자2,1.0
+refl_improvement_suggest,개선점 제안,뭘 더 바꾸면 좋을까?,검수자1,검수자2,1.0
+refl_support_need_scan,지원 필요한 아이 찾기,요즘 특별히 손이 더 가는 아이 있나?,검수자1,검수자2,1.0
+refl_period_retrospective,기간 회고,이번 학기 전체적으로 돌아보자,검수자1,검수자2,1.0

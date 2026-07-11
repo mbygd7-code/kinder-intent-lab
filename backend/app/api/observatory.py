@@ -10,14 +10,25 @@
 """
 from __future__ import annotations
 
+import hashlib
 import math
 
+import yaml
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.arena.ktib import EmptyKtib, build_ktib
 from app.arena.stages import STAGE_NAMES, brain_stage, region_stages, stage4_inputs
+from app.foundry.expert_ingest import (
+    BenchmarkNeedsReview,
+    ExpertEpisode,
+    SyntheticChannelRejected,
+    TrainBenchmarkContamination,
+    UnknownIngestIntent,
+    ingest_expert_episodes,
+)
 from app.brain.diagnosis import diagnose_node
 from app.brain.priors import current_state_version
 from app.brain.version_gate import current_brain_version, version_gate_status
@@ -26,7 +37,7 @@ from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
 from app.core.ontology import CANONICAL_DOMAINS, UNKNOWN_INTENT_ID, load_ontology
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
-from app.models.brain import BrainNode, BrainVersion, Exemplar
+from app.models.brain import BrainNode, BrainVersion, ConfusionEdge, Exemplar
 from app.models.persona import PersonaCluster, PopulationPrior
 
 router = APIRouter(prefix="/v1/observatory", tags=["observatory"])
@@ -100,19 +111,21 @@ def brain_state(
     }
     for n in nodes:
         stats = n.evidence_stats or {}
-        total = sum(int(stats.get(b, 0) or 0) for b in _BUCKETS)
+        buckets = {b: int(stats.get(b, 0) or 0) for b in _BUCKETS}
+        total = sum(buckets.values())
         out_nodes.append(ObservatoryNode(
             node_id=n.node_id,
             intent_id=n.intent_id,
             region=n.region,
             evidence_total=total,
             evidence_diversity=_diversity(stats),
-            gold_count=int(stats.get("gold", 0) or 0),
+            gold_count=buckets["gold"],
             exemplar_count=int(exemplar_counts.get(n.node_id, 0)),
             heldout_accuracy=n.heldout_accuracy,   # Arena 전용 컬럼 — 그대로 통과
             calibration_ece=n.calibration_ece,
             last_arena_run=n.last_arena_run,
             pending_evaluation=n.pending_evaluation,
+            evidence_buckets=buckets,              # §3-1 버킷 — 3D evidence 파티클 원천
         ))
         acc = region_acc[n.region]
         acc["nodes"] += 1
@@ -256,6 +269,125 @@ def node_diagnosis(
     )
 
 
+# --- 노드 방향성 혼동쌍 (§5-6 confusion_edges 실데이터) ---
+
+# state 우선순위 — 대표 정렬용(높을수록 먼저). rate가 있는 edge가 우선이고, 그다음 이 순위.
+_CONFUSION_STATE_RANK = {"confirmed": 2, "observed": 1, "hypothesized": 0}
+
+
+class ConfusionEdgeOut(BaseModel):
+    to_predicted: str            # 혼동 대상 intent (from_true=이 노드)
+    confusion_rate: float | None  # §5-6 — Arena 측정 전이면 null(지어내지 않음)
+    state: str                   # hypothesized | observed | confirmed
+    origin: str | None           # SKEPTIC | CONSENSUS_DISAGREEMENT | GYM_CORRECTION | ARENA_MATRIX
+
+
+class NodeConfusionsOut(BaseModel):
+    """방향성 혼동쌍(from_true=이 노드). §5-6 실데이터 — rate는 Arena만 채운다.
+
+    edges는 대표 순서(측정된 것 먼저 · rate 내림차순 · state 우선순위). measured=False면
+    아직 Arena가 이 노드를 재지 않아 전부 가설(rate null)이다 — mock이 아니라 실제 가설 edge다.
+    """
+
+    intent_id: str
+    measured: bool               # 이 노드에서 rate가 측정된 edge가 하나라도 있나
+    edges: list[ConfusionEdgeOut]
+
+
+@router.get("/node/{intent_id}/confusions", response_model=NodeConfusionsOut)
+def node_confusions(
+    intent_id: str,
+    session: Session = Depends(get_session),
+) -> NodeConfusionsOut:
+    """§5-6 방향성 혼동쌍 — from_true=intent_id인 edge를 대표 순서로. 없으면 빈 목록."""
+    real = {i.intent_id for i in load_ontology().intents if i.intent_id != UNKNOWN_INTENT_ID}
+    if intent_id not in real:
+        raise HTTPException(status_code=404, detail="알 수 없는 intent")
+    rows = list(
+        session.scalars(select(ConfusionEdge).where(ConfusionEdge.from_true == intent_id))
+    )
+    # 안정 정렬 2단: 먼저 이름 오름차순(결정론 tiebreak) → 대표성 키 내림차순
+    rows.sort(key=lambda e: e.to_predicted)
+    rows.sort(
+        key=lambda e: (
+            e.confusion_rate is not None,          # 측정된 edge 먼저
+            e.confusion_rate or 0.0,               # rate 높은 순
+            _CONFUSION_STATE_RANK.get(e.state, -1),  # 확정 > 관측 > 가설
+        ),
+        reverse=True,
+    )
+    return NodeConfusionsOut(
+        intent_id=intent_id,
+        measured=any(e.confusion_rate is not None for e in rows),
+        edges=[
+            ConfusionEdgeOut(
+                to_predicted=e.to_predicted,
+                confusion_rate=e.confusion_rate,
+                state=e.state,
+                origin=e.origin,
+            )
+            for e in rows
+        ],
+    )
+
+
+# --- 전 노드 혼동 edge 목록 (§5-6·§7-5 — 3D edge 레이어 원천) ---
+
+
+class GlobalConfusionEdgeOut(BaseModel):
+    edge_id: str
+    from_intent: str              # from_true — 방향성 유지
+    to_intent: str                # to_predicted
+    confusion_rate: float | None  # Arena 측정 전 null (지어내지 않음)
+    state: str                    # hypothesized | observed | confirmed (단조)
+    origin: str | None
+
+
+class GlobalConfusionEdgesOut(BaseModel):
+    """전체 방향성 혼동 edge. §7-5 Edge Thickness(state)·Edge Flicker(rate)의 원천.
+
+    measured_count는 rate가 측정된 edge 수 — 프론트 HUD가 '가설 N · 측정 M'으로
+    정직하게 표기한다(전부 가설이어도 mock이 아니라 실제 SKEPTIC 가설 edge다).
+    """
+
+    total: int
+    measured_count: int
+    edges: list[GlobalConfusionEdgeOut]
+
+
+@router.get("/confusion-edges", response_model=GlobalConfusionEdgesOut)
+def global_confusion_edges(
+    session: Session = Depends(get_session),
+) -> GlobalConfusionEdgesOut:
+    """전 edge를 대표 순서(측정 우선 → rate 내림차순 → state 랭크 → 이름)로 반환."""
+    rows = list(session.scalars(select(ConfusionEdge)))
+    # 안정 정렬 2단 — node_confusions와 동일 규칙 (이름 오름차순 tiebreak)
+    rows.sort(key=lambda e: (e.from_true, e.to_predicted))
+    rows.sort(
+        key=lambda e: (
+            e.confusion_rate is not None,
+            e.confusion_rate or 0.0,
+            _CONFUSION_STATE_RANK.get(e.state, -1),
+        ),
+        reverse=True,
+    )
+    return GlobalConfusionEdgesOut(
+        total=len(rows),
+        measured_count=sum(1 for e in rows if e.confusion_rate is not None),
+        edges=[
+            GlobalConfusionEdgeOut(
+                edge_id=e.edge_id,
+                from_intent=e.from_true,
+                to_intent=e.to_predicted,
+                confusion_rate=e.confusion_rate,
+                state=e.state,
+                origin=e.origin,
+            )
+            for e in rows
+        ],
+    )
+
+
 # --- Version Gate 상태 (§6-6, T4.5 — candidate pending 표시용, 읽기 전용) ---
 
 
@@ -277,4 +409,165 @@ def version_gate(
     return VersionGateOut(
         base_version=s.base_version, new_gold=s.new_gold, min_new_gold=s.min_new_gold,
         condition_met=s.condition_met, pending_candidate=s.pending_candidate,
+    )
+
+
+# --- 시험지(KTIB) 업로드 — 전문가 저작 YAML 등록·동결 (§8-2, scripts CLI의 웹 진입점) ---
+
+
+class KtibEpisodeIn(BaseModel):
+    """구조화 입력(CSV/시트에서 프론트가 변환한 한 행). episode_id 없으면 내용 해시로 생성."""
+
+    teacher_prompt: str
+    intent: str
+    episode_id: str | None = None
+    lang: str = "ko"
+    reviewers: list[str] = []
+    agreement_kappa: float | None = None
+
+
+class KtibUploadIn(BaseModel):
+    commit: bool = False   # False=검증만(dry-run), True=실제 적재·동결
+    # 입력 방식 A: 원문 YAML (헤더·episodes를 모두 담음)
+    yaml_text: str | None = None
+    # 입력 방식 B: 구조화(CSV/시트 → 프론트 변환). yaml_text가 없을 때 사용한다.
+    authored_by: str | None = None
+    approved_by: str | None = None
+    origin_channel: str = "EXPERT_AUTHORED"
+    dataset_split: str = "BENCHMARK_HOLDOUT"
+    episodes: list[KtibEpisodeIn] | None = None
+
+
+class KtibUploadOut(BaseModel):
+    ok: bool
+    dry_run: bool
+    inserted: int = 0
+    skipped_duplicate: int = 0
+    eligible_total: int = 0        # 등록 시 시험지에 담길 총 문항 수
+    ktib_version: str | None = None
+    message: str
+
+
+def _parse_ktib_yaml(text: str) -> tuple[dict, list[ExpertEpisode]]:
+    """업로드 YAML → (헤더 dict, 에피소드 목록). 형식 오류는 400으로 친절히 안내한다."""
+    try:
+        doc = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise HTTPException(status_code=400, detail=f"YAML 형식 오류: {exc}") from exc
+    if not isinstance(doc, dict):
+        raise HTTPException(status_code=400, detail="YAML 최상위가 객체(키:값)가 아닙니다")
+    for key in ("authored_by", "approved_by", "origin_channel", "dataset_split"):
+        val = str(doc.get(key, "")).strip()
+        if not val or val.startswith("<"):
+            raise HTTPException(status_code=400, detail=f"'{key}' 항목을 채워주세요")
+    raw = doc.get("episodes")
+    if not isinstance(raw, list) or not raw:
+        raise HTTPException(status_code=400, detail="episodes(문항)가 비어 있습니다")
+    episodes: list[ExpertEpisode] = []
+    for e in raw:
+        if not isinstance(e, dict):
+            raise HTTPException(status_code=400, detail="episodes 항목 형식이 올바르지 않습니다")
+        for key in ("episode_id", "teacher_prompt", "intent"):
+            val = e.get(key)
+            if not val or str(val).startswith("<"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"문항 {e.get('episode_id', '?')}의 '{key}'를 채워주세요",
+                )
+        episodes.append(ExpertEpisode(
+            episode_id=str(e["episode_id"]),
+            teacher_prompt=str(e["teacher_prompt"]),
+            intent=str(e["intent"]),
+            lang=str(e.get("lang", "ko")),
+            reviewers=tuple(str(r) for r in (e.get("reviewers") or ())),
+            agreement_kappa=e.get("agreement_kappa"),
+        ))
+    return doc, episodes
+
+
+def _episodes_from_rows(payload: KtibUploadIn) -> tuple[dict, list[ExpertEpisode]]:
+    """구조화 입력(CSV/시트) → (헤더, 에피소드). 작성자/승인자는 별도 입력받는다."""
+    if not payload.episodes:
+        raise HTTPException(status_code=400, detail="문항이 비어 있습니다")
+    for key, val in (("작성자", payload.authored_by), ("승인자", payload.approved_by)):
+        if not val or not str(val).strip():
+            raise HTTPException(status_code=400, detail=f"{key}를 입력해주세요")
+    doc = {
+        "authored_by": str(payload.authored_by).strip(),
+        "approved_by": str(payload.approved_by).strip(),
+        "origin_channel": payload.origin_channel,
+        "dataset_split": payload.dataset_split,
+    }
+    episodes: list[ExpertEpisode] = []
+    for i, e in enumerate(payload.episodes, 1):
+        prompt = (e.teacher_prompt or "").strip()
+        intent = (e.intent or "").strip()
+        if not prompt or not intent:
+            raise HTTPException(status_code=400, detail=f"{i}번째 행의 발화/의도를 채워주세요")
+        # episode_id 미지정 시 내용 해시 — 같은 문항 재업로드는 같은 id → dedup으로 건너뜀
+        eid = e.episode_id or (
+            "EP_" + hashlib.sha1(f"{intent}\x1f{prompt}".encode()).hexdigest()[:12]
+        )
+        episodes.append(ExpertEpisode(
+            episode_id=eid, teacher_prompt=prompt, intent=intent, lang=(e.lang or "ko"),
+            reviewers=tuple(str(r).strip() for r in (e.reviewers or []) if str(r).strip()),
+            agreement_kappa=e.agreement_kappa,
+        ))
+    return doc, episodes
+
+
+@router.post("/ktib/upload", response_model=KtibUploadOut)
+def ktib_upload(
+    payload: KtibUploadIn,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> KtibUploadOut:
+    """시험지 YAML을 등록한다. commit=False면 검증만(dry-run), True면 적재 + KTIB 동결.
+
+    적재·동결은 savepoint 안에서 수행하고 dry-run이면 롤백한다 — 미리보기가 DB를 바꾸지 않는다.
+    거부 사유(합성 채널·검수 미달·학습 오염·미지 intent 등)는 그대로 문구로 돌려준다.
+    채점(Arena 실행)은 여기서 하지 않는다 — 운영자가 별도로 돌린다(과금·장시간).
+    입력은 원문 YAML(yaml_text) 또는 구조화(episodes 행 + 작성자/승인자) 둘 다 받는다.
+    """
+    if payload.yaml_text:
+        doc, episodes = _parse_ktib_yaml(payload.yaml_text)
+    else:
+        doc, episodes = _episodes_from_rows(payload)
+    is_benchmark = str(doc["dataset_split"]) == "BENCHMARK_HOLDOUT"
+    sp = session.begin_nested()
+    try:
+        report = ingest_expert_episodes(
+            session, episodes, config,
+            origin_channel=str(doc["origin_channel"]),
+            dataset_split=str(doc["dataset_split"]),
+            authored_by=str(doc["authored_by"]),
+            approved_by=str(doc["approved_by"]),
+        )
+        ktib_version: str | None = None
+        eligible_total = 0
+        if is_benchmark:  # 시험지는 BENCHMARK_HOLDOUT일 때만 동결(KTIB)한다
+            ktib = build_ktib(session, config)
+            ktib_version = ktib.ktib_version
+            eligible_total = ktib.episode_count
+    except (SyntheticChannelRejected, BenchmarkNeedsReview, TrainBenchmarkContamination,
+            UnknownIngestIntent, EmptyKtib, ValueError) as exc:
+        sp.rollback()
+        return KtibUploadOut(ok=False, dry_run=not payload.commit, message=f"거부: {exc}")
+
+    if payload.commit:
+        sp.commit()  # savepoint 해제 → 실제 저장 (get_session이 최종 커밋)
+        msg = f"시험지 등록 완료 — 신규 {report.inserted}문항 (중복 {report.skipped_duplicate} 제외)"
+        if ktib_version:
+            msg += (f", 시험지 버전 {ktib_version} · 총 {eligible_total}문항. "
+                    "채점(시험 실행)은 운영자가 별도로 돌립니다.")
+    else:
+        sp.rollback()  # 미리보기 — 저장하지 않음
+        msg = f"검증 통과 — 신규 {report.inserted}문항 (중복 {report.skipped_duplicate} 제외)"
+        if ktib_version:
+            msg += f", 등록하면 시험지 총 {eligible_total}문항. '등록 확정'을 눌러 저장하세요."
+
+    return KtibUploadOut(
+        ok=True, dry_run=not payload.commit,
+        inserted=report.inserted, skipped_duplicate=report.skipped_duplicate,
+        eligible_total=eligible_total, ktib_version=ktib_version, message=msg,
     )

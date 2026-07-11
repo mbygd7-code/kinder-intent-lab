@@ -7,8 +7,11 @@
  * 미측정 뇌 = "Dormant"(아직 잠들어 있는 뇌) — 0점·실패가 아니라 깨어나기 전 상태로 읽힌다.
  * Stage 4(Cross-Region Flow)는 설계 미정의로 백엔드가 내보내지 않아 3 → 5로 건너뛴다.
  */
+import { useState } from 'react'
+
 import { BrainScreen } from './brain3d/BrainScreen'
 import { useBrainStore } from './brain3d/store'
+import { HelpOverlay } from './panels/HelpOverlay'
 import { NodePanel } from './panels/NodePanel'
 import { RegionsPanel } from './panels/RegionsPanel'
 
@@ -17,9 +20,14 @@ function App() {
   const brainVersion = useBrainStore((s) => s.brainVersion)
   const brainStage = useBrainStore((s) => s.brainStage)
   const brainStageName = useBrainStore((s) => s.brainStageName)
+  const [helpOpen, setHelpOpen] = useState(false)
   return (
     <main className="observatory">
       <header className="observatory-header">
+        {/* 도움말 — 헤더 우측 상단 (어떤 상태에서도 열림) */}
+        <button type="button" className="header-help" onClick={() => setHelpOpen(true)}>
+          ❔ 도움말
+        </button>
         <h1>KINDER INTENT BRAIN{brainVersion ? ` ${brainVersion}` : ''}</h1>
         <div className="ktib-global">
           <span className="ktib-value">
@@ -47,6 +55,7 @@ function App() {
         <BrainScreen />
         <NodePanel />
       </div>
+      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
     </main>
   )
 }

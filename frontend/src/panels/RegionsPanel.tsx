@@ -31,6 +31,8 @@ export function RegionsPanel() {
   const ktib = useBrainStore((s) => s.ktibGlobal)
   const selectedRegionId = useBrainStore((s) => s.selectedRegionId)
   const selectRegion = useBrainStore((s) => s.selectRegion)
+  const hoveredRegionId = useBrainStore((s) => s.hoveredRegionId)
+  const setHoveredRegion = useBrainStore((s) => s.setHoveredRegion)
 
   const regionOf = (id: RegionId) => brain?.regions.find((r) => r.region === id) ?? null
   const detail = selectedRegionId ? regionOf(selectedRegionId) : null
@@ -72,13 +74,16 @@ export function RegionsPanel() {
           {REGIONS.map((r) => {
             const data = regionOf(r.id)
             const active = selectedRegionId === r.id
+            const hovered = hoveredRegionId === r.id
             return (
               <li key={r.id}>
                 <button
                   type="button"
-                  className={`region-row${active ? ' region-row-active' : ''}`}
-                  style={active ? { borderColor: r.color } : undefined}
+                  className={`region-row${active ? ' region-row-active' : ''}${hovered ? ' region-row-hovered' : ''}`}
+                  style={active || hovered ? { borderColor: r.color } : undefined}
                   onClick={() => selectRegion(active ? null : r.id)}
+                  onMouseEnter={() => setHoveredRegion(r.id)}
+                  onMouseLeave={() => setHoveredRegion(null)}
                 >
                   <span className="region-swatch" style={{ backgroundColor: r.color }} />
                   <span className="region-row-text">

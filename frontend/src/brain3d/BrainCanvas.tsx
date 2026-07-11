@@ -1,34 +1,46 @@
 /**
  * 3D Brain 캔버스 — Zoom 0 (§7-1): 회전(드래그)·줌(휠) + 레이어 합성 + 블룸.
  *
- * 레이어: 의미 노드(NodesMesh, 상호작용) / 장식(ParticleLayer 셸·볼륨, NeuralWeb, Platform —
- * 전부 raycast 차단) / RegionLabels(3중 인코딩 ②). 초기 카메라는 -x 측면 = 레퍼런스 이미지의
- * 사시상(전두가 화면 왼쪽) 프로필. 빈 공간 클릭 = 선택 해제.
- * 블룸(luminanceThreshold)은 장식 셸(고휘도)만 빛나게 하고 Dormant 의미 노드(저휘도)는
- * 어둡게 남긴다 — brightness 인코딩(원칙 8)을 장식이 오염하지 않는다.
+ * 레이어 규약(정보 정직성): 유색 = 데이터, 단색 slate = 구조물.
+ * - 의미 노드(NodesMesh, 상호작용) · evidence 파티클(훈련 근거량) · 혼동 edge(§5-6)
+ *   · region glow(Arena reliability) · 플랫폼 게이지(성장 스테이지·KTIB) = 전부 실데이터
+ * - StructuralShell(뇌 실루엣) = 데이터 아님 — 단색·정적
+ * 블룸(BLOOM_THRESHOLD)은 §7-5 밝기(Arena 정확도) 채널 전용 — 데이터 파티클·구조물은
+ * 임계 미만 광량으로 억제된다(각 인코더 테스트가 강제).
  */
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 
+import { BLOOM_THRESHOLD } from './bloom'
+import { BrainFieldLayer } from './BrainFieldLayer'
+import { ConfusionEdgeLayer } from './ConfusionEdgeLayer'
+import { EdgeInfoLabels } from './EdgeInfoLabels'
 import type { NodeVisual } from './encodings'
+import { EvidenceParticleLayer } from './EvidenceParticleLayer'
 import type { PlacedNode } from './layout'
-import { NeuralWeb } from './NeuralWeb'
 import { NodesMesh } from './NodesMesh'
-import { ParticleLayer } from './ParticleLayer'
+import type { ParticleMetrics } from './particles'
 import { PersonaOverlayLayer } from './PersonaOverlayLayer'
 import { Platform } from './Platform'
+import { RegionGlowLayer } from './RegionGlowLayer'
+import { RegionHoverTargets } from './RegionHoverTargets'
 import { RegionLabels } from './RegionLabels'
+import { StructuralShell } from './StructuralShell'
 import { useBrainStore } from './store'
 
 interface Props {
   nodes: PlacedNode[]
   visuals?: ReadonlyMap<string, NodeVisual>
+  /** evidence 파티클 원천(노드별 훈련 근거 지표) — 없으면(mock 등) 파티클 없음 */
+  metrics?: ReadonlyMap<string, ParticleMetrics>
   /** T5.4 Persona Overlay(§7-6) — 선택 클러스터의 intent_id → prior. null = 오버레이 OFF */
   overlayPriors?: ReadonlyMap<string, number> | null
 }
 
-export function BrainCanvas({ nodes, visuals, overlayPriors }: Props) {
+const EMPTY_METRICS: ReadonlyMap<string, ParticleMetrics> = new Map()
+
+export function BrainCanvas({ nodes, visuals, metrics, overlayPriors }: Props) {
   const select = useBrainStore((s) => s.select)
   return (
     <Canvas
@@ -40,8 +52,18 @@ export function BrainCanvas({ nodes, visuals, overlayPriors }: Props) {
       <NodesMesh nodes={nodes} visuals={visuals} />
       {/* 절대 규칙 3: 오버레이는 NodesMesh 위 부가 레이어 — 노드 밝기 인코딩을 덮지 않는다 */}
       {overlayPriors && <PersonaOverlayLayer nodes={nodes} priors={overlayPriors} />}
-      <ParticleLayer />
-      <NeuralWeb />
+      {/* 뇌 필드 — 형태 상시 + region 훈련 에너지로 채도·풍성함 증가 */}
+      <BrainFieldLayer nodes={nodes} metrics={metrics ?? EMPTY_METRICS} />
+      <EvidenceParticleLayer nodes={nodes} metrics={metrics ?? EMPTY_METRICS} />
+      {/* §7-5 Edge Thickness/Flicker — §5-6 confusion_edges 실데이터 (store에서 구독) */}
+      <ConfusionEdgeLayer nodes={nodes} />
+      {/* 선택 노드의 연결 사유 칩 — 상대 노드 위에 방향·상태·출처·혼동률 */}
+      <EdgeInfoLabels nodes={nodes} />
+      <StructuralShell />
+      {/* Arena reliability의 공간 광 — 미측정 region은 무광(부재) */}
+      <RegionGlowLayer />
+      {/* region 호버 — 투명 타깃 (활성화 표현은 BrainFieldLayer가 그 region 입자를 밝힘) */}
+      <RegionHoverTargets />
       <Platform />
       <RegionLabels />
       <OrbitControls
@@ -60,7 +82,7 @@ export function BrainCanvas({ nodes, visuals, overlayPriors }: Props) {
         <Bloom
           mipmapBlur
           intensity={1.15}
-          luminanceThreshold={0.18}
+          luminanceThreshold={BLOOM_THRESHOLD}
           luminanceSmoothing={0.22}
           radius={0.72}
         />

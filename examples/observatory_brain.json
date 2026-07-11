@@ -20,7 +20,8 @@
       "heldout_accuracy": null,
       "calibration_ece": null,
       "last_arena_run": null,
-      "pending_evaluation": false
+      "pending_evaluation": false,
+      "evidence_buckets": {"synthetic": 118, "weak_behavioral": 0, "human_confirmed": 6, "gold": 6, "expert": 0}
     }
   ]
 }

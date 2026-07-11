@@ -36,6 +36,8 @@ export interface ObservatoryNode {
   calibration_ece?: number | null
   last_arena_run?: string | null
   pending_evaluation: boolean
+  /** §3-1 버킷별 개수(synthetic/weak_behavioral/human_confirmed/gold/expert) — 파티클 원천 */
+  evidence_buckets?: Record<string, number>
 }
 
 export interface ObservatoryBrain {
@@ -77,6 +79,118 @@ export async function fetchPersonaOverlay(signal?: AbortSignal): Promise<Persona
   const res = await fetch('/v1/observatory/persona-overlay', { signal })
   if (!res.ok) throw new Error(`persona overlay ${res.status}`)
   return (await res.json()) as PersonaOverlay
+}
+
+// --- 노드 방향성 혼동쌍 (§5-6 confusion_edges 실데이터) ---
+
+export type ConfusionState = 'hypothesized' | 'observed' | 'confirmed'
+
+export interface ConfusionEdge {
+  to_predicted: string
+  confusion_rate: number | null // §5-6 — Arena 측정 전이면 null (지어내지 않음)
+  state: ConfusionState
+  origin: string | null // SKEPTIC | CONSENSUS_DISAGREEMENT | GYM_CORRECTION | ARENA_MATRIX
+}
+
+/**
+ * from_true=이 노드인 방향성 혼동쌍. measured=false면 아직 Arena가 이 노드를 재지 않아
+ * 전부 가설(rate null)이다 — mock이 아니라 실제 SKEPTIC 가설 edge다(§5-6).
+ */
+export interface NodeConfusions {
+  intent_id: string
+  measured: boolean
+  edges: ConfusionEdge[]
+}
+
+export async function fetchNodeConfusions(
+  intentId: string,
+  signal?: AbortSignal,
+): Promise<NodeConfusions> {
+  const res = await fetch(`/v1/observatory/node/${encodeURIComponent(intentId)}/confusions`, {
+    signal,
+  })
+  if (!res.ok) throw new Error(`node confusions ${res.status}`)
+  return (await res.json()) as NodeConfusions
+}
+
+/** 전체 방향성 혼동 edge (§5-6) — 3D edge 레이어(§7-5 Thickness/Flicker) 원천. */
+export interface GlobalConfusionEdge {
+  edge_id: string
+  from_intent: string
+  to_intent: string
+  confusion_rate: number | null // Arena 측정 전 null (지어내지 않음)
+  state: ConfusionState
+  origin: string | null
+}
+
+export interface GlobalConfusionEdges {
+  total: number
+  measured_count: number // rate 비null 개수 — HUD가 '가설 N · 측정 M'으로 정직 표기
+  edges: GlobalConfusionEdge[]
+}
+
+export async function fetchConfusionEdges(
+  signal?: AbortSignal,
+): Promise<GlobalConfusionEdges> {
+  const res = await fetch('/v1/observatory/confusion-edges', { signal })
+  if (!res.ok) throw new Error(`confusion edges ${res.status}`)
+  return (await res.json()) as GlobalConfusionEdges
+}
+
+// --- 시험지(KTIB) 업로드 (§8-2) ---
+
+export interface KtibUploadResult {
+  ok: boolean
+  dry_run: boolean
+  inserted: number
+  skipped_duplicate: number
+  eligible_total: number
+  ktib_version: string | null
+  message: string
+}
+
+/** 구조화(CSV/시트에서 변환한) 한 문항 행 */
+export interface KtibRow {
+  intent: string
+  teacher_prompt: string
+  reviewers: string[]
+  agreement_kappa: number | null
+  lang?: string
+}
+
+async function postKtibUpload(body: Record<string, unknown>): Promise<KtibUploadResult> {
+  const res = await fetch('/v1/observatory/ktib/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    // 형식 오류(400)는 detail 문구를 그대로 보여준다
+    let detail = `업로드 실패 (${res.status})`
+    try {
+      const j = (await res.json()) as { detail?: string }
+      if (j?.detail) detail = j.detail
+    } catch {
+      /* JSON 아님 — 기본 문구 유지 */
+    }
+    throw new Error(detail)
+  }
+  return (await res.json()) as KtibUploadResult
+}
+
+/** 시험지 YAML 업로드. commit=false=검증만(dry-run), true=실제 등록·동결. */
+export function uploadKtib(yamlText: string, commit: boolean): Promise<KtibUploadResult> {
+  return postKtibUpload({ yaml_text: yamlText, commit })
+}
+
+/** CSV/시트에서 변환한 구조화 문항 업로드 (작성자·승인자는 별도 입력). */
+export function uploadKtibRows(input: {
+  authored_by: string
+  approved_by: string
+  episodes: KtibRow[]
+  commit: boolean
+}): Promise<KtibUploadResult> {
+  return postKtibUpload(input)
 }
 
 // --- T4.1 Weakness 진단 4축 (§7-3 실계산) ---

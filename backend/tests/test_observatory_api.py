@@ -20,7 +20,7 @@ from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.main import app
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun, KtibItem, KtibVersion
-from app.models.brain import BrainNode, Exemplar
+from app.models.brain import BrainNode, ConfusionEdge, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.guards import arena_brightness_write
 
@@ -199,3 +199,192 @@ def test_node_diagnosis_endpoint(api) -> None:
 def test_node_diagnosis_unknown_intent_404(api) -> None:
     client, _ = api
     assert client.get("/v1/observatory/node/NOT_A_REAL_INTENT/diagnosis").status_code == 404
+
+
+def test_node_confusions_endpoint(api) -> None:
+    """§5-6: from_true=intent인 방향성 혼동 edge를 대표 순서로. 측정 전이면 rate null·가설."""
+    client, db = api
+    ints = _seed_brain(db)
+    # 실 DB의 기존 confusion_edges는 savepoint 안에서 비운다 — 정확 순서/개수 단언 전제
+    db.execute(delete(ConfusionEdge))
+    db.add(ConfusionEdge(edge_id="CE_HYP", from_true=ints[0], to_predicted=ints[1],
+                         state="hypothesized", origin="SKEPTIC"))
+    db.add(ConfusionEdge(edge_id="CE_MEAS", from_true=ints[0], to_predicted="ZZ_measured",
+                         confusion_rate=0.4, state="confirmed", origin="ARENA_MATRIX"))
+    db.add(ConfusionEdge(edge_id="CE_OTHER", from_true=ints[1], to_predicted=ints[0],
+                         state="hypothesized", origin="SKEPTIC"))  # 다른 노드 — 안 나와야
+    db.flush()
+    body = client.get(f"/v1/observatory/node/{ints[0]}/confusions").json()
+    assert body["intent_id"] == ints[0]
+    assert body["measured"] is True  # 측정된 edge(0.4) 존재
+    tos = [e["to_predicted"] for e in body["edges"]]
+    assert tos == ["ZZ_measured", ints[1]]  # 측정된(confirmed 0.4)이 가설보다 먼저
+    assert body["edges"][0]["confusion_rate"] == pytest.approx(0.4)
+    assert body["edges"][0]["state"] == "confirmed"
+    assert body["edges"][1]["confusion_rate"] is None  # 가설은 미측정 — 지어내지 않음
+
+
+def test_node_confusions_none_measured(api) -> None:
+    """가설만 있으면 measured=False, rate 전부 null (mock 아님 — 실 가설 edge)."""
+    client, db = api
+    ints = _seed_brain(db)
+    db.execute(delete(ConfusionEdge))
+    db.add(ConfusionEdge(edge_id="CE_H1", from_true=ints[0], to_predicted=ints[1],
+                         state="hypothesized", origin="SKEPTIC"))
+    db.flush()
+    body = client.get(f"/v1/observatory/node/{ints[0]}/confusions").json()
+    assert body["measured"] is False
+    assert body["edges"][0]["confusion_rate"] is None
+    assert body["edges"][0]["state"] == "hypothesized"
+
+
+def test_node_confusions_unknown_intent_404(api) -> None:
+    client, _ = api
+    assert client.get("/v1/observatory/node/NOT_A_REAL_INTENT/confusions").status_code == 404
+
+
+def test_brain_nodes_include_evidence_buckets(api) -> None:
+    """§3-1 버킷이 노드에 그대로 노출 — 3D evidence 파티클 원천. 합 = evidence_total."""
+    client, db = api
+    ints = _seed_brain(db)
+    body = client.get("/v1/observatory/brain").json()
+    node = next(n for n in body["nodes"] if n["intent_id"] == ints[0])
+    b = node["evidence_buckets"]
+    assert set(b) == {"synthetic", "weak_behavioral", "human_confirmed", "gold", "expert"}
+    assert sum(b.values()) == node["evidence_total"]
+    # _seed_brain: ints[0] = synthetic 1 + human_confirmed 1 + gold 1(에피소드)
+    assert b["synthetic"] == 1 and b["human_confirmed"] == 1 and b["gold"] == 1
+    # 빈 노드도 버킷 키는 전부 있고 전부 0
+    empty = next(n for n in body["nodes"] if n["intent_id"] not in ints)
+    assert sum(empty["evidence_buckets"].values()) == 0
+
+
+def test_global_confusion_edges(api) -> None:
+    """§5-6 전체 edge 목록 — 측정 우선 정렬 + 정직 카운트(total/measured)."""
+    client, db = api
+    ints = _seed_brain(db)
+    db.execute(delete(ConfusionEdge))
+    db.add(ConfusionEdge(edge_id="CE_G1", from_true=ints[0], to_predicted=ints[1],
+                         state="hypothesized", origin="SKEPTIC"))
+    db.add(ConfusionEdge(edge_id="CE_G2", from_true=ints[1], to_predicted=ints[0],
+                         confusion_rate=0.25, state="confirmed", origin="ARENA_MATRIX"))
+    db.flush()
+    body = client.get("/v1/observatory/confusion-edges").json()
+    assert body["total"] == 2
+    assert body["measured_count"] == 1
+    assert body["edges"][0]["edge_id"] == "CE_G2"   # 측정된 edge 먼저
+    assert body["edges"][0]["confusion_rate"] == pytest.approx(0.25)
+    assert body["edges"][0]["from_intent"] == ints[1]
+    assert body["edges"][0]["to_intent"] == ints[0]
+    assert body["edges"][1]["confusion_rate"] is None  # 가설 — 지어내지 않음
+    assert body["edges"][1]["state"] == "hypothesized"
+
+
+def test_global_confusion_edges_empty(api) -> None:
+    client, db = api
+    db.execute(delete(ConfusionEdge))
+    db.flush()
+    body = client.get("/v1/observatory/confusion-edges").json()
+    assert body == {"total": 0, "measured_count": 0, "edges": []}
+
+
+def _upload_yaml(intent: str, prompt: str, *, kappa: float = 1.0) -> str:
+    return f"""
+authored_by: "테스트 전문가"
+approved_by: "테스트 승인자"
+origin_channel: EXPERT_AUTHORED
+dataset_split: BENCHMARK_HOLDOUT
+episodes:
+  - episode_id: EP_UP_1
+    teacher_prompt: "{prompt}"
+    intent: {intent}
+    lang: ko
+    reviewers: ["검수가", "검수나"]
+    agreement_kappa: {kappa}
+"""
+
+
+def test_ktib_upload_dry_run_then_commit(api) -> None:
+    """시험지 업로드: dry-run은 저장 안 함, commit은 적재 + KTIB 동결 (§8-2 웹 진입점)."""
+    from app.models.episodes import Episode
+    client, db = api
+    ints = _seed_brain(db)
+    yaml_text = _upload_yaml(ints[0], "업로드 검증용 유일 발화 zzq")
+
+    # dry-run: 검증만 — DB 미변경
+    r = client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": False})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True and body["dry_run"] is True and body["inserted"] == 1
+    assert db.query(Episode).filter_by(episode_id="EP_UP_1").first() is None  # 저장 안 됨
+
+    # commit: 실제 적재 + KTIB 발급
+    r2 = client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True})
+    b2 = r2.json()
+    assert b2["ok"] is True and b2["dry_run"] is False
+    assert b2["ktib_version"] and b2["eligible_total"] == 1
+    assert db.query(Episode).filter_by(episode_id="EP_UP_1").first() is not None
+
+
+def test_ktib_upload_rejects_unknown_intent(api) -> None:
+    client, db = api
+    _seed_brain(db)
+    yaml_text = _upload_yaml("NOT_A_REAL_INTENT", "미지 의도 발화")
+    r = client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True})
+    assert r.status_code == 200
+    assert r.json()["ok"] is False  # 거부 — 온톨로지에 없는 intent
+
+
+def test_ktib_upload_rejects_single_reviewer(api) -> None:
+    """BENCHMARK는 2인 이상 검수 필수 (§3-3) — 1인이면 거부."""
+    client, db = api
+    ints = _seed_brain(db)
+    yaml_text = f"""
+authored_by: "x"
+approved_by: "y"
+origin_channel: EXPERT_AUTHORED
+dataset_split: BENCHMARK_HOLDOUT
+episodes:
+  - {{episode_id: EP_SOLO, teacher_prompt: "한명검수 발화", intent: {ints[0]}, lang: ko, reviewers: ["혼자"], agreement_kappa: 1.0}}
+"""
+    r = client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True})
+    assert r.json()["ok"] is False
+
+
+def test_ktib_upload_missing_field_400(api) -> None:
+    client, _ = api
+    r = client.post("/v1/observatory/ktib/upload",
+                    json={"yaml_text": "episodes: []", "commit": False})
+    assert r.status_code == 400
+
+
+def test_ktib_upload_structured_rows(api) -> None:
+    """CSV/시트 경로: 구조화 episodes + 작성자/승인자로 등록 (episode_id 자동생성)."""
+    from app.models.episodes import Episode
+    client, db = api
+    ints = _seed_brain(db)
+    payload = {
+        "commit": True,
+        "authored_by": "시트 작성자",
+        "approved_by": "시트 승인자",
+        "episodes": [
+            {"teacher_prompt": "시트 업로드 유일 발화 qpz", "intent": ints[0],
+             "reviewers": ["검수가", "검수나"], "agreement_kappa": 1.0},
+        ],
+    }
+    r = client.post("/v1/observatory/ktib/upload", json=payload)
+    body = r.json()
+    assert body["ok"] is True and body["ktib_version"] and body["eligible_total"] == 1
+    # episode_id 자동생성 → 저장됐는지 dedup_hash 기준으로 확인
+    assert db.query(Episode).filter_by(dataset_split="BENCHMARK_HOLDOUT").count() == 1
+
+
+def test_ktib_upload_structured_requires_author(api) -> None:
+    client, db = api
+    ints = _seed_brain(db)
+    r = client.post("/v1/observatory/ktib/upload", json={
+        "commit": False, "approved_by": "y",
+        "episodes": [{"teacher_prompt": "작성자 없음", "intent": ints[0],
+                      "reviewers": ["a", "b"], "agreement_kappa": 1.0}],
+    })
+    assert r.status_code == 400  # 작성자 미입력

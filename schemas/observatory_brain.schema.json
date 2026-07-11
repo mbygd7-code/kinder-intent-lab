@@ -44,7 +44,20 @@
           "heldout_accuracy": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
           "calibration_ece": {"type": ["number", "null"]},
           "last_arena_run": {"type": ["string", "null"]},
-          "pending_evaluation": {"type": "boolean"}
+          "pending_evaluation": {"type": "boolean"},
+          "evidence_buckets": {
+            "description": "§3-1 evidence 버킷별 개수 — 3D evidence 파티클 원천 (gold+expert = 스파크). 합 = evidence_total.",
+            "type": "object",
+            "required": ["synthetic", "weak_behavioral", "human_confirmed", "gold", "expert"],
+            "additionalProperties": false,
+            "properties": {
+              "synthetic": {"type": "integer", "minimum": 0},
+              "weak_behavioral": {"type": "integer", "minimum": 0},
+              "human_confirmed": {"type": "integer", "minimum": 0},
+              "gold": {"type": "integer", "minimum": 0},
+              "expert": {"type": "integer", "minimum": 0}
+            }
+          }
         }
       }
     }

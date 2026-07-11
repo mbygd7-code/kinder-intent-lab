@@ -1,20 +1,27 @@
 /**
- * 홀로그램 플랫폼 — 뇌 아래 빛 풀 + radial 도트 링 + 바닥 먼지 (레퍼런스 이미지 하단 디테일).
- * 순수 장식(§7-5): 데이터 인코딩 없음, 상호작용 없음. 텍스처는 캔버스 그라디언트(결정론).
- * 동심원 실선 링은 제거(뇌와 다른 방향으로 도는 게 부자연스러웠음) — 도트 링만 남긴다.
+ * 홀로그램 플랫폼 — 원형 점선 링의 홀로그램 룩(초기 디자인) + 상태 게이지.
+ *
+ * 링 5개는 항상 청록 점선으로 보인다(홀로그램 크롬 — 2026-07-11 사용자 요청 복원).
+ * 상태는 그 위에 얹힌다:
+ * - 도달한 성장 스테이지(§7-6) 수만큼 링이 **더 밝고 굵게** 점등된다 (Stage 0 = 전부 기본 룩)
+ * - 외곽 호 = KTIB global(§7-1). **미측정(null)이면 호가 아예 없다** — 0%로 그리지 않는다.
+ * 빛 풀·바닥 먼지·뇌간 접점 글로우는 순수 크롬(데이터 아님, 뇌와 공간 분리된 바닥광).
+ * statusEncodings.ts(litRings/ktibArc)가 유일 인코더.
  */
 import { useMemo } from 'react'
 import * as THREE from 'three'
 
 import { mulberry32 } from './hash'
+import { useBrainStore } from './store'
+import { ktibArc, litRings, STAGE_RING_RADII } from './statusEncodings'
 
 const PLATFORM_Y = -1.27
-const CYAN = '#22d3ee'
-
+const RING_COLOR = '#22d3ee' // 홀로그램 기본 링 — 항상 보인다 (크롬)
+const LIT_COLOR = '#a5f3fc' // 도달 스테이지 링 — 기본보다 밝게 점등
+const KTIB_COLOR = '#67e8f9'
+const DOTS_PER_RING = 72
 const DUST_COUNT = 420
 const DUST_SEED = 0xd0_57ed
-const DOT_RINGS = [0.47, 0.69, 0.9, 1.12] // 점선 원 — radial 도트 링
-const DOTS_PER_RING = 72
 
 /** 부드러운 방사형 빛 풀 텍스처 (결정론 — 그라디언트만) */
 function makeGlowTexture(): THREE.Texture {
@@ -35,6 +42,7 @@ function makeGlowTexture(): THREE.Texture {
   return tex
 }
 
+/** 바닥 먼지 — 순수 크롬(초기 디자인의 홀로그램 질감) */
 function floorDust(): Float32Array {
   const rng = mulberry32(DUST_SEED)
   const out = new Float32Array(DUST_COUNT * 3)
@@ -48,10 +56,10 @@ function floorDust(): Float32Array {
   return out
 }
 
-function dotRings(): Float32Array {
-  const out = new Float32Array(DOT_RINGS.length * DOTS_PER_RING * 3)
+function ringDots(radii: readonly number[]): Float32Array {
+  const out = new Float32Array(radii.length * DOTS_PER_RING * 3)
   let i = 0
-  for (const r of DOT_RINGS) {
+  for (const r of radii) {
     for (let k = 0; k < DOTS_PER_RING; k++) {
       const ang = (k / DOTS_PER_RING) * Math.PI * 2
       out[i * 3] = Math.cos(ang) * r
@@ -63,13 +71,44 @@ function dotRings(): Float32Array {
   return out
 }
 
+function DotRing({ positions, color, size, opacity }: {
+  positions: Float32Array
+  color: string
+  size: number
+  opacity: number
+}) {
+  if (positions.length === 0) return null
+  return (
+    <points raycast={() => null}>
+      <bufferGeometry key={positions.length}>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color={color} size={size} transparent opacity={opacity}
+        depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation toneMapped={false} />
+    </points>
+  )
+}
+
 export function Platform() {
+  const brainStage = useBrainStore((s) => s.brainStage)
+  const ktibGlobal = useBrainStore((s) => s.ktibGlobal)
   const glowTex = useMemo(makeGlowTexture, [])
   const dustPos = useMemo(floorDust, [])
-  const dotPos = useMemo(dotRings, [])
+
+  // 링은 전부 홀로그램 기본 룩으로 항상 그리고, 도달 스테이지만 밝게 겹쳐 점등한다
+  const { basePos, litPos } = useMemo(() => {
+    const lit = litRings(brainStage)
+    return {
+      basePos: ringDots(STAGE_RING_RADII.filter((_, i) => !lit[i])),
+      litPos: ringDots(STAGE_RING_RADII.filter((_, i) => lit[i])),
+    }
+  }, [brainStage])
+
+  const arc = ktibArc(ktibGlobal) // §7-1 — null이면 호를 그리지 않는다
+
   return (
     <group raycast={() => null}>
-      {/* 빛 풀 — 부드러운 방사형 광 (레퍼런스의 바닥 발광면) */}
+      {/* 빛 풀 — 크롬 (뇌와 공간 분리된 바닥광, 데이터 아님) */}
       <mesh position={[0, PLATFORM_Y - 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1.6, 64]} />
         <meshBasicMaterial
@@ -81,28 +120,43 @@ export function Platform() {
         />
       </mesh>
 
-      {/* radial 도트 링 — 정적(회전 없음) */}
-      <points raycast={() => null}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[dotPos, 3]} />
-        </bufferGeometry>
-        <pointsMaterial color={CYAN} size={0.016} transparent opacity={0.65}
-          depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation toneMapped={false} />
-      </points>
+      {/* 홀로그램 점선 링 — 항상 청록(초기 룩). 도달 스테이지 링만 더 밝고 굵게 */}
+      <DotRing positions={basePos} color={RING_COLOR} size={0.016} opacity={0.65} />
+      <DotRing positions={litPos} color={LIT_COLOR} size={0.022} opacity={0.95} />
 
-      {/* 뇌간 하단 접점 글로우 */}
-      <sprite position={[0, -1.02, -0.42]} scale={[0.5, 0.5, 1]}>
-        <spriteMaterial map={glowTex} transparent opacity={0.7} depthWrite={false}
-          blending={THREE.AdditiveBlending} />
-      </sprite>
+      {/* KTIB 호 게이지 — 측정 전(null)엔 존재하지 않는다 */}
+      {arc && arc.thetaLength > 0 && (
+        <mesh
+          position={[0, PLATFORM_Y + 0.006, 0]}
+          rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+        >
+          <ringGeometry args={[1.18, 1.21, 96, 1, 0, arc.thetaLength]} />
+          <meshBasicMaterial
+            color={KTIB_COLOR}
+            transparent
+            opacity={0.85}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
 
+      {/* 바닥 먼지 — 크롬 (초기 홀로그램 질감 복원) */}
       <points raycast={() => null}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[dustPos, 3]} />
         </bufferGeometry>
-        <pointsMaterial color={CYAN} size={0.012} transparent opacity={0.5}
+        <pointsMaterial color={RING_COLOR} size={0.012} transparent opacity={0.5}
           depthWrite={false} blending={THREE.AdditiveBlending} sizeAttenuation toneMapped={false} />
       </points>
+
+      {/* 뇌간 하단 접점 글로우 — 크롬 */}
+      <sprite position={[0, -1.02, -0.42]} scale={[0.5, 0.5, 1]}>
+        <spriteMaterial map={glowTex} transparent opacity={0.7} depthWrite={false}
+          blending={THREE.AdditiveBlending} />
+      </sprite>
     </group>
   )
 }
