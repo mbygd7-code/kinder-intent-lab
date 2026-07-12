@@ -22,3 +22,7 @@ Thumbs.db
 
 # Claude Code — 로컬 전용 설정(머신별)
 .claude/settings.local.json
+
+# 런타임 생성 큐 (검수/출제 대기 — 사람이 채우는 작업 파일)
+seeds/review_queue_*.yaml
+seeds/benchmark_candidates.yaml

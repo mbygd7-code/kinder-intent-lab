@@ -1,0 +1,16 @@
+#!/bin/sh
+# 매 git push마다 로컬 → Supabase 증분 동기화 (scripts/sync_to_supabase.py).
+# 비차단: 동기화가 실패해도 코드 푸시는 진행한다 (Supabase 장애가 푸시를 막지 않게).
+# 활성화(클론마다 1회): git config core.hooksPath .githooks
+ROOT="$(git rev-parse --show-toplevel)"
+PY="$ROOT/backend/.venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3 || command -v python)"
+
+echo "→ Supabase 동기화 (pre-push)…"
+if "$PY" "$ROOT/scripts/sync_to_supabase.py"; then
+  echo "✓ Supabase 동기화 완료"
+else
+  echo "⚠ Supabase 동기화 실패 — 코드 푸시는 계속합니다."
+  echo "  수동 재시도: $PY scripts/sync_to_supabase.py"
+fi
+exit 0
