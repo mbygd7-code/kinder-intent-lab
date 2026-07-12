@@ -11,15 +11,17 @@
  */
 import { useBrainStore } from '../brain3d/store'
 import { REGIONS, type RegionId } from '../brain3d/regions'
+import { labelOf } from './intentLabels'
+import { stageKo } from './terms'
 
 const SUBTITLE: Record<RegionId, string> = {
-  PLAY: 'Imagination · Exploration',
-  OBSERVATION: 'Attention · Awareness',
-  DOCUMENT: 'Records · Expression',
-  VISUAL: 'Patterns · Images',
-  COMMUNICATION: 'Language · Sharing',
-  OPERATION: 'Logic · Execution',
-  REFLECTION: 'Self-Awareness · Growth',
+  PLAY: '상상 · 놀이 확장',
+  OBSERVATION: '아이 관찰 · 알아차림',
+  DOCUMENT: '기록 · 글쓰기',
+  VISUAL: '사진 · 이미지',
+  COMMUNICATION: '학부모 · 소통',
+  OPERATION: '학급 운영 · 실행',
+  REFLECTION: '되돌아보기 · 성장',
 }
 
 const TOP_WEAK_N = 4
@@ -50,10 +52,10 @@ export function RegionsPanel() {
     <aside className="side-panel side-panel-left">
       <section className="panel-card">
         <div className="panel-head">
-          <span className="panel-eyebrow">OVERALL BRAIN SCORE</span>
+          <span className="panel-eyebrow">브레인 종합 점수</span>
           {/* §7-6 뇌 전체 성장 스테이지 — Arena 산출 그대로, API 전엔 미표기 */}
           {brain?.brain_stage_name != null && (
-            <span className="stage-badge">{brain.brain_stage_name}</span>
+            <span className="stage-badge">{stageKo(brain.brain_stage_name)}</span>
           )}
         </div>
         <div className="brain-score">
@@ -61,14 +63,14 @@ export function RegionsPanel() {
           <span className="brain-score-max">/100</span>
         </div>
         <div className="panel-note">
-          {ktib == null ? 'Arena 미실행 — 잠에서 깨어나길 기다리는 뇌' : 'KTIB First Intent Accuracy'}
+          {ktib == null ? '아직 시험 전 — 깨어나길 기다리고 있어요' : '말뜻 알아맞히기 점수 (공식 시험 기준)'}
         </div>
       </section>
 
       <section className="panel-card">
         <div className="panel-head">
-          <span className="panel-eyebrow">BRAIN REGIONS</span>
-          <span className="panel-count">7 Areas</span>
+          <span className="panel-eyebrow">뇌 영역</span>
+          <span className="panel-count">7개</span>
         </div>
         <ul className="region-list">
           {REGIONS.map((r) => {
@@ -94,9 +96,9 @@ export function RegionsPanel() {
                     <span className="region-row-score" style={{ color: r.color }}>
                       {pct(data?.reliability)}
                     </span>
-                    {/* §7-6 region 성장 스테이지 — 미측정=Dormant(실패 아님), API 전 미표기 */}
+                    {/* §7-6 region 성장 스테이지 — 미측정=잠자는 중(실패 아님), API 전 미표기 */}
                     {data?.stage_name != null && (
-                      <span className="region-row-stage">{data.stage_name}</span>
+                      <span className="region-row-stage">{stageKo(data.stage_name)}</span>
                     )}
                   </span>
                 </button>
@@ -109,47 +111,49 @@ export function RegionsPanel() {
       {detail && (
         <section className="panel-card region-detail">
           <div className="panel-head">
-            <span className="panel-eyebrow">{selectedRegionId} REGION</span>
+            <span className="panel-eyebrow">
+              {selectedRegionId ? `${REGIONS.find((r) => r.id === selectedRegionId)?.label} 영역` : ''}
+            </span>
           </div>
           <dl className="stat-rows">
             <div className="stat-row">
-              <dt>Growth Stage</dt>
-              {/* §7-6 — Arena 산출 stage_name 그대로 (Stage 4는 백엔드가 내보내지 않는다) */}
-              <dd>{`${detail.stage} · ${detail.stage_name}`}</dd>
+              <dt>성장 단계</dt>
+              {/* §7-6 — Arena 산출 stage_name 그대로 (표시만 한글, Stage 4는 백엔드 미출력) */}
+              <dd>{`${detail.stage}단계 · ${stageKo(detail.stage_name)}`}</dd>
             </div>
             <div className="stat-row">
-              <dt>Measured Nodes</dt>
-              {/* heldout 측정된 노드 수 / 전체 — 미측정은 0%가 아니라 '아직 Arena 전' */}
-              <dd>{`${detail.measured_count} / ${detail.node_count}`}</dd>
+              <dt>시험 본 의도</dt>
+              {/* heldout 측정된 노드 수 / 전체 — 미측정은 0%가 아니라 '아직 시험 전' */}
+              <dd>{`${detail.measured_count} / ${detail.node_count}개`}</dd>
             </div>
             <div className="stat-row">
-              <dt>Region Reliability</dt>
+              <dt>영역 정답률</dt>
               <dd>{pct(detail.reliability)}</dd>
             </div>
             <div className="stat-row">
-              <dt>Coverage</dt>
+              <dt>상황 경험 폭</dt>
               <dd className="muted">—</dd>
             </div>
             <div className="stat-row">
-              <dt>Gold Episodes</dt>
+              <dt>사람이 확인한 데이터</dt>
               <dd>{num(detail.gold_evidence)}</dd>
             </div>
             <div className="stat-row">
-              <dt>Synthetic Episodes</dt>
+              <dt>AI가 만든 연습 데이터</dt>
               <dd className="muted-strong">{num(detail.synthetic_evidence)}</dd>
             </div>
           </dl>
           <div className="panel-subhead">
-            TOP WEAK NODES
-            <span className="panel-hint">Arena 측정 후 랭킹 · 현재 훈련량 낮은 순</span>
+            도움이 필요한 의도
+            <span className="panel-hint">시험 후 순위 확정 · 지금은 공부량 적은 순</span>
           </div>
           {weakNodes.length === 0 ? (
-            <div className="panel-empty">이 region에 노드가 없습니다</div>
+            <div className="panel-empty">이 영역에 의도가 없어요</div>
           ) : (
             <ul className="weak-list">
               {weakNodes.map((n) => (
                 <li key={n.node_id} className="weak-row">
-                  <span className="weak-name">{n.intent_id}</span>
+                  <span className="weak-name">{labelOf(n.intent_id)}</span>
                   <span className="weak-score muted">{pct(n.heldout_accuracy)}</span>
                 </li>
               ))}

@@ -25,7 +25,7 @@ export function PersonaOverlayControl() {
   return (
     <div className="persona-card">
       <div className="persona-head">
-        <span className="persona-title">PERSONA OVERLAY</span>
+        <span className="persona-title">선생님 성향 렌즈</span>
         <button
           type="button"
           className="view-toggle persona-toggle"
@@ -33,22 +33,22 @@ export function PersonaOverlayControl() {
           aria-pressed={on}
           onClick={() => setOverlayCluster(on ? null : clusters[0].cluster_id)}
         >
-          {on ? '오버레이 끄기' : '오버레이 켜기'}
+          {on ? '렌즈 끄기' : '렌즈 켜기'}
         </button>
       </div>
 
       {!canToggle && (
         <p className="persona-empty">
-          {status === 'loading' && '성향 클러스터 불러오는 중…'}
-          {status === 'error' && '성향 오버레이 미연결 — 백엔드를 확인해 주세요'}
-          {status === 'ready' && 'Persona Discovery 미실행 — 아직 성향 클러스터가 없어요'}
+          {status === 'loading' && '성향 정보를 불러오는 중…'}
+          {status === 'error' && '성향 정보를 못 불러왔어요 — 연결을 확인해 주세요'}
+          {status === 'ready' && '아직 성향 분석 전이에요 — 선생님들의 훈련 기록이 쌓이면 열려요'}
         </p>
       )}
 
       {on && overlay && current && (
         <div className="persona-legend">
           <label className="persona-cluster-pick">
-            <span>클러스터</span>
+            <span>성향 그룹</span>
             <select
               value={current.cluster_id}
               onChange={(e) => setOverlayCluster(e.target.value)}
@@ -61,25 +61,25 @@ export function PersonaOverlayControl() {
             </select>
           </label>
           <div className="persona-legend-row">
-            <span>교사 수</span>
+            <span>선생님 수</span>
             {/* member_count null = 미집계 — 0으로 지어내지 않는다 */}
             <strong>{current.member_count == null ? '—' : current.member_count}</strong>
           </div>
           <div className="persona-legend-row">
             <span className="persona-swatch" style={{ backgroundColor: BOOST_COLOR }} />
-            <span>prior &gt; 0.5 — 이 성향이 밀어주는 intent</span>
+            <span>이 성향 선생님들이 자주 쓰는 의도</span>
           </div>
           <div className="persona-legend-row">
             <span className="persona-swatch" style={{ backgroundColor: DAMP_COLOR }} />
-            <span>prior &lt; 0.5 — 이 성향이 눌러주는 intent</span>
+            <span>이 성향 선생님들이 드물게 쓰는 의도</span>
           </div>
           <div className="persona-legend-row">
             <span className="persona-swatch persona-swatch-neutral" />
-            <span>표시 없음 = 중립(0.5) 또는 prior 없음</span>
+            <span>표시 없음 = 특별한 치우침 없음</span>
           </div>
           <p className="persona-cap-note">
-            §5-5 사전 배수 — 측정 정확도가 아니며, 점수 이동은 prior_cap {overlay.prior_cap}
-            까지로 제한됩니다. 노드 밝기(Arena 정확도)는 오버레이와 무관하게 그대로예요.
+            참고용 경향 표시일 뿐 정확도(밝기)가 아니에요 — 영향 크기도{' '}
+            {overlay.prior_cap}까지로 제한돼요. 점의 밝기는 렌즈와 무관하게 그대로예요.
           </p>
         </div>
       )}

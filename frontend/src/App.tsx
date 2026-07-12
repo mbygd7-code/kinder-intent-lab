@@ -14,6 +14,7 @@ import { useBrainStore } from './brain3d/store'
 import { HelpOverlay } from './panels/HelpOverlay'
 import { NodePanel } from './panels/NodePanel'
 import { RegionsPanel } from './panels/RegionsPanel'
+import { stageWithNumber } from './panels/terms'
 
 function App() {
   const ktib = useBrainStore((s) => s.ktibGlobal)
@@ -21,6 +22,8 @@ function App() {
   const brainStage = useBrainStore((s) => s.brainStage)
   const brainStageName = useBrainStore((s) => s.brainStageName)
   const [helpOpen, setHelpOpen] = useState(false)
+  // §7-6 스테이지 — 값은 Arena 산출 그대로, 표시만 교사용 한글(terms.ts)
+  const stageLabel = stageWithNumber(brainStage, brainStageName)
   return (
     <main className="observatory">
       <header className="observatory-header">
@@ -28,24 +31,28 @@ function App() {
         <button type="button" className="header-help" onClick={() => setHelpOpen(true)}>
           ❔ 도움말
         </button>
-        <h1>KINDER INTENT BRAIN{brainVersion ? ` ${brainVersion}` : ''}</h1>
+        <h1>
+          킨더 브레인
+          <span className="header-sub">
+            선생님 말뜻을 배우는 AI{brainVersion ? ` · ${brainVersion}` : ''}
+          </span>
+        </h1>
         <div className="ktib-global">
           <span className="ktib-value">
             {ktib == null ? '—%' : `${(ktib * 100).toFixed(1)}%`}
           </span>
           {/* §7-6 — API 도착 전엔 스테이지도 표기하지 않는다(지어내지 않음) */}
-          {brainStageName != null && (
-            <span className="ktib-stage" title="§7-6 성장 스테이지 — Arena 산출">
-              {brainStage != null ? `Stage ${brainStage} · ` : ''}
-              {brainStageName}
+          {stageLabel != null && (
+            <span className="ktib-stage" title="성장 단계 — 시험 결과로만 바뀌어요">
+              {stageLabel}
             </span>
           )}
           <span className="ktib-note">
-            KTIB First Intent Accuracy
+            말뜻 알아맞히기 점수 (공식 시험 기준)
             {ktib == null
-              ? brainStageName != null
-                ? ' · Arena 미실행 — 뇌가 아직 잠들어 있어요'
-                : ' · Arena 미실행'
+              ? stageLabel != null
+                ? ' · 아직 시험 전 — 뇌가 잠들어 있어요'
+                : ' · 아직 시험 전'
               : ''}
           </span>
         </div>

@@ -84,30 +84,30 @@ describe('visibleEdges — focus/all 필터 (§5-6 UX 결정)', () => {
 describe('edgeInfo — 연결 사유 텍스트 (§5-6 필드만, 날조 없음)', () => {
   it('방향: from=선택 → 유출 문구, to=선택 → 유입 문구', () => {
     const e = edge({ from_intent: 'sel', to_intent: 'other' })
-    expect(edgeInfo(e, 'sel').direction).toContain('오인될 수 있음')
-    expect(edgeInfo(e, 'other').direction).toContain('오인되어 들어옴')
+    expect(edgeInfo(e, 'sel').direction).toContain('착각할 수 있음')
+    expect(edgeInfo(e, 'other').direction).toContain('착각되어 들어옴')
   })
 
   it('사유: 상태 한글 + 출처 한글 (미지 출처는 원문 그대로 — 날조 없음)', () => {
     const skeptic = edgeInfo(edge({ origin: 'SKEPTIC' }), 'a')
-    expect(skeptic.reason).toContain('가설')
-    expect(skeptic.reason).toContain('회의자(S8)')
+    expect(skeptic.reason).toContain('추측')
+    expect(skeptic.reason).toContain('헷갈릴 수 있다고 짚음')
     const arena = edgeInfo(
       edge({ state: 'confirmed', origin: 'ARENA_MATRIX', confusion_rate: 0.3 }),
       'a',
     )
-    expect(arena.reason).toContain('확정')
-    expect(arena.reason).toContain('Arena 오답 측정')
+    expect(arena.reason).toContain('확인됨')
+    expect(arena.reason).toContain('시험에서 실제로 틀림')
     expect(edgeInfo(edge({ origin: 'FUTURE_SOURCE' }), 'a').reason).toContain('FUTURE_SOURCE')
   })
 
   it('측정치: rate null → "측정 전"(0% 아님), 측정되면 %', () => {
     expect(edgeInfo(edge({ confusion_rate: null }), 'a')).toMatchObject({
-      rate: '측정 전',
+      rate: '시험 전',
       measured: false,
     })
     expect(edgeInfo(edge({ confusion_rate: 0.42 }), 'a')).toMatchObject({
-      rate: '혼동률 42%',
+      rate: '헷갈린 비율 42%',
       measured: true,
     })
   })

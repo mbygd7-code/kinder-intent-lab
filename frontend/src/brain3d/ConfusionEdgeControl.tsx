@@ -16,7 +16,7 @@ export function ConfusionEdgeControl() {
   return (
     <div className="persona-card edge-card">
       <div className="persona-head">
-        <span className="persona-title">혼동 관계 (§5-6)</span>
+        <span className="persona-title">헷갈리는 의도 연결</span>
         <button
           type="button"
           className="view-toggle persona-toggle"
@@ -29,12 +29,12 @@ export function ConfusionEdgeControl() {
       </div>
       {payload ? (
         <p className="persona-empty edge-counts">
-          가설 {hypothesized} · 측정 {payload.measured_count}
-          {mode === 'focus' && ' — 노드를 선택하면 그 노드의 가설 edge가 보여요'}
+          추측 {hypothesized}개 · 시험으로 확인 {payload.measured_count}개
+          {mode === 'focus' && ' — 점을 누르면 그 의도의 연결이 보여요'}
         </p>
       ) : (
         <p className="persona-empty">
-          {status === 'error' ? '혼동 edge 미연결' : '혼동 edge 불러오는 중…'}
+          {status === 'error' ? '연결 정보를 못 불러왔어요' : '연결 정보를 불러오는 중…'}
         </p>
       )}
     </div>

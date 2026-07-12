@@ -38,18 +38,27 @@ const LEVEL_CLASS: Record<WeakLevel, string> = { HIGH: 'lvl-high', MED: 'lvl-med
 
 /** §5-6 confusion edge state 한글 칩 — 가설(SKEPTIC) → 관측 → 확정(Arena 검증) */
 const CONFUSION_STATE_KO: Record<ConfusionState, string> = {
-  hypothesized: '가설',
-  observed: '관측',
-  confirmed: '확정',
+  hypothesized: '추측',
+  observed: '관찰됨',
+  confirmed: '확인됨',
 }
 const GYM_MODES: GymMode[] = ['guess_my_intent', 'choose_right_meaning', 'correction_drill']
 
 /** §7-4 브리핑 표기 — pack.strategy 코드의 한글 칩(미지 코드는 코드 그대로, 날조 없음) */
 const STRATEGY_KO: Record<string, string> = {
-  A_DATA_COVERAGE: '데이터 보강',
-  B_HUMAN_EVIDENCE: '교사 검증',
-  C_CONFUSION: '혼동 구분',
-  D_MODEL: '모델 갱신',
+  A_DATA_COVERAGE: '연습 자료 늘리기',
+  B_HUMAN_EVIDENCE: '선생님 확인 받기',
+  C_CONFUSION: '헷갈림 구분 연습',
+  D_MODEL: '뇌 업데이트',
+}
+
+/** §7-3 진단 코드 한글 칩(미지 코드는 코드 그대로) */
+const DIAGNOSIS_KO: Record<string, string> = {
+  AMBIGUOUS_HIGH: '말이 여러 뜻',
+  COVERAGE_LOW: '상황 경험 부족',
+  PERSONA_DIVERSITY_LOW: '성향 경험 부족',
+  GOLD_LOW: '사람 확인 부족',
+  CONFUSION_HIGH: '헷갈림 잦음',
 }
 
 /** §7-4 브리핑 표기 — difficulty_curve 한글(부재·미지 값은 "—") */
@@ -193,45 +202,46 @@ export function NodePanel() {
     <aside className="side-panel side-panel-right">
       <section className="panel-card">
         <div className="panel-head">
-          <span className="panel-eyebrow">SELECTED NODE</span>
+          <span className="panel-eyebrow">선택한 의도</span>
         </div>
         <div className="node-title" style={{ color }}>
           <span className="region-swatch" style={{ backgroundColor: color }} />
-          {node.intent_id}
+          {labelOf(node.intent_id)}
         </div>
-        <div className="node-region">{node.region}</div>
+        <div className="node-region">
+          {REGION_BY_ID[node.region as RegionId]?.label ?? node.region} 영역
+        </div>
 
-        <div className="panel-subhead">KEY METRICS</div>
+        <div className="panel-subhead">한눈에 보기</div>
         <div className="metric-grid">
           <div className="metric">
             <span className="metric-value">{node.evidence_total.toLocaleString('en-US')}</span>
-            <span className="metric-label">Evidence Total</span>
+            <span className="metric-label">공부한 양</span>
           </div>
           <div className="metric">
             <span className="metric-value">{node.gold_count}</span>
-            <span className="metric-label">Gold</span>
+            <span className="metric-label">사람이 확인</span>
           </div>
           <div className="metric">
             <span className="metric-value">{pct(node.evidence_diversity)}</span>
-            <span className="metric-label">Diversity</span>
+            <span className="metric-label">경험 다양성</span>
           </div>
           <div className="metric">
             <span className="metric-value">{node.exemplar_count}</span>
-            <span className="metric-label">Exemplars</span>
+            <span className="metric-label">대표 예문</span>
           </div>
         </div>
       </section>
 
       <section className="panel-card">
         <div className="panel-subhead">
-          대표 혼동 관계 <span className="dir-hint">(방향성)</span>
-          <span className="calc-badge">§5-6</span>
+          헷갈리기 쉬운 의도 <span className="dir-hint">(이 의도를 저것으로 착각)</span>
         </div>
-        {/* §5-6 실 confusion_edges — rate는 Arena만 채운다. 측정 전이면 "측정 전"(지어내지 않음) */}
+        {/* §5-6 실 confusion_edges — rate는 Arena만 채운다. 측정 전이면 "시험 전"(지어내지 않음) */}
         {currentConfusions === null ? (
           <div className="panel-empty">불러오는 중…</div>
         ) : (currentConfusions.edges?.length ?? 0) === 0 ? (
-          <div className="panel-empty">혼동 관계 데이터 없음 (측정 전)</div>
+          <div className="panel-empty">헷갈림 정보 없음 (아직 시험 전)</div>
         ) : (
           <>
             <ul className="confusion-list">
@@ -245,14 +255,14 @@ export function NodePanel() {
                   <span
                     className={`confusion-rate${c.confusion_rate === null ? ' unmeasured' : ''}`}
                   >
-                    {c.confusion_rate === null ? '측정 전' : pct(c.confusion_rate)}
+                    {c.confusion_rate === null ? '시험 전' : pct(c.confusion_rate)}
                   </span>
                 </li>
               ))}
             </ul>
             {!currentConfusions.measured && (
               <p className="panel-hint confusion-note">
-                Arena 측정 전 — SKEPTIC 가설 단계 혼동쌍 (실측 rate는 Arena run 이후)
+                아직 시험 전이라 "헷갈릴 수 있다"는 추측 단계예요 — 실제 수치는 시험 후에 나와요
               </p>
             )}
           </>
@@ -261,15 +271,15 @@ export function NodePanel() {
 
       <section className="panel-card">
         <div className="panel-subhead">
-          WHY THIS NODE IS WEAK
-          <span className="calc-badge">§7-3 실계산</span>
+          왜 약할까요?
+          <span className="calc-badge">자동 진단</span>
         </div>
-        {/* T4.1: 4축 실계산. 데이터 없는 축은 "—"(지어내지 않음) */}
+        {/* T4.1(§7-3): 4축 실계산. 데이터 없는 축은 "—"(지어내지 않음) */}
         <div className="axis-rows">
-          <Axis label="Ambiguous Language" axis={currentWhy?.ambiguous_language} />
-          <Axis label="Screen Context Coverage" axis={currentWhy?.screen_context_coverage} />
-          <Axis label="Persona Diversity" axis={currentWhy?.persona_diversity} />
-          <Axis label="Gold Data" axis={currentWhy?.gold_data} />
+          <Axis label="말이 여러 뜻으로 들려요" axis={currentWhy?.ambiguous_language} />
+          <Axis label="화면 상황 경험이 적어요" axis={currentWhy?.screen_context_coverage} />
+          <Axis label="다양한 선생님을 못 만났어요" axis={currentWhy?.persona_diversity} />
+          <Axis label="사람이 확인한 데이터가 적어요" axis={currentWhy?.gold_data} />
         </div>
 
         <button type="button" className="cta-train" onClick={toggleBrief}>
@@ -281,7 +291,7 @@ export function NodePanel() {
           <div className="train-brief">
             {/* §7-4 브리핑 — 전부 실 pack 필드. 없는 값은 "—"/부재 문구(지어내지 않음) */}
             <p className="brief-heading">
-              이 노드를 강화하기 위해 <strong>{briefResp.pack.items}개</strong>의 훈련 문항을
+              이 의도를 더 잘 알아듣게 <strong>{briefResp.pack.items}개</strong>의 연습 문항을
               준비했어요.
             </p>
             <div className="brief-chips">
@@ -289,19 +299,21 @@ export function NodePanel() {
                 <span key={code} className="brief-chip">{STRATEGY_KO[code] ?? code}</span>
               ))}
               {briefResp.diagnosis_codes.map((code) => (
-                <span key={code} className="brief-chip brief-chip-diag">{code}</span>
+                <span key={code} className="brief-chip brief-chip-diag">
+                  {DIAGNOSIS_KO[code] ?? code}
+                </span>
               ))}
             </div>
             <div className="brief-row">
-              <span>Target Confusion</span>
+              <span>집중 구분 연습</span>
               <strong>
                 {briefResp.pack.target_edges?.length
                   ? `${labelOf(node.intent_id)} ↔ ${labelOf(briefResp.pack.target_edges[0].to_predicted)}`
-                  : '측정된 혼동 관계 없음'}
+                  : '헷갈림 짝 없음'}
               </strong>
             </div>
             <div className="brief-row">
-              <span>Difficulty</span>
+              <span>난이도</span>
               <strong>
                 {briefResp.pack.difficulty_curve
                   ? DIFFICULTY_KO[briefResp.pack.difficulty_curve] ?? '—'
@@ -309,10 +321,10 @@ export function NodePanel() {
               </strong>
             </div>
             <div className="brief-row">
-              <span>Persona Mix</span>
+              <span>연습 속 선생님 유형</span>
               <strong>
                 {briefResp.pack.persona_mix?.length
-                  ? `${briefResp.pack.persona_mix.length}가지 교사 성향`
+                  ? `${briefResp.pack.persona_mix.length}가지 성향`
                   : '성향 묶음 준비 중'}
               </strong>
             </div>

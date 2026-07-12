@@ -80,18 +80,18 @@ export function visibleEdges(
 
 // ---------- 연결 사유 정보 (선택 노드의 상대 노드 위 칩, §5-6) ----------
 
-/** edge 출처(origin) 한글 — "왜 이 연결이 존재하는가"의 근원 */
+/** edge 출처(origin) 한글 — "왜 이 연결이 존재하는가"의 근원 (교사용 쉬운 말) */
 export const ORIGIN_KO: Record<string, string> = {
-  SKEPTIC: '회의자(S8) 가설 제기',
-  CONSENSUS_DISAGREEMENT: '라벨 합의 불일치',
-  GYM_CORRECTION: '훈련 교정에서 관찰',
-  ARENA_MATRIX: 'Arena 오답 측정',
+  SKEPTIC: 'AI가 헷갈릴 수 있다고 짚음',
+  CONSENSUS_DISAGREEMENT: '라벨 의견이 갈렸음',
+  GYM_CORRECTION: '훈련 중 바로잡음',
+  ARENA_MATRIX: '시험에서 실제로 틀림',
 }
 
 export const STATE_KO: Record<ConfusionState, string> = {
-  hypothesized: '가설',
-  observed: '관측',
-  confirmed: '확정',
+  hypothesized: '추측',
+  observed: '관찰됨',
+  confirmed: '확인됨',
 }
 
 export interface EdgeInfo {
@@ -115,9 +115,9 @@ export function edgeInfo(
   const outgoing = e.from_intent === selectedIntentId
   const measured = e.confusion_rate !== null && e.confusion_rate !== undefined
   return {
-    direction: outgoing ? '이 노드로 오인될 수 있음' : '이 노드에서 오인되어 들어옴',
+    direction: outgoing ? '이 의도로 착각할 수 있음' : '이 의도에서 착각되어 들어옴',
     reason: `${STATE_KO[e.state] ?? e.state} · ${ORIGIN_KO[e.origin ?? ''] ?? e.origin ?? '출처 미상'}`,
-    rate: measured ? `혼동률 ${Math.round((e.confusion_rate as number) * 100)}%` : '측정 전',
+    rate: measured ? `헷갈린 비율 ${Math.round((e.confusion_rate as number) * 100)}%` : '시험 전',
     measured,
   }
 }

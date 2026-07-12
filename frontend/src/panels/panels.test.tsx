@@ -141,29 +141,29 @@ afterEach(() => {
 describe('RegionsPanel (§7-2)', () => {
   it('KTIB 미실행이면 "—", 7개 region 리스트를 렌더한다', () => {
     render(<RegionsPanel />)
-    expect(screen.getByText('OVERALL BRAIN SCORE')).toBeTruthy()
+    expect(screen.getByText('브레인 종합 점수')).toBeTruthy()
     for (const r of REGIONS) expect(screen.getByText(r.label)).toBeTruthy()
     // 모든 region reliability null → 점수 자리 "—" (지어내지 않음)
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(7)
     // T5.4(§7-6): 미측정 뇌는 실패가 아니라 Dormant — 전체 배지 1 + region row 7
-    expect(screen.getAllByText('Dormant').length).toBeGreaterThanOrEqual(8)
+    expect(screen.getAllByText('잠자는 중').length).toBeGreaterThanOrEqual(8)
   })
 
   it('region 선택 시 §7-2 상세: Gold/Synthetic 실데이터 분리 표기, Reliability/Coverage "—"', () => {
     render(<RegionsPanel />)
-    fireEvent.click(screen.getByText('Play'))
-    const detail = screen.getByText('PLAY REGION').closest('.region-detail') as HTMLElement
+    fireEvent.click(screen.getByText('놀이'))
+    const detail = screen.getByText('놀이 영역').closest('.region-detail') as HTMLElement
     const d = within(detail)
-    expect(d.getByText('Gold Episodes').nextSibling?.textContent).toBe('231')
-    expect(d.getByText('Synthetic Episodes').nextSibling?.textContent).toBe('8,402')
-    expect(d.getByText('Region Reliability').nextSibling?.textContent).toBe('—') // Arena 전
-    expect(d.getByText('Coverage').nextSibling?.textContent).toBe('—')
+    expect(d.getByText('사람이 확인한 데이터').nextSibling?.textContent).toBe('231')
+    expect(d.getByText('AI가 만든 연습 데이터').nextSibling?.textContent).toBe('8,402')
+    expect(d.getByText('영역 정답률').nextSibling?.textContent).toBe('—') // Arena 전
+    expect(d.getByText('상황 경험 폭').nextSibling?.textContent).toBe('—')
     // T5.4(§7-6): 성장 스테이지 + 측정 노드 수 — Arena 산출값 그대로
-    expect(d.getByText('Growth Stage').nextSibling?.textContent).toBe('0 · Dormant')
-    expect(d.getByText('Measured Nodes').nextSibling?.textContent).toBe('0 / 2')
+    expect(d.getByText('성장 단계').nextSibling?.textContent).toBe('0단계 · 잠자는 중')
+    expect(d.getByText('시험 본 의도').nextSibling?.textContent).toBe('0 / 2개')
     // Top Weak Nodes: 훈련량 낮은 순 → play_b(5) 먼저, 점수는 "—"
     const weakRows = detail.querySelectorAll('.weak-row')
-    expect(weakRows[0].querySelector('.weak-name')?.textContent).toBe('play_b')
+    expect(weakRows[0].querySelector('.weak-name')?.textContent).toBe('play b')
     // 정직성: heldout 없으므로 각 weak 노드 점수는 "—"(지어낸 % 아님)
     for (const row of weakRows) {
       expect(row.querySelector('.weak-score')?.textContent).toBe('—')
@@ -182,13 +182,13 @@ describe('RegionsPanel (§7-2)', () => {
       },
     })
     render(<RegionsPanel />)
-    expect(screen.getByText('Spark')).toBeTruthy() // PLAY row — 나머지는 여전히 Dormant
-    fireEvent.click(screen.getByText('Play'))
-    const detail = screen.getByText('PLAY REGION').closest('.region-detail') as HTMLElement
+    expect(screen.getByText('첫 불꽃')).toBeTruthy() // PLAY row — 나머지는 여전히 Dormant
+    fireEvent.click(screen.getByText('놀이'))
+    const detail = screen.getByText('놀이 영역').closest('.region-detail') as HTMLElement
     const d = within(detail)
-    expect(d.getByText('Growth Stage').nextSibling?.textContent).toBe('1 · Spark')
-    expect(d.getByText('Measured Nodes').nextSibling?.textContent).toBe('1 / 2')
-    expect(d.getByText('Region Reliability').nextSibling?.textContent).toBe('42%')
+    expect(d.getByText('성장 단계').nextSibling?.textContent).toBe('1단계 · 첫 불꽃')
+    expect(d.getByText('시험 본 의도').nextSibling?.textContent).toBe('1 / 2개')
+    expect(d.getByText('영역 정답률').nextSibling?.textContent).toBe('42%')
   })
 })
 
@@ -201,25 +201,25 @@ describe('NodePanel (§7-3)', () => {
   it('선택 노드: 실 KEY METRICS + 실 혼동쌍(§5-6, 측정 전) + 실계산 4축(데이터 없으면 "—")', async () => {
     useBrainStore.setState({ selectedNodeId: 'N_play_a' }) // stubDiagnosis 기본=진단 null·혼동 가설1
     const { container } = render(<NodePanel />)
-    expect(screen.getByText('play_a')).toBeTruthy()
+    expect(screen.getByText('play a')).toBeTruthy()
     // 방향성 혼동은 실 confusion_edges(§5-6) — mock 배지 사라지고 §5-6 실데이터 배지
-    expect(screen.getByText('§5-6')).toBeTruthy()
+    expect(screen.getByText('헷갈리기 쉬운 의도')).toBeTruthy()
     expect(screen.queryByText('미리보기 · mock')).toBeNull()
     await waitFor(() =>
       expect(container.querySelectorAll('.confusion-row').length).toBeGreaterThanOrEqual(1),
     )
     expect(screen.getByText('play b')).toBeTruthy() // labelOf(play_b) — 실 edge 대상
-    expect(screen.getByText('가설')).toBeTruthy() // 상태칩 (hypothesized)
-    expect(screen.getByText('측정 전')).toBeTruthy() // 미측정 rate — 지어낸 % 아님
+    expect(screen.getByText('추측')).toBeTruthy() // 상태칩 (hypothesized)
+    expect(screen.getByText('시험 전')).toBeTruthy() // 미측정 rate — 지어낸 % 아님
     // 실 지표 4종 (KEY METRICS 전부 실데이터)
-    expect(screen.getByText('Evidence Total').previousSibling?.textContent).toBe('30')
-    expect(screen.getByText('Gold').previousSibling?.textContent).toBe('12')
-    expect(screen.getByText('Diversity').previousSibling?.textContent).toBe('0%')
-    expect(screen.getByText('Exemplars').previousSibling?.textContent).toBe('0')
+    expect(screen.getByText('공부한 양').previousSibling?.textContent).toBe('30')
+    expect(screen.getByText('사람이 확인').previousSibling?.textContent).toBe('12')
+    expect(screen.getByText('경험 다양성').previousSibling?.textContent).toBe('0%')
+    expect(screen.getByText('대표 예문').previousSibling?.textContent).toBe('0')
     // WHY-WEAK는 §7-3 실계산 배지 (mock 아님)
-    expect(screen.getByText('§7-3 실계산')).toBeTruthy()
+    expect(screen.getByText('자동 진단')).toBeTruthy()
     // 진단 데이터 없음 → 4축 모두 "—"(지어내지 않음)
-    for (const ax of ['Ambiguous Language', 'Screen Context Coverage', 'Persona Diversity', 'Gold Data']) {
+    for (const ax of ['말이 여러 뜻으로 들려요', '화면 상황 경험이 적어요', '다양한 선생님을 못 만났어요', '사람이 확인한 데이터가 적어요']) {
       const row = screen.getByText(ax).closest('.axis-row') as HTMLElement
       expect(within(row).getByText('—')).toBeTruthy()
     }
@@ -241,13 +241,13 @@ describe('NodePanel (§7-3)', () => {
     useBrainStore.setState({ selectedNodeId: 'N_play_a' })
     render(<NodePanel />)
     await waitFor(() => {
-      const g = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
+      const g = screen.getByText('사람이 확인한 데이터가 적어요').closest('.axis-row') as HTMLElement
       expect(within(g).getByText('HIGH')).toBeTruthy()
     })
     // play_b로 전환 → 잔류 HIGH가 아니라 LOW로 바뀐다
     useBrainStore.setState({ selectedNodeId: 'N_play_b' })
     await waitFor(() => {
-      const g = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
+      const g = screen.getByText('사람이 확인한 데이터가 적어요').closest('.axis-row') as HTMLElement
       expect(within(g).getByText('LOW')).toBeTruthy()
       expect(within(g).queryByText('HIGH')).toBeNull()
     })
@@ -263,10 +263,10 @@ describe('NodePanel (§7-3)', () => {
     useBrainStore.setState({ selectedNodeId: 'N_play_a' })
     render(<NodePanel />)
     await waitFor(() => {
-      const gold = screen.getByText('Gold Data').closest('.axis-row') as HTMLElement
+      const gold = screen.getByText('사람이 확인한 데이터가 적어요').closest('.axis-row') as HTMLElement
       expect(within(gold).getByText('HIGH')).toBeTruthy()
     })
-    const cov = screen.getByText('Screen Context Coverage').closest('.axis-row') as HTMLElement
+    const cov = screen.getByText('화면 상황 경험이 적어요').closest('.axis-row') as HTMLElement
     expect(within(cov).getByText('LOW')).toBeTruthy()
   })
 
@@ -288,9 +288,9 @@ describe('NodePanel (§7-3)', () => {
     // persona_mix 부재 → 개수 날조 없이 부재 문구 (정직성)
     expect(screen.getByText('성향 묶음 준비 중')).toBeTruthy()
     // 전략·진단 칩
-    expect(screen.getByText('혼동 구분')).toBeTruthy()
-    expect(screen.getByText('교사 검증')).toBeTruthy()
-    expect(screen.getByText('CONFUSION_HIGH')).toBeTruthy()
+    expect(screen.getByText('헷갈림 구분 연습')).toBeTruthy()
+    expect(screen.getByText('선생님 확인 받기')).toBeTruthy()
+    expect(screen.getByText('헷갈림 잦음')).toBeTruthy()
     // needs_human=true → §8-1 Gym 3모드(한글) 버튼
     expect(screen.getByText('훈련 방식을 골라 주세요')).toBeTruthy()
     for (const label of ['의도 알아맞히기', '알맞은 의미 고르기', '바로잡기 연습']) {
@@ -388,10 +388,10 @@ describe('NodePanel (§7-3)', () => {
     const rows = [...container.querySelectorAll('.confusion-row')] as HTMLElement[]
     // 백엔드 정렬 그대로: 측정된 confirmed(0.38)가 먼저 — rate %와 확정 칩
     expect(within(rows[0]).getByText('38%')).toBeTruthy()
-    expect(within(rows[0]).getByText('확정')).toBeTruthy()
+    expect(within(rows[0]).getByText('확인됨')).toBeTruthy()
     // 미측정 가설은 "측정 전"(지어낸 % 아님) + 가설 칩
-    expect(within(rows[1]).getByText('측정 전')).toBeTruthy()
-    expect(within(rows[1]).getByText('가설')).toBeTruthy()
+    expect(within(rows[1]).getByText('시험 전')).toBeTruthy()
+    expect(within(rows[1]).getByText('추측')).toBeTruthy()
     // measured=true → 하단 "SKEPTIC 가설 단계" 안내문구는 뜨지 않는다
     expect(screen.queryByText(/SKEPTIC 가설 단계 혼동쌍/)).toBeNull()
   })

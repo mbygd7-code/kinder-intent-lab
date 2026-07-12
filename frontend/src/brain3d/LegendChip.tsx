@@ -9,13 +9,13 @@ import { useState } from 'react'
 import { useBrainStore } from './store'
 
 const ROWS: ReadonlyArray<readonly [string, string]> = [
-  ['크기', '훈련량 (evidence 총량)'],
-  ['밝기', '정확도 — Arena 측정만'],
-  ['고리', '평가 대기 (훈련 후 미측정)'],
-  ['필드 채도', '영역 훈련량 — 학습될수록 선명·풍성'],
-  ['금색 입자', 'GOLD·전문가 근거'],
-  ['점선', '혼동 가설 · 실선 깜빡임 = 측정된 혼동'],
-  ['바닥 링', '성장 단계 · 외곽 호 = KTIB'],
+  ['점 크기', '공부한 양 — 많이 배울수록 커져요'],
+  ['점 밝기', '시험 정답률 — 시험을 봐야만 밝아져요'],
+  ['하얀 고리', '공부는 끝, 시험 대기 중'],
+  ['영역 색감', '그 영역의 공부량 — 배울수록 선명해져요'],
+  ['금색 반짝임', '사람이 직접 확인해 준 근거'],
+  ['점선', '헷갈릴 수 있다는 추측 · 깜빡이는 실선 = 시험에서 확인된 헷갈림'],
+  ['바닥 원', '뇌의 성장 단계'],
 ]
 
 export function LegendChip() {
@@ -26,7 +26,7 @@ export function LegendChip() {
   return (
     <div className="persona-card legend-card">
       <div className="persona-head">
-        <span className="persona-title">인코딩 범례</span>
+        <span className="persona-title">그림 읽는 법</span>
         <button
           type="button"
           className="view-toggle persona-toggle"
@@ -48,7 +48,7 @@ export function LegendChip() {
       )}
       {dataSource === 'live' && ktibGlobal === null && (
         <p className="persona-empty legend-state">
-          훈련 축적 중 · Arena 측정 전 — 뇌가 어두운 것이 정상이에요
+          공부 쌓는 중 · 아직 시험 전 — 뇌가 어두운 게 정상이에요
         </p>
       )}
     </div>

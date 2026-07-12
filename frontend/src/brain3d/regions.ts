@@ -35,14 +35,16 @@ export interface BrainRegion {
 // COMMUNICATION/OPERATION=좌/우 측두, REFLECTION=소뇌·뇌간.
 // 2026-07-09 사용자 승인 리스타일로 1회 이동(분산 셸 → 단일 뇌 내부) — 이후 다시 고정.
 // 쌍거리 최소 0.616(VISUAL–REFLECTION) ≥ 2×radius(0.56) — 비겹침 테스트 유지.
+// 라벨은 교사용 쉬운 한글(2026-07-12 UI 한글화) — 3D 콜아웃은 DOM(drei Html)이라 한글 렌더 안전.
+// id(백엔드 enum)·색·좌표는 불변.
 export const REGIONS: readonly BrainRegion[] = [
-  { id: 'PLAY', label: 'Play', color: '#4ade80', center: [0, 0.55, 0.62], radius: 0.28 },
-  { id: 'OBSERVATION', label: 'Observation', color: '#38bdf8', center: [0, 0.62, -0.42], radius: 0.28 },
-  { id: 'DOCUMENT', label: 'Document', color: '#fb923c', center: [0, -0.08, 0.8], radius: 0.28 },
-  { id: 'VISUAL', label: 'Visual', color: '#c084fc', center: [0, 0.12, -0.82], radius: 0.28 },
-  { id: 'COMMUNICATION', label: 'Communication', color: '#f472b6', center: [-0.42, -0.1, 0.3], radius: 0.28 },
-  { id: 'OPERATION', label: 'Operation', color: '#facc15', center: [0.42, -0.1, 0.3], radius: 0.28 },
-  { id: 'REFLECTION', label: 'Reflection', color: '#22d3ee', center: [0.0, -0.48, -0.68], radius: 0.28 },
+  { id: 'PLAY', label: '놀이', color: '#4ade80', center: [0, 0.55, 0.62], radius: 0.28 },
+  { id: 'OBSERVATION', label: '관찰', color: '#38bdf8', center: [0, 0.62, -0.42], radius: 0.28 },
+  { id: 'DOCUMENT', label: '기록', color: '#fb923c', center: [0, -0.08, 0.8], radius: 0.28 },
+  { id: 'VISUAL', label: '사진·꾸미기', color: '#c084fc', center: [0, 0.12, -0.82], radius: 0.28 },
+  { id: 'COMMUNICATION', label: '소통', color: '#f472b6', center: [-0.42, -0.1, 0.3], radius: 0.28 },
+  { id: 'OPERATION', label: '운영', color: '#facc15', center: [0.42, -0.1, 0.3], radius: 0.28 },
+  { id: 'REFLECTION', label: '돌아보기', color: '#22d3ee', center: [0.0, -0.48, -0.68], radius: 0.28 },
 ] as const
 
 export const REGION_BY_ID = Object.fromEntries(

@@ -14,6 +14,12 @@
   box-sizing: border-box;
 }
 
+/* 교사 친화 가독성(2026-07-12): 루트 글자 크기를 16→18px로 — 모든 rem 단위가
+   비례 확대된다. 개별 최소 글씨는 아래에서 바닥(≥0.72rem)을 따로 올렸다. */
+html {
+  font-size: 112.5%;
+}
+
 html,
 body,
 #root {
@@ -54,7 +60,7 @@ body {
   color: var(--fg);
   padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   font-family: inherit;
   cursor: pointer;
   z-index: 3;
@@ -62,10 +68,20 @@ body {
 .header-help:hover { border-color: var(--accent); }
 
 .observatory-header h1 {
-  font-weight: 600;
-  font-size: 1.05rem;
-  letter-spacing: 0.35em;
+  font-weight: 700;
+  font-size: 1.35rem;
+  letter-spacing: 0.28em;
   color: var(--accent);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.7rem;
+}
+.header-sub {
+  font-size: 0.86rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .ktib-global {
@@ -83,13 +99,13 @@ body {
 
 .ktib-note {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.86rem;
 }
 
 /* §7-6 성장 스테이지 칩 (T5.4) — 헤더 KTIB 수치 곁. Dormant도 실패가 아닌 상태 표기 */
 .ktib-stage {
   align-self: center;
-  font-size: 0.72rem;
+  font-size: 0.84rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: #a5b4fc;
@@ -100,7 +116,7 @@ body {
 }
 
 .stage-badge {
-  font-size: 0.62rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: #a5b4fc;
@@ -111,11 +127,11 @@ body {
 }
 
 .region-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.05rem; }
-.region-row-stage { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+.region-row-stage { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; }
 
 /* 3D region 라벨 칩 안의 스테이지 표기 */
 .region-stage {
-  font-size: 0.62rem;
+  font-size: 0.74rem;
   color: var(--muted);
   letter-spacing: 0.05em;
   border-left: 1px solid var(--panel-border);
@@ -170,18 +186,18 @@ body {
 }
 
 .panel-eyebrow {
-  font-size: 0.68rem;
+  font-size: 0.86rem;
   letter-spacing: 0.14em;
   color: var(--muted);
   font-weight: 600;
 }
 .panel-head { display: flex; justify-content: space-between; align-items: baseline; }
-.panel-count { font-size: 0.7rem; color: var(--muted); }
-.panel-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
-.panel-hint { font-size: 0.62rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
-.panel-empty { font-size: 0.76rem; color: var(--muted); padding: 0.35rem 0; }
+.panel-count { font-size: 0.86rem; color: var(--muted); }
+.panel-note { font-size: 0.84rem; color: var(--muted); margin-top: 0.2rem; }
+.panel-hint { font-size: 0.74rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.panel-empty { font-size: 0.84rem; color: var(--muted); padding: 0.35rem 0; }
 .panel-subhead {
-  font-size: 0.68rem;
+  font-size: 0.86rem;
   letter-spacing: 0.1em;
   color: var(--muted);
   font-weight: 600;
@@ -216,32 +232,32 @@ body {
 .region-row-hovered { background: rgba(255, 255, 255, 0.05); }
 .region-swatch { width: 0.7rem; height: 0.7rem; border-radius: 3px; flex: none; }
 .region-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.region-row-name { font-size: 0.82rem; font-weight: 600; }
-.region-row-sub { font-size: 0.66rem; color: var(--muted); }
+.region-row-name { font-size: 0.86rem; font-weight: 600; }
+.region-row-sub { font-size: 0.84rem; color: var(--muted); }
 .region-row-score { font-size: 0.9rem; font-weight: 700; }
 
 .stat-rows { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.2rem 0; }
-.stat-row { display: flex; justify-content: space-between; font-size: 0.8rem; }
+.stat-row { display: flex; justify-content: space-between; font-size: 0.84rem; }
 .stat-row dt { color: var(--muted); }
 .stat-row dd { font-weight: 700; }
 .muted { color: var(--muted); }
 .muted-strong { color: #93b4e6; }
 
 .weak-list { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
-.weak-row { display: flex; justify-content: space-between; font-size: 0.78rem; }
+.weak-row { display: flex; justify-content: space-between; font-size: 0.86rem; }
 .weak-name { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .node-title { display: flex; align-items: center; gap: 0.45rem; font-size: 1.05rem; font-weight: 700; margin-top: 0.3rem; }
-.node-region { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; }
+.node-region { font-size: 0.86rem; color: var(--muted); letter-spacing: 0.08em; }
 
 .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .metric { background: rgba(255, 255, 255, 0.03); border-radius: 0.5rem; padding: 0.5rem; display: flex; flex-direction: column; }
 .metric-value { font-size: 1.15rem; font-weight: 700; }
-.metric-label { font-size: 0.66rem; color: var(--muted); }
+.metric-label { font-size: 0.84rem; color: var(--muted); }
 
 .dir-hint { color: var(--muted); font-weight: 400; letter-spacing: 0; }
 .mock-badge {
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   letter-spacing: 0.06em;
   color: #fdba74;
   background: rgba(124, 45, 18, 0.5);
@@ -253,15 +269,15 @@ body {
 .mock-dot { color: #fdba74; margin-left: 0.2rem; font-weight: 700; }
 
 .confusion-list { list-style: none; display: flex; flex-direction: column; gap: 0.3rem; }
-.confusion-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
+.confusion-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.84rem; }
 .confusion-arrow { font-weight: 700; }
 .confusion-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .confusion-rate { font-weight: 700; }
 /* §5-6 Arena 측정 전 rate — 지어낸 %가 아니라 "측정 전"임을 muted로 구분 */
-.confusion-rate.unmeasured { color: var(--muted); font-weight: 500; font-size: 0.72rem; }
+.confusion-rate.unmeasured { color: var(--muted); font-weight: 500; font-size: 0.84rem; }
 /* confusion edge state 칩 — 가설/관측/확정 (§5-6 상태 사다리) */
 .confusion-state {
-  font-size: 0.58rem; letter-spacing: 0.04em; font-weight: 700;
+  font-size: 0.72rem; letter-spacing: 0.04em; font-weight: 700;
   padding: 0.04rem 0.32rem; border-radius: 0.3rem; flex: none;
 }
 .state-hypothesized {
@@ -276,15 +292,15 @@ body {
 .confusion-note { margin-top: 0.4rem; }
 
 .axis-rows { display: flex; flex-direction: column; gap: 0.35rem; }
-.axis-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.axis-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; }
 .axis-label { color: var(--fg); }
-.axis-level { font-weight: 700; font-size: 0.72rem; letter-spacing: 0.05em; }
+.axis-level { font-weight: 700; font-size: 0.84rem; letter-spacing: 0.05em; }
 .lvl-high { color: #f87171; }
 .lvl-med { color: #fbbf24; }
 .lvl-low { color: #94a3b8; }
 .lvl-none { color: var(--muted); }
 .calc-badge {
-  font-size: 0.6rem; letter-spacing: 0.06em; color: #67e8f9;
+  font-size: 0.72rem; letter-spacing: 0.06em; color: #67e8f9;
   background: rgba(8, 51, 68, 0.6); border: 1px solid rgba(34, 211, 238, 0.4);
   border-radius: 0.35rem; padding: 0.08rem 0.35rem; font-weight: 700;
 }
@@ -303,16 +319,16 @@ body {
 }
 .cta-train:hover { filter: brightness(1.08); }
 .train-brief { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.3rem; }
-.brief-row { display: flex; justify-content: space-between; font-size: 0.76rem; }
+.brief-row { display: flex; justify-content: space-between; font-size: 0.84rem; }
 .brief-row span { color: var(--muted); }
 
 /* --- §7-4 pack 브리핑 (T4.3 — 실 Challenge Pack 기반) --- */
-.brief-loading { font-size: 0.76rem; color: var(--muted); margin-top: 0.5rem; }
-.brief-heading { font-size: 0.8rem; line-height: 1.5; }
+.brief-loading { font-size: 0.84rem; color: var(--muted); margin-top: 0.5rem; }
+.brief-heading { font-size: 0.84rem; line-height: 1.5; }
 .brief-heading strong { color: #fdba74; }
 .brief-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.15rem 0 0.25rem; }
 .brief-chip {
-  font-size: 0.62rem;
+  font-size: 0.74rem;
   letter-spacing: 0.05em;
   font-weight: 700;
   color: #93c5fd;
@@ -334,7 +350,7 @@ body {
 .region-label-hovered { box-shadow: 0 0 14px rgba(255, 255, 255, 0.22); }
 
 /* --- Gym 모드 선택 (강화하기 브리핑) --- */
-.gym-mode-pick { font-size: 0.7rem; color: var(--muted); margin: 0.5rem 0 0.3rem; letter-spacing: 0.06em; }
+.gym-mode-pick { font-size: 0.86rem; color: var(--muted); margin: 0.5rem 0 0.3rem; letter-spacing: 0.06em; }
 .gym-mode-buttons { display: flex; flex-direction: column; gap: 0.3rem; }
 .gym-mode-btn {
   background: rgba(255, 255, 255, 0.05);
@@ -342,7 +358,7 @@ body {
   color: var(--fg);
   border-radius: 0.45rem;
   padding: 0.4rem 0.6rem;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   cursor: pointer;
   text-align: left;
 }
@@ -374,23 +390,23 @@ body {
 }
 .gym-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
 .gym-mode { font-weight: 700; letter-spacing: 0.03em; color: var(--accent); }
-.gym-progress { font-size: 0.78rem; color: var(--muted); }
+.gym-progress { font-size: 0.86rem; color: var(--muted); }
 .gym-close {
   margin-left: auto; background: transparent; border: none; color: var(--muted);
   font-size: 1rem; cursor: pointer;
 }
 .gym-prompt { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
 .gym-utterance {
-  font-size: 1.25rem; font-weight: 600; text-align: center; padding: 0.9rem 0.6rem 1.2rem;
+  font-size: 1.25rem; font-weight: 600; text-align: center; padding: 0.9rem 0.72rem 1.2rem;
   color: var(--fg); line-height: 1.5;
 }
 .gym-wrong {
-  font-size: 0.82rem; color: #fca5a5; text-align: center; margin-bottom: 0.7rem;
+  font-size: 0.86rem; color: #fca5a5; text-align: center; margin-bottom: 0.86rem;
   background: rgba(120, 30, 30, 0.25); border-radius: 0.5rem; padding: 0.5rem;
 }
 .gym-wrong strong { color: #f87171; }
 .gym-wrong-tag {
-  display: inline-block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
+  display: inline-block; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em;
   color: #fdba74; background: rgba(124, 45, 18, 0.5); border: 1px solid rgba(234, 88, 12, 0.5);
   border-radius: 0.3rem; padding: 0.05rem 0.3rem; margin-right: 0.4rem; vertical-align: middle;
 }
@@ -422,19 +438,19 @@ body {
   margin-bottom: 0.7rem;
 }
 .live-quiz-input:focus { outline: none; border-color: var(--accent); }
-.live-quiz-top-badge { color: var(--accent); font-size: 0.78rem; font-weight: 700; }
-.live-quiz-score { color: var(--muted); font-size: 0.76rem; }
+.live-quiz-top-badge { color: var(--accent); font-size: 0.86rem; font-weight: 700; }
+.live-quiz-score { color: var(--muted); font-size: 0.84rem; }
 .live-quiz-search { margin-top: 0.6rem; }
 .live-quiz-purpose {
   display: flex; align-items: center; gap: 0.45rem;
-  margin-top: 0.8rem; font-size: 0.78rem; color: var(--muted); cursor: pointer;
+  margin-top: 0.84rem; font-size: 0.86rem; color: var(--muted); cursor: pointer;
 }
 
 .gym-submit, .gym-result { text-align: center; padding: 1rem 0.5rem; }
 .gym-submit p { margin-bottom: 0.9rem; color: var(--fg); }
 .gym-result-num { font-size: 3rem; font-weight: 800; color: var(--accent); }
 .gym-result-label { font-size: 0.9rem; color: var(--fg); }
-.gym-result-note { font-size: 0.76rem; color: var(--muted); margin: 0.6rem 0 1rem; }
+.gym-result-note { font-size: 0.84rem; color: var(--muted); margin: 0.72rem 0 1rem; }
 
 .brain-screen canvas {
   touch-action: none;
@@ -478,7 +494,7 @@ body {
   color: var(--fg);
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   cursor: pointer;
 }
 
@@ -505,10 +521,10 @@ body {
 }
 .persona-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 /* .panel-subhead와 동일한 헤더 타이포 */
-.persona-title { font-size: 0.68rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
+.persona-title { font-size: 0.86rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; }
 .persona-toggle:disabled { opacity: 0.45; cursor: default; }
 .persona-toggle:disabled:hover { border-color: var(--panel-border); }
-.persona-empty { color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+.persona-empty { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
 .persona-legend { display: flex; flex-direction: column; gap: 0.3rem; }
 .persona-cluster-pick { display: flex; align-items: center; gap: 0.45rem; color: var(--muted); }
 .persona-cluster-pick select {
@@ -525,7 +541,7 @@ body {
 .persona-legend-row strong { margin-left: auto; }
 .persona-swatch { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; }
 .persona-swatch-neutral { background: transparent; border: 1px dashed var(--muted); }
-.persona-cap-note { color: var(--muted); font-size: 0.66rem; line-height: 1.5; }
+.persona-cap-note { color: var(--muted); font-size: 0.84rem; line-height: 1.5; }
 
 /* --- 연결 사유 칩 (선택 노드의 상대 노드 위, §5-6) --- */
 .edge-info-wrap { pointer-events: none; }
@@ -537,7 +553,7 @@ body {
   border: 1px solid rgba(143, 163, 196, 0.45); /* 미측정 slate — edge 색과 동일 계열 */
   border-radius: 0.45rem;
   padding: 0.28rem 0.45rem;
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   line-height: 1.35;
   color: var(--fg);
   white-space: nowrap;
@@ -545,7 +561,7 @@ body {
   pointer-events: none;
 }
 .edge-info-measured { border-color: rgba(245, 158, 11, 0.6); } /* 측정 amber */
-.edge-info-title { font-size: 0.62rem; }
+.edge-info-title { font-size: 0.74rem; }
 .edge-info-line { color: var(--muted); }
 .edge-info-reason { letter-spacing: 0.02em; }
 
@@ -580,17 +596,17 @@ body {
 /* 다운로드 버튼 (시험 문항 탭) */
 .help-download { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
 .help-dl-btn {
-  text-decoration: none; font-size: 0.9rem; padding: 0.5rem 0.8rem;
+  text-decoration: none; font-size: 0.9rem; padding: 0.5rem 0.84rem;
   border-color: rgba(34, 211, 238, 0.5); color: #67e8f9;
 }
 .help-dl-btn:hover { border-color: var(--accent); background: rgba(34, 211, 238, 0.08); }
-.help-live { font-size: 0.78rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.help-live { font-size: 0.86rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
 /* 공부 문항 실시간 개수 표 — 스크롤 영역 안에서 헤더 고정 */
 .help-scroll { max-height: 15rem; overflow-y: auto; border: 1px solid var(--panel-border); border-radius: 0.5rem; }
 .help-count-table { margin: 0; font-size: 0.9rem; }
 .help-count-table th {
   position: sticky; top: 0; background: rgba(9, 14, 28, 0.98); color: #a5f3fc;
-  text-align: left; padding: 0.4rem 0.6rem; font-size: 0.82rem;
+  text-align: left; padding: 0.4rem 0.72rem; font-size: 0.86rem;
 }
 .help-count-table td { border: 1px solid var(--panel-border); padding: 0.35rem 0.6rem; }
 .help-count-table td:nth-child(2), .help-count-table td:nth-child(3) { text-align: right; white-space: nowrap; }
@@ -604,7 +620,7 @@ body {
 /* 시험지 업로드 — 작성자/승인자 입력 */
 .help-form { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.5rem 0 0.2rem; }
 .help-field {
-  display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem;
+  display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.84rem;
   color: var(--muted); flex: 1; min-width: 11rem;
 }
 .help-input {
@@ -616,7 +632,7 @@ body {
 
 /* --- 인코딩 범례 + 혼동 edge HUD 칩 (persona-card 규격 공유) --- */
 .legend-rows { list-style: none; display: flex; flex-direction: column; gap: 0.28rem; margin-top: 0.15rem; }
-.legend-row { display: flex; gap: 0.5rem; font-size: 0.72rem; color: var(--fg); align-items: baseline; }
+.legend-row { display: flex; gap: 0.5rem; font-size: 0.84rem; color: var(--fg); align-items: baseline; }
 .legend-key { color: #67e8f9; font-size: 0.64rem; letter-spacing: 0.05em; min-width: 3.2rem; flex: none; }
 .legend-state { margin-top: 0.25rem; }
 .edge-counts { line-height: 1.5; }
@@ -627,7 +643,7 @@ body {
   border: 1px solid #ea580c;
   border-radius: 0.4rem;
   padding: 0.2rem 0.55rem;
-  font-size: 0.72rem;
+  font-size: 0.84rem;
   font-weight: 700;
   letter-spacing: 0.12em;
 }
@@ -640,7 +656,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   color: #fdba74;
   max-width: 15rem;
 }
@@ -658,7 +674,7 @@ body {
   border: 1px solid var(--panel-border);
   border-radius: 0.55rem;
   padding: 0.3rem 0.7rem;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   white-space: nowrap;
   color: var(--fg);
   box-shadow: 0 0 14px rgba(53, 224, 210, 0.12);

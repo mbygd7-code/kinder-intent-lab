@@ -9,6 +9,7 @@
  */
 import { Html, Line } from '@react-three/drei'
 
+import { stageKo } from '../panels/terms'
 import { REGIONS, type RegionId } from './regions'
 import { useBrainStore } from './store'
 
@@ -63,7 +64,7 @@ export function RegionLabels() {
               >
                 <span className="region-dot" style={{ backgroundColor: r.color }} />
                 <span className="region-name">{r.label}</span>
-                {stageName != null && <span className="region-stage">{stageName}</span>}
+                {stageName != null && <span className="region-stage">{stageKo(stageName)}</span>}
                 <span className="region-score" style={{ color: r.color }}>
                   {score == null ? '—' : Math.round(score * 100)}
                 </span>
