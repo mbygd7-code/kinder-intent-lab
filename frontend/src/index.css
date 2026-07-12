@@ -407,6 +407,29 @@ body {
 }
 .gym-option:hover { border-color: var(--accent); background: rgba(53, 224, 210, 0.08); }
 .gym-option-wrong { border-color: rgba(248, 113, 113, 0.4); }
+
+/* 즉석 문답(Live Quiz) — gym 모달 재사용 + 입력·검색·출제 토글만 추가 */
+.live-quiz-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 0.7rem;
+}
+.live-quiz-input:focus { outline: none; border-color: var(--accent); }
+.live-quiz-top-badge { color: var(--accent); font-size: 0.78rem; font-weight: 700; }
+.live-quiz-score { color: var(--muted); font-size: 0.76rem; }
+.live-quiz-search { margin-top: 0.6rem; }
+.live-quiz-purpose {
+  display: flex; align-items: center; gap: 0.45rem;
+  margin-top: 0.8rem; font-size: 0.78rem; color: var(--muted); cursor: pointer;
+}
+
 .gym-submit, .gym-result { text-align: center; padding: 1rem 0.5rem; }
 .gym-submit p { margin-bottom: 0.9rem; color: var(--fg); }
 .gym-result-num { font-size: 3rem; font-weight: 800; color: var(--accent); }

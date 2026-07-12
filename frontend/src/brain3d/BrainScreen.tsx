@@ -14,6 +14,7 @@ import {
   fetchPersonaOverlay,
   type ObservatoryBrain,
 } from '../api/observatory'
+import { LiveQuizPanel } from '../panels/LiveQuizPanel'
 import { Brain2DFallback } from './Brain2DFallback'
 import { ConfusionEdgeControl } from './ConfusionEdgeControl'
 import { visualFromNode, type NodeVisual } from './encodings'
@@ -86,6 +87,8 @@ export function BrainScreen() {
   const personaOverlay = useBrainStore((s) => s.personaOverlay)
   const overlayClusterId = useBrainStore((s) => s.overlayClusterId)
   const reloadNonce = useBrainStore((s) => s.reloadNonce) // Gym 제출 후 bump → 재조회
+  const bumpReload = useBrainStore((s) => s.bumpReload)
+  const [liveQuizOpen, setLiveQuizOpen] = useState(false)
   const hudRef = useRef<HTMLDivElement>(null)
 
   // 우측 노드 패널이 상단 HUD(토글·오버레이·선택칩)를 가리지 않게 — 실측 HUD 높이를
@@ -211,6 +214,12 @@ export function BrainScreen() {
         {(dataSource === 'live' || dataSource === 'mock') && <PersonaOverlayControl />}
         {/* §5-6 혼동 edge 토글·카운트 — 실데이터(live)에서만 (데모 노드와 실 edge는 짝이 안 맞는다) */}
         {dataSource === 'live' && <ConfusionEdgeControl />}
+        {/* 즉석 문답(§6-7 [4]) — 라이브 추론이 필요하므로 실데이터(live)에서만 */}
+        {dataSource === 'live' && (
+          <button type="button" className="view-toggle" onClick={() => setLiveQuizOpen(true)}>
+            💬 즉석 문답
+          </button>
+        )}
         {(dataSource === 'live' || dataSource === 'mock') && <LegendChip />}
         {dataSource === 'mock' && <span className="badge badge-mock">MOCK</span>}
         {dataSource === 'error' && (
@@ -234,6 +243,13 @@ export function BrainScreen() {
             {effectiveMode === '3d' ? '2D 지도로 보기' : '3D 뇌로 보기'}
           </button>
         </div>
+      )}
+
+      {liveQuizOpen && (
+        <LiveQuizPanel
+          onClose={() => setLiveQuizOpen(false)}
+          onComplete={bumpReload} // 훈련 evidence 저장 시에만 — 노드 size/pending 갱신(§6-7 [6])
+        />
       )}
     </div>
   )
