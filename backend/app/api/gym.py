@@ -17,9 +17,18 @@ from sqlalchemy.orm import Session
 from app.core.config import ExperimentsConfig
 from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
+from app.foundry.expert_ingest import TrainBenchmarkContamination
 from app.gym.challenge import generate_pack, pack_to_dict
 from app.gym.evidence import evidence_type_for
 from app.gym.growth import finalize_session
+from app.gym.live import (
+    DuplicateBenchmarkCandidate,
+    DuplicateFeedback,
+    UnknownLiveIntent,
+    queue_benchmark_candidate,
+    record_training_feedback,
+    register_atlas_suggestion,
+)
 from app.gym.pack import build_items, build_pack
 from app.gym.session import start_session
 from app.gym.session import submit_results as _submit
@@ -197,4 +206,97 @@ def submit_session(
         episodes_aggregated=fin.episodes_aggregated,
         label_states=fin.label_states,
         pending_set=fin.pending_set,
+    )
+
+
+# --- 즉석 문답(Live Quiz) — 자유 발화 라이브 추론에 대한 사람 판정 (§6-7 [4]~[6]) ---
+# 추론 자체는 클라이언트가 POST /v1/intent/infer(mode=gym)로 먼저 수행한다 — 이 엔드포인트는
+# 그 결과에 대한 사람 판정만 받는다. 정답(ground truth)이 추론 입력(Core)에 들어갈 길이
+# 없다(절대 규칙 5: 판정은 항상 추론이 끝난 뒤 도착한다).
+
+
+class LiveFeedbackRequest(BaseModel):
+    feedback_id: str = Field(min_length=6, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    trainer_ref: str = Field(min_length=1)
+    utterance: str = Field(min_length=1)
+    chosen_intent: str | None = None       # 사람이 고른/기록한 정답
+    brain_top_intent: str | None = None    # infer의 top_intent (abstain이면 None)
+    intent_candidates: list[str] = Field(default_factory=list)  # 화면에 보였던 후보(기록용)
+    inference_request_id: str | None = None  # 판정 대상 추론 run — inference_logs 연결고리
+    suggest_new_intent: bool = False       # 온톨로지에 없는 새 의도 제안 → atlas 큐
+    purpose: Literal["training", "benchmark"] = "training"
+
+
+class LiveFeedbackResponse(BaseModel):
+    kind: Literal["confirmation", "correction", "benchmark_queued", "atlas_queued"]
+    episode_id: str | None = None
+    evidence_created: int = 0
+    episodes_aggregated: int = 0
+    label_states: dict[str, int] = Field(default_factory=dict)
+    pending_set: bool = False
+    node_intent: str | None = None
+    benchmark_queue_size: int | None = None
+    atlas_queue_id: str | None = None
+
+
+@router.post("/live/feedback", response_model=LiveFeedbackResponse,
+             response_model_exclude_none=True)
+def live_feedback(
+    req: LiveFeedbackRequest,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(get_experiments),
+) -> LiveFeedbackResponse:
+    if req.suggest_new_intent and req.chosen_intent:
+        raise HTTPException(
+            status_code=422,
+            detail="새 의도 제안과 기존 의도 선택은 동시에 할 수 없습니다",
+        )
+
+    if req.suggest_new_intent:
+        queue_id = register_atlas_suggestion(session, utterance=req.utterance)
+        return LiveFeedbackResponse(kind="atlas_queued", atlas_queue_id=queue_id)
+
+    if not req.chosen_intent:
+        raise HTTPException(status_code=422, detail="chosen_intent가 필요합니다")
+
+    if req.purpose == "benchmark":
+        try:
+            size = queue_benchmark_candidate(
+                session, trainer_ref=req.trainer_ref,
+                utterance=req.utterance, chosen_intent=req.chosen_intent,
+            )
+        except UnknownLiveIntent as exc:
+            raise HTTPException(status_code=422, detail=f"온톨로지에 없는 intent: {exc}") from exc
+        except TrainBenchmarkContamination as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except DuplicateBenchmarkCandidate as exc:
+            raise HTTPException(
+                status_code=409, detail=f"이미 출제 대기 중인 발화입니다: {exc}"
+            ) from exc
+        return LiveFeedbackResponse(kind="benchmark_queued", benchmark_queue_size=size)
+
+    try:
+        report = record_training_feedback(
+            session,
+            feedback_id=req.feedback_id,
+            trainer_ref=req.trainer_ref,
+            utterance=req.utterance,
+            chosen_intent=req.chosen_intent,
+            brain_top_intent=req.brain_top_intent,
+            intent_candidates=req.intent_candidates,
+            inference_request_id=req.inference_request_id,
+            config=config,
+        )
+    except UnknownLiveIntent as exc:
+        raise HTTPException(status_code=422, detail=f"온톨로지에 없는 intent: {exc}") from exc
+    except DuplicateFeedback as exc:
+        raise HTTPException(status_code=409, detail="이미 반영된 문답입니다") from exc
+    return LiveFeedbackResponse(
+        kind=report.kind,  # type: ignore[arg-type]
+        episode_id=report.episode_id,
+        evidence_created=report.evidence_created,
+        episodes_aggregated=report.episodes_aggregated,
+        label_states=report.label_states,
+        pending_set=report.pending_set,
+        node_intent=report.node_intent,
     )
