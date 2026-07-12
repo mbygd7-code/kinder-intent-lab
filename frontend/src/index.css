@@ -116,6 +116,21 @@ body {
 }
 .cta-live:hover { filter: brightness(1.12); }
 
+/* 시험지 업로드 — 톱바 액션(즉석 문답 왼쪽). 보조 CTA라 아웃라인 톤으로 구분 */
+.cta-upload {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #7dd3fc;
+  padding: 0.46rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cta-upload:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.18); }
+
 .header-help {
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -676,6 +691,76 @@ body {
 }
 .help-dl-btn:hover { border-color: var(--accent); background: rgba(34, 211, 238, 0.08); }
 .help-live { font-size: 0.86rem; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+/* --- 시험지 검수 모달 (1~5 평점) --- */
+.review-name { max-width: 20rem; margin-bottom: 0.6rem; }
+
+/* 1~5 바로 선택기 */
+.rating-pick { display: inline-flex; gap: 0.2rem; flex: none; }
+.rating-dot {
+  width: 1.7rem; height: 1.7rem; border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border);
+  color: var(--muted); font-size: 0.82rem; font-weight: 700; font-family: inherit; cursor: pointer;
+}
+.rating-dot:hover { border-color: var(--accent); color: var(--fg); }
+.rating-dot-on {
+  background: linear-gradient(135deg, #0891b2, #6366f1); border-color: transparent; color: #fff;
+}
+
+/* 영역 아코디언(문항 작성) */
+.review-region { border: 1px solid var(--panel-border); border-radius: 0.5rem; margin-bottom: 0.4rem; }
+.review-region-head {
+  width: 100%; display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.7rem;
+  background: rgba(255, 255, 255, 0.02); border: none; color: var(--fg); cursor: pointer;
+  font-family: inherit; border-radius: 0.5rem;
+}
+.review-region-head:hover { background: rgba(255, 255, 255, 0.05); }
+.review-region-name { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; flex: 1; text-align: left; }
+.review-region-count {
+  background: rgba(56, 189, 248, 0.16); color: #7dd3fc; border-radius: 999px;
+  padding: 0.05rem 0.5rem; font-size: 0.74rem; font-weight: 700;
+}
+.review-region-caret { color: var(--muted); }
+.review-region-body { padding: 0.3rem 0.7rem 0.6rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.review-intent { border-top: 1px solid var(--panel-border); padding-top: 0.45rem; }
+.review-intent-label { font-size: 0.8rem; font-weight: 600; color: #a5f3fc; margin-bottom: 0.3rem; }
+.review-write-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
+.review-q { flex: 1; min-width: 0; font-size: 0.86rem; }
+.review-add-row {
+  background: none; border: 1px dashed var(--panel-border); color: var(--muted);
+  border-radius: 0.4rem; padding: 0.25rem 0.6rem; font-size: 0.78rem; font-family: inherit; cursor: pointer;
+}
+.review-add-row:hover { border-color: var(--accent); color: var(--fg); }
+
+/* 검수 대기 목록/상세 */
+.review-pending-card {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.85rem; margin-bottom: 0.45rem; background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border); border-radius: 0.55rem; color: var(--fg);
+  font-family: inherit; font-size: 0.9rem; cursor: pointer; text-align: left;
+}
+.review-pending-card:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.06); }
+.review-pending-go { color: #7dd3fc; font-weight: 700; white-space: nowrap; }
+.review-review-table td { vertical-align: middle; }
+.review-intent-cell { white-space: nowrap; color: #a5f3fc; font-weight: 600; font-size: 0.84rem; }
+.review-rate-cell { white-space: nowrap; text-align: right; }
+.review-register { margin-top: 0.5rem; }
+.review-blocked { color: #fca5a5; font-size: 0.88rem; margin-top: 0.35rem; }
+
+/* 내 제출 현황 카드 */
+.review-mine-card {
+  padding: 0.65rem 0.8rem; margin-bottom: 0.45rem; background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border); border-radius: 0.55rem;
+}
+.review-mine-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.review-mine-status { font-weight: 700; color: #7dd3fc; font-size: 0.9rem; }
+.review-mine-meta { font-size: 0.84rem; color: var(--muted); }
+
+/* 본문 속 인라인 링크 버튼 (시험지 모달 → 도움말 이동) */
+.help-inline-link {
+  background: none; border: none; padding: 0; font: inherit; cursor: pointer;
+  color: #67e8f9; font-weight: 700; text-decoration: underline; text-underline-offset: 2px;
+}
+.help-inline-link:hover { color: var(--accent); }
 /* 공부 문항 실시간 개수 표 — 스크롤 영역 안에서 헤더 고정 */
 .help-scroll { max-height: 15rem; overflow-y: auto; border: 1px solid var(--panel-border); border-radius: 0.5rem; }
 .help-count-table { margin: 0; font-size: 0.9rem; }
@@ -685,6 +770,9 @@ body {
 }
 .help-count-table td { border: 1px solid var(--panel-border); padding: 0.35rem 0.6rem; }
 .help-count-table td:nth-child(2), .help-count-table td:nth-child(3) { text-align: right; white-space: nowrap; }
+/* 시험지 업로드 — 시트 자동 집계(질문 수·통과·kappa) */
+.exam-summary { margin: 0.6rem 0 0.2rem; }
+.exam-summary td:last-child { text-align: right; white-space: nowrap; }
 /* 시험지 업로드 결과 */
 .help-upload-err {
   color: #fca5a5; font-size: 0.9rem; background: rgba(120, 30, 30, 0.25);

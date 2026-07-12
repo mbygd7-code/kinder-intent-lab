@@ -256,16 +256,14 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     // 사용설명서 탭 전환 — 강화하기 안내가 보인다
     fireEvent.click(within(dialog).getByRole('button', { name: '사용설명서' }))
     expect(within(dialog).getByText(/뇌 가르치기 — 강화하기/)).toBeTruthy()
-    // 시험 문항 만들기 탭 — 다운로드 링크 2개(YAML·PDF)
+    // 시험 문항 만들기 탭 — 쉬운 양식(63×10) + PDF 다운로드
     fireEvent.click(within(dialog).getByRole('button', { name: '시험 문항 만들기' }))
-    const csvSeed = within(dialog).getByRole('link', { name: /시작 양식 \(CSV/ }) as HTMLAnchorElement
-    expect(csvSeed.getAttribute('href')).toBe('/ktib_seed_template.csv')
-    const yaml = within(dialog).getByRole('link', { name: /시작 양식 \(YAML/ }) as HTMLAnchorElement
-    expect(yaml.getAttribute('href')).toBe('/ktib_seed_template.yaml')
+    const csvTpl = within(dialog).getByRole('link', { name: /쉬운 양식 받기/ }) as HTMLAnchorElement
+    expect(csvTpl.getAttribute('href')).toBe('/ktib_exam_template.csv')
     expect(within(dialog).getByRole('link', { name: /안내서 PDF/ })).toBeTruthy()
-    // 시험지 업로드 버튼 + 작성자/승인자 입력 (플로우는 브라우저에서 검증)
-    expect(within(dialog).getByRole('button', { name: /시험지 파일 선택/ })).toBeTruthy()
-    expect(within(dialog).getByPlaceholderText(/CSV 업로드 시 필요/)).toBeTruthy()
+    // 업로드 버튼 + 검수자 A/B 이름 입력 (O/X→kappa 자동, 업로드 플로우는 브라우저에서 검증)
+    expect(within(dialog).getByRole('button', { name: /작성한 양식 올리기/ })).toBeTruthy()
+    expect(within(dialog).getByPlaceholderText(/김유아/)).toBeTruthy()
     // 공부 문항 보기 탭 — CSV 다운로드 + 의도별 실시간 개수(FAKE_BRAIN 노드에서)
     fireEvent.click(within(dialog).getByRole('button', { name: '공부 문항 보기' }))
     const csv = within(dialog).getByRole('link', { name: /전체 내려받기/ }) as HTMLAnchorElement

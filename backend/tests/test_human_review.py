@@ -16,9 +16,11 @@ from app.aggregator.review import (
     apply_review_batch,
     batch_kappa,
     cohens_kappa,
+    weighted_cohens_kappa,
 )
 from app.core.config import get_config
 from app.core.ontology import load_ontology
+from app.models.arena import KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.governance import GovernanceEvent
@@ -28,7 +30,9 @@ CFG = get_config()
 
 @pytest.fixture(autouse=True)
 def _empty(db_session):
-    for model in (Exemplar, Evidence, Episode, GovernanceEvent):
+    # FK 순서: ktib_items → (episodes, ktib_versions) 이므로 KtibItem을 먼저 비운다.
+    # (기존엔 KtibItem/KtibVersion 누락 — 벤치마크 episode가 있으면 episodes DELETE가 FK로 실패)
+    for model in (KtibItem, KtibVersion, Exemplar, Evidence, Episode, GovernanceEvent):
         db_session.execute(delete(model))
     db_session.flush()
 
@@ -82,6 +86,42 @@ def test_batch_kappa_takes_the_worst_pair() -> None:
         ReviewVote("E2", "R1", "b"), ReviewVote("E2", "R2", "b"), ReviewVote("E2", "R3", "a"),
     ]
     assert batch_kappa(votes) == cohens_kappa(["a", "b"], ["b", "a"])
+
+
+# --- 가중 Cohen's kappa (순서형 1~5 평점, 시험지 2차 검수 §3-3) ---
+
+
+def test_weighted_kappa_one_on_perfect_agreement_with_variance() -> None:
+    assert weighted_cohens_kappa([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]) == 1.0
+
+
+def test_weighted_kappa_none_when_all_ratings_identical() -> None:
+    """★ 모든 평점이 단일 값 → 변별 불가 → None (완전 일치를 1.0으로 치지 않음)."""
+    assert weighted_cohens_kappa([4, 4, 4, 4], [4, 4, 4, 4]) is None
+
+
+def test_weighted_kappa_none_on_empty_or_mismatch() -> None:
+    assert weighted_cohens_kappa([], []) is None
+    assert weighted_cohens_kappa([3], [3, 4]) is None
+
+
+def test_weighted_kappa_penalizes_far_disagreement_more_than_near() -> None:
+    """순서형 가중: 인접 불일치(±1)가 정반대 불일치보다 kappa가 높다."""
+    base = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]
+    near = [2, 3, 4, 5, 4, 1, 2, 3, 4, 5]   # 앞 절반이 +1씩(작은 불일치)
+    far = [5, 4, 3, 2, 1, 5, 4, 3, 2, 1]     # 뒤집힘(최대 불일치)
+    k_near = weighted_cohens_kappa(base, near)
+    k_far = weighted_cohens_kappa(base, far)
+    assert k_near is not None and k_far is not None
+    assert k_near > k_far
+
+
+def test_weighted_kappa_high_when_mostly_matching_passes_gate() -> None:
+    """대부분 일치 + 일부 ±1 → 0.65 이상(게이트 통과)."""
+    a = [5, 4, 5, 4, 3, 2, 1, 5, 4, 3]
+    b = [5, 4, 5, 4, 3, 2, 1, 5, 5, 3]  # 9/10 동일, 1건만 ±1
+    k = weighted_cohens_kappa(a, b)
+    assert k is not None and k >= 0.65 and k < 1.0
 
 
 # --- 확정 경로 ---

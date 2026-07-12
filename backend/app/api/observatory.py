@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import uuid
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.aggregator.review import canonical_reviewer, weighted_cohens_kappa
 from app.arena.ktib import EmptyKtib, build_ktib
 from app.arena.stages import STAGE_NAMES, brain_stage, region_stages, stage4_inputs
 from app.foundry.expert_ingest import (
@@ -37,7 +39,12 @@ from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
 from app.core.ontology import CANONICAL_DOMAINS, UNKNOWN_INTENT_ID, load_ontology
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
+from app.models.benchmark_candidates import (
+    BenchmarkCandidateBatch,
+    BenchmarkCandidateItem,
+)
 from app.models.brain import BrainNode, BrainVersion, ConfusionEdge, Exemplar
+from app.models.episodes import Episode
 from app.models.persona import PersonaCluster, PopulationPrior
 
 router = APIRouter(prefix="/v1/observatory", tags=["observatory"])
@@ -570,4 +577,323 @@ def ktib_upload(
         ok=True, dry_run=not payload.commit,
         inserted=report.inserted, skipped_duplicate=report.skipped_duplicate,
         eligible_total=eligible_total, ktib_version=ktib_version, message=msg,
+    )
+
+
+# --- 시험지 2차 검수 대기열 — 웹 1~5 평점 검수(§3-3·§8-2) ---
+#
+# 흐름: A가 문항+1~5 제출(create) → 대기(AWAITING_SECOND) → 다른 컴퓨터의 B가 blind로 1~5
+# 제출(review) → 서로 다른 2명 ∧ 가중 kappa ≥ 임계면 등록 가능 → register로 KTIB 동결.
+# 스테이징은 episodes가 아니라 별도 표(§8-2 anti-anchoring). 등록만이 ingest_expert_episodes로
+# episodes에 들어가 benchmark_integrity CHECK가 최종 방어(절대 규칙 2). rating_a는 B에게 숨긴다.
+
+
+class CandidateItemIn(BaseModel):
+    intent: str
+    teacher_prompt: str
+    rating: int  # 작성자(A) 1~5 평점
+
+
+class CandidateCreateIn(BaseModel):
+    reviewer: str
+    items: list[CandidateItemIn]
+
+
+class CandidateBatchSummary(BaseModel):
+    batch_id: str
+    created_by: str
+    status: str
+    item_count: int
+    agreement_kappa: float | None = None
+    accepted_count: int = 0       # 두 검수자 모두 min_item_rating↑
+    registerable: bool = False
+    ktib_version: str | None = None
+
+
+class PendingItemOut(BaseModel):
+    item_id: str
+    intent: str
+    teacher_prompt: str
+    # rating_a는 절대 내보내지 않는다 — 2차 검수자 anti-anchoring(§8-2)
+
+
+class PendingBatchOut(BaseModel):
+    batch_id: str
+    created_by: str               # A 이름은 보여도 됨(점수만 숨김)
+    item_count: int
+    items: list[PendingItemOut]
+
+
+class CandidateListOut(BaseModel):
+    pending: list[PendingBatchOut]        # 내가 만들지 않은 2차 검수 대기
+    mine: list[CandidateBatchSummary]     # 내가 만든 배치 + 상태
+
+
+class SecondRatingIn(BaseModel):
+    item_id: str
+    rating: int
+
+
+class SecondReviewIn(BaseModel):
+    reviewer: str
+    ratings: list[SecondRatingIn]
+
+
+class RegisterCandidateIn(BaseModel):
+    reviewer: str          # 등록 실행자(approved_by에 기록)
+    commit: bool = False
+
+
+def _batch_summary(
+    session: Session, batch: BenchmarkCandidateBatch, config: ExperimentsConfig
+) -> CandidateBatchSummary:
+    items = session.scalars(
+        select(BenchmarkCandidateItem).where(
+            BenchmarkCandidateItem.batch_id == batch.batch_id
+        )
+    ).all()
+    floor = config.review.min_item_rating
+    accepted = sum(
+        1 for it in items
+        if it.rating_a >= floor and it.rating_b is not None and it.rating_b >= floor
+    )
+    registerable = (
+        batch.status == "SECOND_DONE"
+        and batch.agreement_kappa is not None
+        and batch.agreement_kappa >= config.review.min_agreement_kappa
+        and accepted > 0
+    )
+    return CandidateBatchSummary(
+        batch_id=batch.batch_id, created_by=batch.created_by, status=batch.status,
+        item_count=len(items), agreement_kappa=batch.agreement_kappa,
+        accepted_count=accepted, registerable=registerable, ktib_version=batch.ktib_version,
+    )
+
+
+@router.post("/ktib/candidates", response_model=CandidateBatchSummary)
+def create_candidate_batch(
+    payload: CandidateCreateIn,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> CandidateBatchSummary:
+    """A(작성자)가 문항+1~5 평점 제출 → 2차 검수 대기 배치 생성."""
+    reviewer = canonical_reviewer(payload.reviewer)
+    if not reviewer:
+        raise HTTPException(status_code=400, detail="검수자 이름을 입력해주세요")
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="문항이 비어 있습니다")
+    real = {i.intent_id for i in load_ontology().intents if i.intent_id != UNKNOWN_INTENT_ID}
+    seen: set[str] = set()
+    rows: list[tuple[str, str, int]] = []
+    for i, it in enumerate(payload.items, 1):
+        prompt = (it.teacher_prompt or "").strip()
+        intent = (it.intent or "").strip()
+        if not prompt or not intent:
+            raise HTTPException(status_code=400, detail=f"{i}번째 문항의 질문/의도를 채워주세요")
+        if intent not in real:
+            raise HTTPException(status_code=422, detail=f"온톨로지에 없는 의도입니다: {intent}")
+        if not (1 <= it.rating <= 5):
+            raise HTTPException(status_code=422, detail=f"{i}번째 문항 점수는 1~5여야 합니다")
+        if prompt in seen:
+            raise HTTPException(status_code=409, detail=f"배치 안에 같은 질문이 중복됩니다: {prompt}")
+        seen.add(prompt)
+        # 학습 오염 가드(§8-2) — 이미 학습 분할에 있는 발화는 시험 후보가 될 수 없다(등록 시 재확인)
+        clash = session.scalars(
+            select(Episode.episode_id).where(
+                Episode.teacher_prompt == prompt,
+                Episode.dataset_split != "BENCHMARK_HOLDOUT",
+            ).limit(1)
+        ).first()
+        if clash is not None:
+            raise HTTPException(status_code=409, detail=f"이미 학습 문항에 있는 질문입니다: {prompt}")
+        rows.append((intent, prompt, it.rating))
+
+    batch = BenchmarkCandidateBatch(
+        batch_id="BC_" + uuid.uuid4().hex[:12], created_by=reviewer, status="AWAITING_SECOND"
+    )
+    session.add(batch)
+    for intent, prompt, rating in rows:
+        session.add(BenchmarkCandidateItem(
+            item_id="BCI_" + uuid.uuid4().hex[:12], batch_id=batch.batch_id,
+            intent_id=intent, teacher_prompt=prompt, rating_a=rating,
+        ))
+    session.flush()
+    return _batch_summary(session, batch, config)
+
+
+@router.get("/ktib/candidates", response_model=CandidateListOut)
+def list_candidates(
+    reviewer: str = "",
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> CandidateListOut:
+    """검수자 기준 목록: pending(내가 만들지 않은 대기, blind) + mine(내가 만든 배치·상태)."""
+    me = canonical_reviewer(reviewer)
+    pending: list[PendingBatchOut] = []
+    mine: list[CandidateBatchSummary] = []
+    if not me:
+        return CandidateListOut(pending=pending, mine=mine)
+
+    pend_batches = session.scalars(
+        select(BenchmarkCandidateBatch).where(
+            BenchmarkCandidateBatch.status == "AWAITING_SECOND",
+            BenchmarkCandidateBatch.created_by != me,
+        ).order_by(BenchmarkCandidateBatch.created_at)
+    ).all()
+    for b in pend_batches:
+        items = session.scalars(
+            select(BenchmarkCandidateItem).where(
+                BenchmarkCandidateItem.batch_id == b.batch_id
+            )
+        ).all()
+        pending.append(PendingBatchOut(
+            batch_id=b.batch_id, created_by=b.created_by, item_count=len(items),
+            # rating_a 미포함 — anti-anchoring
+            items=[PendingItemOut(item_id=it.item_id, intent=it.intent_id,
+                                  teacher_prompt=it.teacher_prompt) for it in items],
+        ))
+
+    my_batches = session.scalars(
+        select(BenchmarkCandidateBatch).where(
+            BenchmarkCandidateBatch.created_by == me
+        ).order_by(BenchmarkCandidateBatch.created_at)
+    ).all()
+    mine = [_batch_summary(session, b, config) for b in my_batches]
+    return CandidateListOut(pending=pending, mine=mine)
+
+
+@router.post("/ktib/candidates/{batch_id}/review", response_model=CandidateBatchSummary)
+def submit_second_review(
+    batch_id: str,
+    payload: SecondReviewIn,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> CandidateBatchSummary:
+    """B(2차 검수자)가 blind로 1~5 평점 제출 → 가중 kappa 계산·기록."""
+    batch = session.get(BenchmarkCandidateBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="검수 대상을 찾을 수 없습니다")
+    reviewer = canonical_reviewer(payload.reviewer)
+    if not reviewer:
+        raise HTTPException(status_code=400, detail="검수자 이름을 입력해주세요")
+    if reviewer == batch.created_by:
+        raise HTTPException(
+            status_code=409,
+            detail="1차 검수자와 다른 사람이어야 해요 (같은 이름·대소문자만 다른 건 한 사람)",
+        )
+    if batch.status != "AWAITING_SECOND":
+        # 멱등: 이미 2차가 끝난 배치에 다시 제출하면 중복 방지
+        raise HTTPException(status_code=409, detail="이미 2차 검수가 끝난 시험지입니다")
+
+    ordered = session.scalars(
+        select(BenchmarkCandidateItem).where(
+            BenchmarkCandidateItem.batch_id == batch_id
+        ).order_by(BenchmarkCandidateItem.item_id)
+    ).all()
+    by_id = {it.item_id: it for it in ordered}
+    ratings = {r.item_id: r.rating for r in payload.ratings}
+    if set(ratings) != set(by_id):
+        raise HTTPException(status_code=400, detail="모든 문항을 평가해주세요")
+    for item_id, rating in ratings.items():
+        if not (1 <= rating <= 5):
+            raise HTTPException(status_code=422, detail="점수는 1~5여야 합니다")
+        by_id[item_id].rating_b = rating
+
+    # 가중 kappa(순서형 1~5) — 전부 동일 판정이면 None(변별 불가, 지어내지 않음)
+    kappa = weighted_cohens_kappa(
+        [it.rating_a for it in ordered], [by_id[it.item_id].rating_b for it in ordered]
+    )
+    batch.reviewer_second = reviewer
+    batch.agreement_kappa = kappa
+    batch.status = "SECOND_DONE"
+    session.flush()
+    return _batch_summary(session, batch, config)
+
+
+@router.post("/ktib/candidates/{batch_id}/register", response_model=KtibUploadOut)
+def register_candidate_batch(
+    batch_id: str,
+    payload: RegisterCandidateIn,
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> KtibUploadOut:
+    """2차 검수 완료 배치를 시험지(KTIB)로 등록. commit=False=검증(dry-run)/True=적재·동결.
+
+    accepted(두 검수자 모두 min_item_rating↑) 문항만 ingest_expert_episodes로 등록 →
+    §3-3 게이트(2명·kappa·비합성·오염)와 benchmark_integrity CHECK가 최종 강제(우회 없음).
+    """
+    batch = session.get(BenchmarkCandidateBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="등록 대상을 찾을 수 없습니다")
+    if batch.status == "REGISTERED":
+        raise HTTPException(status_code=409, detail="이미 등록된 시험지입니다")
+    if batch.status != "SECOND_DONE":
+        raise HTTPException(status_code=409, detail="아직 2차 검수가 끝나지 않았습니다")
+    if batch.reviewer_second is None or batch.reviewer_second == batch.created_by:
+        raise HTTPException(status_code=409, detail="서로 다른 두 검수자가 필요합니다")
+    if (batch.agreement_kappa is None
+            or batch.agreement_kappa < config.review.min_agreement_kappa):
+        raise HTTPException(
+            status_code=409,
+            detail="검수 일치도가 기준에 못 미쳐 등록할 수 없습니다 (2차 검수를 다시 확인해주세요)",
+        )
+
+    floor = config.review.min_item_rating
+    items = session.scalars(
+        select(BenchmarkCandidateItem).where(
+            BenchmarkCandidateItem.batch_id == batch_id
+        )
+    ).all()
+    accepted = [
+        it for it in items
+        if it.rating_a >= floor and it.rating_b is not None and it.rating_b >= floor
+    ]
+    if not accepted:
+        raise HTTPException(
+            status_code=409, detail="두 검수자가 모두 높게 평가한 문항이 없어 등록할 수 없습니다"
+        )
+    approver = canonical_reviewer(payload.reviewer) or batch.reviewer_second
+    episodes = [
+        ExpertEpisode(
+            episode_id="EP_" + hashlib.sha1(
+                f"{it.intent_id}\x1f{it.teacher_prompt}".encode()
+            ).hexdigest()[:12],
+            teacher_prompt=it.teacher_prompt, intent=it.intent_id, lang="ko",
+            reviewers=(batch.created_by, batch.reviewer_second),
+            agreement_kappa=batch.agreement_kappa,
+        )
+        for it in accepted
+    ]
+
+    sp = session.begin_nested()
+    try:
+        report = ingest_expert_episodes(
+            session, episodes, config,
+            origin_channel="EXPERT_AUTHORED", dataset_split="BENCHMARK_HOLDOUT",
+            authored_by=batch.created_by, approved_by=approver,
+        )
+        ktib = build_ktib(session, config)
+    except (SyntheticChannelRejected, BenchmarkNeedsReview, TrainBenchmarkContamination,
+            UnknownIngestIntent, EmptyKtib, ValueError) as exc:
+        sp.rollback()
+        return KtibUploadOut(ok=False, dry_run=not payload.commit, message=f"거부: {exc}")
+
+    if payload.commit:
+        batch.status = "REGISTERED"
+        batch.ktib_version = ktib.ktib_version
+        session.flush()
+        sp.commit()
+        msg = (f"등록 완료 — 신규 {report.inserted}문항 (중복 {report.skipped_duplicate} 제외), "
+               f"시험지 버전 {ktib.ktib_version} · 총 {ktib.episode_count}문항. "
+               "채점(시험 실행)은 운영자가 별도로 돌립니다.")
+    else:
+        sp.rollback()
+        msg = (f"검증 통과 — 등록 가능 {report.inserted}문항 (중복 {report.skipped_duplicate} 제외), "
+               f"등록하면 시험지 총 {ktib.episode_count}문항. '등록'을 눌러 저장하세요.")
+
+    return KtibUploadOut(
+        ok=True, dry_run=not payload.commit,
+        inserted=report.inserted, skipped_duplicate=report.skipped_duplicate,
+        eligible_total=ktib.episode_count,
+        ktib_version=(ktib.ktib_version if payload.commit else None), message=msg,
     )

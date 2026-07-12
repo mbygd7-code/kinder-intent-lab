@@ -5,11 +5,10 @@
  * 다운로드 파일은 frontend/public/(시작 YAML·PDF 3종). 화면 용어는 실제 UI와 일치.
  * 쉬운 문장·큰 글씨.
  */
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { uploadKtib, uploadKtibRows, type KtibUploadResult } from '../api/observatory'
 import { useBrainStore } from '../brain3d/store'
-import { ktibRowsFromCsv } from './csv'
+import { ExamUpload } from './ExamUpload'
 import { labelOf } from './intentLabels'
 
 type Tab = 'service' | 'manual' | 'exam' | 'study'
@@ -173,123 +172,6 @@ function ManualGuide() {
   )
 }
 
-function ExamUpload() {
-  const [busy, setBusy] = useState(false)
-  const [authored, setAuthored] = useState('')
-  const [approved, setApproved] = useState('')
-  // 확정 단계가 다시 쓸 수 있게 제출 함수를 보관 (YAML/CSV 공통)
-  const [submit, setSubmit] = useState<((commit: boolean) => Promise<KtibUploadResult>) | null>(null)
-  const [result, setResult] = useState<KtibUploadResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  const run = async (fn: (commit: boolean) => Promise<KtibUploadResult>, commit: boolean) => {
-    setBusy(true)
-    setError(null)
-    try {
-      const r = await fn(commit)
-      setResult(r)
-      if (!r.ok) setError(r.message)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      setResult(null)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (fileRef.current) fileRef.current.value = '' // 같은 파일 재선택 허용
-    if (!file) return
-    setResult(null)
-    setError(null)
-    const text = await file.text()
-    const isCsv = /\.csv$/i.test(file.name) || (!/\.ya?ml$/i.test(file.name) && text.includes(','))
-    let fn: (commit: boolean) => Promise<KtibUploadResult>
-    if (isCsv) {
-      if (!authored.trim() || !approved.trim()) {
-        setError('CSV(시트) 업로드는 위의 작성자·승인자를 먼저 입력해주세요.')
-        return
-      }
-      try {
-        const episodes = ktibRowsFromCsv(text)
-        fn = (commit) =>
-          uploadKtibRows({ authored_by: authored, approved_by: approved, episodes, commit })
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-        return
-      }
-    } else {
-      fn = (commit) => uploadKtib(text, commit) // YAML은 자체 헤더 사용
-    }
-    setSubmit(() => fn)
-    await run(fn, false) // 먼저 검증(dry-run)
-  }
-
-  const confirmed = result?.ok && !result.dry_run
-  return (
-    <>
-      <h3>시험지 업로드</h3>
-      <p>
-        <strong>구글 시트 CSV</strong> 또는 YAML 파일을 올리면 <strong>검증 → 등록</strong>{' '}
-        순으로 반영돼요. (채점은 운영자가 별도로 실행)
-      </p>
-      <div className="help-form">
-        <label className="help-field">
-          작성자
-          <input
-            className="help-input"
-            value={authored}
-            onChange={(e) => setAuthored(e.target.value)}
-            placeholder="이름·소속 (CSV 업로드 시 필요)"
-          />
-        </label>
-        <label className="help-field">
-          승인자
-          <input
-            className="help-input"
-            value={approved}
-            onChange={(e) => setApproved(e.target.value)}
-            placeholder="승인자 이름"
-          />
-        </label>
-      </div>
-      <div className="help-download">
-        <button
-          type="button"
-          className="view-toggle help-dl-btn"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-        >
-          ⬆ 시험지 파일 선택 (CSV · YAML)
-        </button>
-        <input ref={fileRef} type="file" accept=".csv,.yaml,.yml,.txt" hidden onChange={onFile} />
-      </div>
-      {busy && <p className="help-note">처리 중…</p>}
-      {error && <p className="help-upload-err">⚠ {error}</p>}
-      {result?.ok && !error && (
-        <div className="help-note help-upload-ok">
-          {confirmed ? '✓ ' : ''}
-          {result.message}
-          {result.dry_run && submit && (
-            <div className="help-upload-confirm">
-              <button
-                type="button"
-                className="view-toggle help-dl-btn"
-                disabled={busy}
-                onClick={() => run(submit, true)}
-              >
-                ✓ 등록 확정
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )
-}
-
 function ExamGuide() {
   return (
     <div className="help-doc">
@@ -300,43 +182,43 @@ function ExamGuide() {
       </p>
 
       <div className="help-download">
-        <a className="view-toggle help-dl-btn" href="/ktib_seed_template.csv" download>
-          ⬇ 시작 양식 (CSV · 구글 시트/엑셀)
-        </a>
-        <a className="view-toggle help-dl-btn" href="/ktib_seed_template.yaml" download>
-          ⬇ 시작 양식 (YAML)
+        <a className="view-toggle help-dl-btn" href="/ktib_exam_template.csv" download>
+          ⬇ 쉬운 양식 받기 (엑셀·구글시트 · 63×10칸)
         </a>
         <a className="view-toggle help-dl-btn" href="/시험문항-안내서.pdf" download>
           ⬇ 안내서 PDF
         </a>
       </div>
       <p className="help-note">
-        CSV를 <strong>구글 시트</strong>에서 열려면: 시트 → 파일 → 가져오기 → 업로드.
-        엑셀은 파일을 더블클릭하면 바로 열려요.
+        엑셀은 파일을 더블클릭하면 열려요. 구글 시트는 시트 → 파일 → 가져오기 → 업로드.
+      </p>
+
+      <h3>양식 채우는 법 — 3칸만 손대면 돼요</h3>
+      <p>
+        양식에는 <strong>63개 의도마다 10줄씩</strong> 미리 그려져 있어요(총 630칸). 다 채울
+        필요 없어요 — 만들 수 있는 만큼만 채우면 됩니다.
+      </p>
+      <table className="help-table">
+        <tbody>
+          <tr><td>의도 id · 의도(뜻)</td><td>🔒 <b>그대로 두세요</b> (정답 카테고리 — 수정 금지)</td></tr>
+          <tr><td>시험 질문</td><td>✍️ 그 의도에 맞는 <b>교사 말투 질문</b>을 씁니다</td></tr>
+          <tr><td>검수자 A 판정</td><td>첫 번째 검수자: 질문이 맞으면 <b>O</b>, 아니면 <b>X</b></td></tr>
+          <tr><td>검수자 B 판정</td><td>두 번째 검수자: 똑같이 <b>O / X</b></td></tr>
+        </tbody>
+      </table>
+      <p className="help-note">
+        👉 <b>일치도(kappa)를 직접 계산할 필요 없어요.</b> 두 분의 O/X만 보고 시스템이 자동으로
+        점수를 매기고, <b>둘 다 O</b>인 질문만 시험지로 등록돼요. 검수자 이름은 올릴 때 입력합니다.
       </p>
 
       <ExamUpload />
 
-      <h3>형식 (YAML)</h3>
-      <p>
-        시작 양식에는 63개 의도마다 예시 문항이 하나씩 들어 있어요. 전문가가 발화를
-        실제 표현으로 <strong>검토·교체·추가</strong>하면 됩니다.
-      </p>
-      <table className="help-table">
-        <tbody>
-          <tr><td>teacher_prompt</td><td><b>문제</b> — "작년 봄 소풍 사진 어디 있지?"</td></tr>
-          <tr><td>intent</td><td><b>정답</b> — op_workspace_search (자료 검색)</td></tr>
-          <tr><td>reviewers</td><td>서로 다른 검수자 2명 이상</td></tr>
-          <tr><td>agreement_kappa</td><td>두 검수자 일치도 (기록 필수)</td></tr>
-        </tbody>
-      </table>
-
       <h3>꼭 지킬 규칙 (어기면 자동 거부)</h3>
       <ul>
-        <li><b>정답은 63개 의도 중 하나</b> (없는 것·"모름" 불가)</li>
-        <li><b>사람이 쓴 진짜 발화</b> — LLM이 지어낸 문장 금지</li>
-        <li><b>검수자 2명 이상 + 일치도 기록</b></li>
-        <li><b>공부용에 이미 있는 발화 금지</b> (겹치면 "암기 측정"이 됨)</li>
+        <li><b>의도는 절대 바꾸지 않기</b> — 63개 정답 카테고리는 고정</li>
+        <li><b>사람이 쓴 진짜 질문</b> — LLM이 지어낸 문장 금지</li>
+        <li><b>검수자는 서로 다른 두 사람</b> (같은 사람 두 번은 무효)</li>
+        <li><b>공부용에 이미 있는 질문 금지</b> (겹치면 "암기 측정"이 됨)</li>
       </ul>
 
       <h3>몇 문항을 만들어야 하나?</h3>
@@ -446,8 +328,15 @@ function StudyGuide() {
   )
 }
 
-export function HelpOverlay({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<Tab>('service')
+export function HelpOverlay({
+  onClose,
+  initialTab = 'service',
+}: {
+  onClose: () => void
+  /** 진입 탭 — 시험지 모달의 "자세한 안내"가 'exam'으로 바로 열 때 사용 */
+  initialTab?: Tab
+}) {
+  const [tab, setTab] = useState<Tab>(initialTab)
   return (
     <div className="gym-backdrop" role="dialog" aria-label="도움말">
       <div className="gym-modal help-modal">

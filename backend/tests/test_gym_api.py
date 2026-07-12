@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.main import app
+from app.models.arena import KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 
@@ -19,6 +20,9 @@ from app.models.episodes import Episode, Evidence
 @pytest.fixture(autouse=True)
 def _empty_bank(db_session):
     """전역 evidence 카운트 단언은 빈 뱅크 전제 — 실DB gym 산출에 면역(세이브포인트, 롤백)."""
+    # FK: ktib_items → episodes 이므로 KtibItem을 먼저 비운다(벤치마크 episode가 있으면 필수)
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))

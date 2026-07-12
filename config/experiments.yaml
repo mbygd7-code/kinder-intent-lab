@@ -87,6 +87,7 @@ label_aggregator:
 review:                            # §3-3 GOLD = "인간 검수 2인 이상 일치(kappa 기록)"
   min_reviewers: 2                 # 한 에피소드를 확정하는 데 필요한 서로 다른 검수자 수
   min_agreement_kappa: 0.65        # 배치 전체의 검수자 간 일치도 하한 (미달 시 배치 전량 거부)
+  min_item_rating: 4               # 시험지 1~5 검수: 두 검수자 모두 이 점수↑이면 등록 대상 문항
 
 version_gate:
   min_new_gold: 200

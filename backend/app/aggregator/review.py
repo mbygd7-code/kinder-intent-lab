@@ -132,6 +132,40 @@ def cohens_kappa(a: list[str], b: list[str]) -> float | None:
     return (observed - expected) / (1.0 - expected)
 
 
+def weighted_cohens_kappa(a: list[int], b: list[int]) -> float | None:
+    """순서형 평점(1~5 등)의 **선형 가중** Cohen's kappa — 큰 불일치를 더 크게 벌한다.
+
+    시험지 2차 검수(§3-3)에서 두 검수자의 1~5 평점 일치도를 잰다. 순서형이라 "4 vs 5"보다
+    "1 vs 5"를 더 불일치로 본다(선형 가중). nominal cohens_kappa와 같은 정신:
+    - **정의 불가(모든 평점이 단일 값이거나 기대 불일치가 0)면 None** — 변별 없는 배치를
+      1.0으로 취급하지 않는다.
+    - **반올림하지 않는다** — 임계 비교는 원값, 반올림은 기록할 때만.
+    """
+    n = len(a)
+    if n == 0 or n != len(b):
+        return None
+    cats = sorted(set(a) | set(b))
+    if len(cats) < 2:
+        return None  # 한 값뿐 — 불일치 가중이 전부 0, 변별 불가
+    spread = cats[-1] - cats[0]
+    idx = {c: i for i, c in enumerate(cats)}
+    k = len(cats)
+    obs = [[0.0] * k for _ in range(k)]
+    for x, y in zip(a, b, strict=True):
+        obs[idx[x]][idx[y]] += 1
+    row = [sum(obs[i]) for i in range(k)]                       # a 주변합
+    col = [sum(obs[i][j] for i in range(k)) for j in range(k)]  # b 주변합
+
+    def w(i: int, j: int) -> float:  # 선형 불일치 가중: 0(일치)~1(최대 불일치)
+        return abs(cats[i] - cats[j]) / spread
+
+    num = sum(w(i, j) * obs[i][j] for i in range(k) for j in range(k))
+    den = sum(w(i, j) * (row[i] * col[j] / n) for i in range(k) for j in range(k))
+    if den == 0:
+        return None  # 기대 불일치 0 — 계산 불가(한쪽이 상수라도 이 경우는 드물다)
+    return 1.0 - num / den
+
+
 def batch_kappa(votes: list[ReviewVote]) -> float | None:
     """검수자 쌍별 Cohen's kappa 중 **최솟값**(가장 보수적). 겹치는 에피소드가 없으면 None.
 

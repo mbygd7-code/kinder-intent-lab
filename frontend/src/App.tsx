@@ -17,6 +17,7 @@ import { useState } from 'react'
 import { BrainScreen } from './brain3d/BrainScreen'
 import { useBrainStore } from './brain3d/store'
 import { HelpOverlay } from './panels/HelpOverlay'
+import { KtibReviewModal } from './panels/KtibReviewModal'
 import { LiveQuizPanel } from './panels/LiveQuizPanel'
 import { NodePanel } from './panels/NodePanel'
 import { RegionsPanel } from './panels/RegionsPanel'
@@ -30,7 +31,9 @@ function App() {
   const dataSource = useBrainStore((s) => s.dataSource)
   const bumpReload = useBrainStore((s) => s.bumpReload)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [helpTab, setHelpTab] = useState<'service' | 'manual' | 'exam' | 'study'>('service')
   const [liveQuizOpen, setLiveQuizOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   // §7-6 스테이지 — 값은 Arena 산출 그대로, 표시만 교사용 한글(terms.ts)
   const stageLabel = stageWithNumber(brainStage, brainStageName)
   return (
@@ -63,13 +66,25 @@ function App() {
         </div>
 
         <div className="topbar-actions">
+          {/* 시험지 검수 — 즉석 문답 왼쪽. 1~5 평점 2차 검수 흐름(2026-07-12).
+              데이터 상태와 무관하게 항상 노출 */}
+          <button type="button" className="cta-upload" onClick={() => setReviewOpen(true)}>
+            📄 시험지 검수
+          </button>
           {/* 즉석 문답 — 라이브 추론 필요: 실데이터(live)에서만 (§6-7 [4]) */}
           {dataSource === 'live' && (
             <button type="button" className="cta-live" onClick={() => setLiveQuizOpen(true)}>
               💬 즉석 문답
             </button>
           )}
-          <button type="button" className="header-help" onClick={() => setHelpOpen(true)}>
+          <button
+            type="button"
+            className="header-help"
+            onClick={() => {
+              setHelpTab('service')
+              setHelpOpen(true)
+            }}
+          >
             ❔ 도움말
           </button>
         </div>
@@ -87,7 +102,13 @@ function App() {
           onComplete={bumpReload} // 훈련 evidence 저장 시에만 — 노드 size/pending 갱신(§6-7 [6])
         />
       )}
-      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {reviewOpen && (
+        <KtibReviewModal
+          onClose={() => setReviewOpen(false)}
+          onComplete={bumpReload} // 등록(commit) 성공 시 뇌 상태 refetch
+        />
+      )}
+      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} initialTab={helpTab} />}
     </main>
   )
 }

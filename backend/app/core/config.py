@@ -127,6 +127,8 @@ class ReviewConfig(_Section):
 
     min_reviewers: int = Field(ge=2)          # §3-3 "2인 이상" — 1인 확정은 구조적으로 불가능
     min_agreement_kappa: float = Field(ge=0, le=1)
+    # 시험지 1~5 평점 검수: 두 검수자가 모두 이 점수 이상이면 그 문항을 등록 대상으로 본다
+    min_item_rating: int = Field(ge=1, le=5)
 
 
 class VersionGateConfig(_Section):

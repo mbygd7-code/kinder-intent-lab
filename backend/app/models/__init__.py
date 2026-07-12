@@ -5,6 +5,10 @@ import 시점에 guards의 flush 리스너(GOLD 불변식)가 활성화된다.
 from app.models import guards  # noqa: F401 — flush 리스너 등록
 from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.base import Base
+from app.models.benchmark_candidates import (
+    BenchmarkCandidateBatch,
+    BenchmarkCandidateItem,
+)
 from app.models.brain import (
     BrainNode,
     BrainVersion,
@@ -37,6 +41,8 @@ __all__ = [
     "AtlasEntry",
     "AtlasExpansionEntry",
     "Base",
+    "BenchmarkCandidateBatch",
+    "BenchmarkCandidateItem",
     "BrainNode",
     "BrainVersion",
     "CanonicalScenario",
