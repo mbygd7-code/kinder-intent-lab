@@ -209,7 +209,11 @@ export function NodePanel() {
           {labelOf(node.intent_id)}
         </div>
         <div className="node-region">
-          {REGION_BY_ID[node.region as RegionId]?.label ?? node.region} 영역
+          {/* 영역 제목 EN + 한글 병기 (2026-07-12 UI 재정비) — 미지 region은 원문 그대로 */}
+          {(() => {
+            const r = REGION_BY_ID[node.region as RegionId]
+            return r ? `${r.label} · ${r.ko} 영역` : `${node.region} 영역`
+          })()}
         </div>
 
         <div className="panel-subhead">한눈에 보기</div>

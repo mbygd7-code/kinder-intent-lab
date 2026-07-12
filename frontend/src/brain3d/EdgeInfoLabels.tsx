@@ -64,10 +64,9 @@ export function EdgeInfoLabels({ nodes }: { nodes: PlacedNode[] }) {
         >
           <div className={`edge-info-chip${c.info.measured ? ' edge-info-measured' : ''}`}>
             <strong className="edge-info-title">{c.title}</strong>
+            {/* 방향만 남긴다 — 상태·출처·시험전 문구는 화면 복잡도를 낮추려 제거(2026-07-12).
+                같은 정보는 우측 패널 "헷갈리기 쉬운 의도" 목록의 상태칩에서 확인할 수 있다. */}
             <span className="edge-info-line">{c.info.direction}</span>
-            <span className="edge-info-line edge-info-reason">
-              {c.info.reason} · {c.info.rate}
-            </span>
           </div>
         </Html>
       ))}

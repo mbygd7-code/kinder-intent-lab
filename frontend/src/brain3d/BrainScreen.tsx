@@ -5,8 +5,13 @@
  * 명시적 "데모 노드 보기" 버튼 — 데모(mock)는 MOCK 배지를 계속 띄운다(실데이터로 오인 방지).
  * WebGL 판정은 첫 렌더 전에 동기(useState initializer) — 미지원이면 2D 강제 + 토글 숨김.
  * BrainCanvas는 lazy import(three 분리 청크).
+ *
+ * 2026-07-12 레이아웃 재정비: 우측 상단 HUD 스택 폐지 —
+ *   보기 컨트롤(2D/3D · 성향 렌즈 · 헷갈림 연결 · 그림 읽는 법)은 하단 중앙 "뷰 독"의
+ *   칩+팝오버로 통합, MOCK/에러 배지는 상단 중앙(.brain-status)으로.
+ *   덕분에 우측 컬럼은 NodePanel(진단·강화하기)이 풀 높이로 쓴다(--hud-h 메커니즘 제거).
  */
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 
 import {
   fetchBrainState,
@@ -14,7 +19,6 @@ import {
   fetchPersonaOverlay,
   type ObservatoryBrain,
 } from '../api/observatory'
-import { LiveQuizPanel } from '../panels/LiveQuizPanel'
 import { Brain2DFallback } from './Brain2DFallback'
 import { ConfusionEdgeControl } from './ConfusionEdgeControl'
 import { visualFromNode, type NodeVisual } from './encodings'
@@ -66,6 +70,9 @@ function fromApi(brain: ObservatoryBrain): BrainData {
   return { nodes: layoutNodes(seeds), visuals, metrics }
 }
 
+/** 하단 뷰 독의 팝오버 종류 — 한 번에 하나만 연다 */
+type DockKey = 'persona' | 'edges' | 'legend'
+
 export function BrainScreen() {
   const [webglOk] = useState(webglAvailable) // 마운트 전 1회 동기 판정
   const [data, setData] = useState<BrainData>({
@@ -86,30 +93,9 @@ export function BrainScreen() {
   const setConfusionEdgesError = useBrainStore((s) => s.setConfusionEdgesError)
   const personaOverlay = useBrainStore((s) => s.personaOverlay)
   const overlayClusterId = useBrainStore((s) => s.overlayClusterId)
+  const confusionEdges = useBrainStore((s) => s.confusionEdges) // 독 칩의 정직 카운트
   const reloadNonce = useBrainStore((s) => s.reloadNonce) // Gym 제출 후 bump → 재조회
-  const bumpReload = useBrainStore((s) => s.bumpReload)
-  const [liveQuizOpen, setLiveQuizOpen] = useState(false)
-  const hudRef = useRef<HTMLDivElement>(null)
-
-  // 우측 노드 패널이 상단 HUD(토글·오버레이·선택칩)를 가리지 않게 — 실측 HUD 높이를
-  // --hud-h로 발행하면 CSS가 그만큼 패널 top을 내린다. 상태별 높이 변화(선택칩·오버레이
-  // 펼침·MOCK 배지)를 ResizeObserver가 따라간다.
-  useEffect(() => {
-    const el = hudRef.current
-    if (!el) return
-    const apply = () => {
-      document.documentElement.style.setProperty('--hud-h', `${el.offsetHeight}px`)
-    }
-    apply()
-    // jsdom 등 ResizeObserver 미지원 환경에선 초기 1회 측정만 (테스트 안전)
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(apply)
-    ro.observe(el)
-    return () => {
-      ro.disconnect()
-      document.documentElement.style.removeProperty('--hud-h')
-    }
-  }, [])
+  const [dockOpen, setDockOpen] = useState<DockKey | null>(null)
 
   // reloadNonce가 오르면 refetch — 노드 배치는 node_id 결정론(layoutNodes)이라 자리 유지,
   // 훈련된 노드의 size/density/pending ring만 갱신된다(§6-7 [6] 즉시 반영)
@@ -191,6 +177,8 @@ export function BrainScreen() {
   }
 
   const effectiveMode = webglOk ? viewMode : '2d'
+  const lensOn = overlayClusterId != null
+  const toggleDock = (key: DockKey) => setDockOpen((v) => (v === key ? null : key))
 
   return (
     <div className="brain-screen">
@@ -207,49 +195,72 @@ export function BrainScreen() {
         <Brain2DFallback nodes={data.nodes} overlayPriors={overlayPriors} />
       )}
 
-      {/* 상단 우측 코너 고정 — 높이를 측정해(--hud-h) 우측 노드 패널이 그 아래에서 시작하게 한다.
-          토글은 하단 중앙 독으로 옮겼고, 선택 노드 이름은 아래 SELECTED NODE 카드가 담당(중복 제거). */}
-      <div className="brain-hud" ref={hudRef}>
-        {/* T5.4 Persona Overlay(§7-6) — 뇌가 그려진 뒤에만(로딩/에러 화면엔 오버레이 대상이 없다) */}
-        {(dataSource === 'live' || dataSource === 'mock') && <PersonaOverlayControl />}
-        {/* §5-6 혼동 edge 토글·카운트 — 실데이터(live)에서만 (데모 노드와 실 edge는 짝이 안 맞는다) */}
-        {dataSource === 'live' && <ConfusionEdgeControl />}
-        {/* 즉석 문답(§6-7 [4]) — 라이브 추론이 필요하므로 실데이터(live)에서만 */}
-        {dataSource === 'live' && (
-          <button type="button" className="view-toggle" onClick={() => setLiveQuizOpen(true)}>
-            💬 즉석 문답
-          </button>
-        )}
-        {(dataSource === 'live' || dataSource === 'mock') && <LegendChip />}
-        {dataSource === 'mock' && <span className="badge badge-mock">MOCK</span>}
-        {dataSource === 'error' && (
-          <div className="error-chip">
-            <span>백엔드 미연결 — 실 노드를 불러올 수 없습니다</span>
-            <button type="button" className="view-toggle" onClick={loadMock}>
-              데모 노드 보기
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 뷰 전환 토글 — 하단 중앙 (구 "Drag to rotate brain" 자리) */}
-      {webglOk && (
-        <div className="view-toggle-dock">
-          <button
-            type="button"
-            className="view-toggle"
-            onClick={() => setViewMode(effectiveMode === '3d' ? '2d' : '3d')}
-          >
-            {effectiveMode === '3d' ? '2D 지도로 보기' : '3D 뇌로 보기'}
-          </button>
+      {/* 데이터 출처 배지 — 상단 중앙: 정상(live)일 땐 아무것도 띄우지 않는다(정직성 표기만) */}
+      {(dataSource === 'mock' || dataSource === 'error') && (
+        <div className="brain-status">
+          {dataSource === 'mock' && <span className="badge-mock">MOCK</span>}
+          {dataSource === 'error' && (
+            <div className="error-chip">
+              <span>백엔드 미연결 — 실 노드를 불러올 수 없습니다</span>
+              <button type="button" className="view-toggle" onClick={loadMock}>
+                데모 노드 보기
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {liveQuizOpen && (
-        <LiveQuizPanel
-          onClose={() => setLiveQuizOpen(false)}
-          onComplete={bumpReload} // 훈련 evidence 저장 시에만 — 노드 size/pending 갱신(§6-7 [6])
-        />
+      {/* 뷰 독 — 하단 중앙: 보기 전환 + 렌즈·연결·범례 팝오버 (뇌를 "어떻게 볼지"의 단일 거점) */}
+      {(dataSource === 'live' || dataSource === 'mock') && (
+        <>
+          {dockOpen != null && (
+            <div className="view-popover">
+              {dockOpen === 'persona' && <PersonaOverlayControl />}
+              {/* §5-6 실 edge — 데모 노드와 실 edge는 짝이 안 맞으므로 live에서만 */}
+              {dockOpen === 'edges' && dataSource === 'live' && <ConfusionEdgeControl />}
+              {dockOpen === 'legend' && <LegendChip />}
+            </div>
+          )}
+          <div className="view-dock">
+            {webglOk && (
+              <button
+                type="button"
+                className="dock-chip"
+                onClick={() => setViewMode(effectiveMode === '3d' ? '2d' : '3d')}
+              >
+                {effectiveMode === '3d' ? '🗺 2D 지도로 보기' : '🧠 3D 뇌로 보기'}
+              </button>
+            )}
+            <span className="dock-divider" aria-hidden />
+            {/* T5.4 Persona Overlay(§7-6) — 렌즈가 켜져 있으면 칩에도 상태 표시 */}
+            <button
+              type="button"
+              className={`dock-chip${dockOpen === 'persona' ? ' dock-chip-open' : ''}${lensOn ? ' dock-chip-on' : ''}`}
+              aria-expanded={dockOpen === 'persona'}
+              onClick={() => toggleDock('persona')}
+            >
+              성향 렌즈{lensOn ? ' · 켜짐' : ''}
+            </button>
+            {dataSource === 'live' && (
+              <button
+                type="button"
+                className={`dock-chip${dockOpen === 'edges' ? ' dock-chip-open' : ''}`}
+                aria-expanded={dockOpen === 'edges'}
+                onClick={() => toggleDock('edges')}
+              >
+                헷갈림 연결{confusionEdges ? ` · ${confusionEdges.total}` : ''}
+              </button>
+            )}
+            <button
+              type="button"
+              className={`dock-chip${dockOpen === 'legend' ? ' dock-chip-open' : ''}`}
+              aria-expanded={dockOpen === 'legend'}
+              onClick={() => toggleDock('legend')}
+            >
+              그림 읽는 법
+            </button>
+          </div>
+        </>
       )}
     </div>
   )

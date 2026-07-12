@@ -88,6 +88,7 @@ export function RegionsPanel() {
                   onMouseLeave={() => setHoveredRegion(null)}
                 >
                   <span className="region-swatch" style={{ backgroundColor: r.color }} />
+                  {/* 영역 제목은 영어, 서브 카피는 한글 (2026-07-12 UI 재정비 — 사용자 결정) */}
                   <span className="region-row-text">
                     <span className="region-row-name">{r.label}</span>
                     <span className="region-row-sub">{SUBTITLE[r.id]}</span>
@@ -112,7 +113,10 @@ export function RegionsPanel() {
         <section className="panel-card region-detail">
           <div className="panel-head">
             <span className="panel-eyebrow">
-              {selectedRegionId ? `${REGIONS.find((r) => r.id === selectedRegionId)?.label} 영역` : ''}
+              {(() => {
+                const r = REGIONS.find((x) => x.id === selectedRegionId)
+                return r ? `${r.label} · ${r.ko} 영역` : ''
+              })()}
             </span>
           </div>
           <dl className="stat-rows">

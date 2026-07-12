@@ -95,8 +95,18 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   confusionEdges: null,
   confusionEdgesStatus: 'loading',
   edgeDisplayMode: 'focus',
-  // 노드 선택 시 region 선택은 유지(좌·우 패널 독립). region 선택은 노드 선택을 지운다.
-  select: (nodeId) => set({ selectedNodeId: nodeId }),
+  // 노드 선택 시 그 노드의 region도 좌 패널에서 함께 선택된다(brain.nodes에서 역참조).
+  // 노드 해제(null)는 region 선택을 그대로 둔다(펼쳐 둔 상세가 갑자기 닫히지 않게).
+  // region 선택은 노드 선택을 지운다.
+  select: (nodeId) =>
+    set((s) => {
+      if (nodeId == null) return { selectedNodeId: null }
+      const region = s.brain?.nodes.find((n) => n.node_id === nodeId)?.region ?? null
+      return {
+        selectedNodeId: nodeId,
+        selectedRegionId: (region as RegionId | null) ?? s.selectedRegionId,
+      }
+    }),
   selectRegion: (regionId) => set({ selectedRegionId: regionId, selectedNodeId: null }),
   setHoveredRegion: (hoveredRegionId) => set({ hoveredRegionId }),
   setViewMode: (mode) => set({ viewMode: mode }),

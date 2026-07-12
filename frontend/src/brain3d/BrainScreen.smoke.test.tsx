@@ -190,10 +190,12 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     expect(dots.length).toBeGreaterThanOrEqual(100)
   })
 
-  it('§5-6 HUD: 혼동 edge 칩이 정직 카운트(가설 N · 측정 M)를 표시한다', async () => {
+  it('§5-6 뷰 독: 헷갈림 연결 팝오버가 정직 카운트(가설 N · 측정 M)를 표시한다', async () => {
     stubFetch(true)
     render(<BrainScreen />)
     await waitFor(() => expect(useBrainStore.getState().confusionEdgesStatus).toBe('ready'))
+    // 2026-07-12 재정비: 컨트롤은 하단 뷰 독의 팝오버 — 칩에 실 총 수(2), 열어서 상세
+    fireEvent.click(await screen.findByRole('button', { name: /헷갈림 연결 · 2/ }))
     expect(screen.getByText(/추측 2개 · 시험으로 확인 0개/)).toBeTruthy()
     // 토글: 기본 focus → '전체 보기' 클릭 시 all
     fireEvent.click(screen.getByRole('button', { name: '전체 보기' }))
@@ -201,12 +203,12 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     expect(screen.getByRole('button', { name: '핵심만 보기' })).toBeTruthy()
   })
 
-  it('범례: Arena 측정 전(live·ktib null)이면 "어두운 것이 정상" 상태줄 + 인코딩 행', async () => {
+  it('범례: Arena 측정 전(live·ktib null)이면 톱바 상태줄 "어두운 게 정상" + 독 팝오버 인코딩 행', async () => {
     stubFetch(true) // FAKE_BRAIN: ktib null
-    render(<BrainScreen />)
+    render(<App />) // 상태줄은 톱바 점수 캡션(App)으로 이동(2026-07-12 재정비)
     await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
     expect(screen.getByText(/아직 시험 전 — 뇌가 어두운 게 정상이에요/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '펼치기' }))
+    fireEvent.click(screen.getByRole('button', { name: '그림 읽는 법' }))
     expect(screen.getByText('공부한 양 — 많이 배울수록 커져요')).toBeTruthy()
     expect(screen.getByText('시험 정답률 — 시험을 봐야만 밝아져요')).toBeTruthy()
   })
@@ -335,6 +337,8 @@ describe('T5.4 Persona Overlay (§7-6·§4-2 — 부가 채널, 절대 규칙 3)
     stubFetch(true, FAKE_BRAIN, CLUSTER_OVERLAY)
     const { container } = render(<BrainScreen />)
     await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    // 2026-07-12 재정비: 컨트롤은 하단 뷰 독의 팝오버 — 칩을 열고 토글에 접근
+    fireEvent.click(await screen.findByRole('button', { name: /성향 렌즈/ }))
     const toggle = await screen.findByRole('button', { name: '렌즈 켜기' })
     expect((toggle as HTMLButtonElement).disabled).toBe(false)
 
@@ -363,6 +367,7 @@ describe('T5.4 Persona Overlay (§7-6·§4-2 — 부가 채널, 절대 규칙 3)
     stubFetch(true) // 기본 EMPTY_OVERLAY
     render(<BrainScreen />)
     await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'))
+    fireEvent.click(await screen.findByRole('button', { name: /성향 렌즈/ })) // 독 팝오버 열기
     const toggle = await screen.findByRole('button', { name: '렌즈 켜기' })
     expect((toggle as HTMLButtonElement).disabled).toBe(true) // 숨기지 않고 비활성
     expect(screen.getByText(/아직 성향 분석 전이에요/)).toBeTruthy()
@@ -380,6 +385,7 @@ describe('T5.4 Persona Overlay (§7-6·§4-2 — 부가 채널, 절대 규칙 3)
     await waitFor(() =>
       expect(useBrainStore.getState().personaOverlayStatus).toBe('error'),
     )
+    fireEvent.click(await screen.findByRole('button', { name: /성향 렌즈/ })) // 독 팝오버 열기
     expect(screen.getByText(/성향 정보를 못 불러왔어요/)).toBeTruthy()
     expect(
       (screen.getByRole('button', { name: '렌즈 켜기' }) as HTMLButtonElement).disabled,

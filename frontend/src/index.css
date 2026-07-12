@@ -43,76 +43,103 @@ body {
   flex-direction: column;
 }
 
-.observatory-header {
-  padding: 1.1rem 1.5rem 0.4rem;
-  text-align: center;
-  z-index: 2;
-  position: relative; /* .header-help 절대 배치 기준 */
+/* --- 상단 바 (2026-07-12 재정비) — 1줄 슬림: 좌 브랜드 · 중앙 북극성 지표 · 우 액션.
+       수직 공간을 좌우 패널에 돌려준다(패널이 톱바 바로 아래에서 풀 높이). --- */
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* 중앙 점수를 화면 정중앙에 고정 */
+  align-items: center;
+  gap: 1rem;
+  padding: 0.55rem 1.1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(9, 14, 28, 0.9), rgba(9, 14, 28, 0.62));
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 6;
 }
 
-/* 도움말 — 헤더 우측 상단 (제목 줄 오른쪽) */
+.topbar-brand { display: flex; flex-direction: column; gap: 0.08rem; min-width: 0; }
+.topbar-brand h1 {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  white-space: nowrap;
+  line-height: 1.1;
+}
+.topbar-brand-sub {
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 북극성 지표 — 수치 + 라벨/상태 캡션 + 성장 스테이지 칩 (한 줄) */
+.topbar-score { display: flex; align-items: center; gap: 0.7rem; }
+.ktib-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.topbar-score-text { display: flex; flex-direction: column; gap: 0.12rem; text-align: left; }
+.topbar-score-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--fg);
+  line-height: 1;
+}
+.topbar-score-note { font-size: 0.74rem; color: var(--muted); line-height: 1; }
+
+.topbar-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 즉석 문답 — 교사의 핵심 학습 행동이라 톱바의 주요 CTA (§6-7 [4]) */
+.cta-live {
+  background: linear-gradient(135deg, #0891b2, #6366f1);
+  border: none;
+  color: #fff;
+  padding: 0.46rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 14px rgba(56, 189, 248, 0.28);
+}
+.cta-live:hover { filter: brightness(1.12); }
+
 .header-help {
-  position: absolute;
-  top: 1.1rem;
-  right: 1.5rem;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   color: var(--fg);
-  padding: 0.4rem 0.85rem;
+  padding: 0.42rem 0.85rem;
   border-radius: 999px;
   font-size: 0.84rem;
   font-family: inherit;
   cursor: pointer;
-  z-index: 3;
+  white-space: nowrap;
 }
 .header-help:hover { border-color: var(--accent); }
 
-.observatory-header h1 {
-  font-weight: 700;
-  font-size: 1.35rem;
-  letter-spacing: 0.28em;
-  color: var(--accent);
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.7rem;
-}
-.header-sub {
-  font-size: 0.86rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-}
-
-.ktib-global {
-  margin-top: 0.4rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.ktib-value {
-  font-size: 2.4rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.ktib-note {
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-
-/* §7-6 성장 스테이지 칩 (T5.4) — 헤더 KTIB 수치 곁. Dormant도 실패가 아닌 상태 표기 */
+/* §7-6 성장 스테이지 칩 (T5.4) — 톱바 KTIB 수치 곁. Dormant도 실패가 아닌 상태 표기 */
 .ktib-stage {
-  align-self: center;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: #a5b4fc;
   background: rgba(49, 46, 129, 0.35);
   border: 1px solid rgba(129, 140, 248, 0.35);
   border-radius: 999px;
-  padding: 0.15rem 0.7rem;
+  padding: 0.22rem 0.7rem;
+  white-space: nowrap;
 }
 
 .stage-badge {
@@ -151,11 +178,13 @@ body {
   inset: 0;
 }
 
-/* --- 사이드 패널 (레퍼런스 좌/우) --- */
+/* --- 사이드 패널 (레퍼런스 좌/우) — 톱바 바로 아래에서 풀 높이.
+       2026-07-12 재정비: 우측 HUD 스택 폐지로 --hud-h 오프셋 제거 —
+       NodePanel(진단·강화하기)이 우측 컬럼 전체를 쓴다. --- */
 .side-panel {
   position: absolute;
-  top: 0.75rem;
-  bottom: 0.75rem;
+  top: 0.9rem;
+  bottom: 0.9rem;
   width: 19rem;
   max-width: 32vw;
   display: flex;
@@ -164,16 +193,12 @@ body {
   overflow-y: auto;
   z-index: 4;
   pointer-events: none;
+  /* 패널 자체 스크롤바는 숨김에 가깝게 — 콘텐츠가 넘칠 때만 가늘게 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
-.side-panel-left { left: 0.75rem; }
-/* 우측 패널은 상단 HUD(토글·오버레이·선택칩) 아래에서 시작한다 — 실측 높이 --hud-h만큼
-   내려 컨트롤을 가리지 않는다(BrainScreen이 ResizeObserver로 발행). 미측정 시 0 폴백. */
-.side-panel-right {
-  right: 0.75rem;
-  /* 상단 HUD(페르소나 카드) 실측 높이 아래에서 시작 — 카드 간 간격(0.6rem)과 맞춰 한 컬럼처럼 */
-  top: calc(0.75rem + var(--hud-h, 0px) + 0.6rem);
-  transition: top 0.15s ease;
-}
+.side-panel-left { left: 0.9rem; }
+.side-panel-right { right: 0.9rem; width: 20rem; }
 
 .panel-card {
   pointer-events: auto;
@@ -231,9 +256,10 @@ body {
 /* 3D 호버와 양방향 동기 — 뇌에서 호버해도 이 행이 살아난다 */
 .region-row-hovered { background: rgba(255, 255, 255, 0.05); }
 .region-swatch { width: 0.7rem; height: 0.7rem; border-radius: 3px; flex: none; }
-.region-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.region-row-name { font-size: 0.86rem; font-weight: 600; }
-.region-row-sub { font-size: 0.84rem; color: var(--muted); }
+.region-row-text { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 0.06rem; }
+/* 영역 제목은 영문(2026-07-12 재정비) — 트래킹 넓힌 소형 캡스, 서브 카피는 한글 */
+.region-row-name { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.09em; }
+.region-row-sub { font-size: 0.8rem; color: var(--muted); }
 .region-row-score { font-size: 0.9rem; font-weight: 700; }
 
 .stat-rows { display: flex; flex-direction: column; gap: 0.3rem; margin: 0.2rem 0; }
@@ -305,17 +331,20 @@ body {
   border-radius: 0.35rem; padding: 0.08rem 0.35rem; font-weight: 700;
 }
 
+/* 강화하기 — 우측 패널의 주행동. 풀 높이 컬럼을 얻은 만큼 CTA도 그에 맞게 크게 */
 .cta-train {
   width: 100%;
-  margin-top: 0.7rem;
+  margin-top: 0.8rem;
   background: linear-gradient(90deg, #ea580c, #f97316);
   color: #fff;
   border: none;
-  border-radius: 0.55rem;
-  padding: 0.55rem;
-  font-size: 0.85rem;
+  border-radius: 0.6rem;
+  padding: 0.7rem;
+  font-size: 0.95rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
+  box-shadow: 0 4px 18px rgba(234, 88, 12, 0.28);
 }
 .cta-train:hover { filter: brightness(1.08); }
 .train-brief { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.3rem; }
@@ -466,27 +495,73 @@ body {
   pointer-events: none;
 }
 
-.brain-hud {
+/* 데이터 출처 배지(MOCK/에러) — 상단 중앙: live일 땐 아무것도 없다 (2026-07-12 재정비) */
+.brain-status {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem; /* 우측 노드 패널과 같은 오른쪽 여백 — 하나의 우측 컬럼으로 정렬 */
+  top: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.6rem;
-  /* 우측 노드 패널(z-index 4)보다 위 — 오버레이 펼침 등으로 살짝 겹쳐도 클릭 가능하게 */
+  align-items: center;
+  gap: 0.5rem;
   z-index: 5;
 }
 
-/* 뷰 전환 토글 독 — 하단 중앙 (구 rotate-hint 자리) */
-.view-toggle-dock {
+/* 뷰 독 — 하단 중앙: 보기 전환 + 성향 렌즈 + 헷갈림 연결 + 그림 읽는 법.
+   뇌를 "어떻게 볼지"에 관한 컨트롤의 단일 거점 (구 우측 HUD 스택 대체) */
+.view-dock {
   position: absolute;
-  bottom: 1rem;
+  bottom: 0.9rem;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.28rem;
+  background: rgba(9, 14, 28, 0.85);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgba(3, 8, 20, 0.55);
+  z-index: 6;
   pointer-events: auto;
+  white-space: nowrap;
 }
+.dock-chip {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+}
+.dock-chip:hover { background: rgba(255, 255, 255, 0.06); }
+/* 팝오버가 열린 칩 */
+.dock-chip-open {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #7dd3fc;
+}
+/* 렌즈가 실제로 켜져 있는 상태 표시 (팝오버 닫혀 있어도) */
+.dock-chip-on { color: #7dd3fc; }
+.dock-divider { width: 1px; height: 1.1rem; background: var(--panel-border); margin: 0 0.2rem; }
+
+/* 독 팝오버 — 독 위로 뜨는 카드 (persona-card 규격 재사용) */
+.view-popover {
+  position: absolute;
+  bottom: 3.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  pointer-events: auto;
+  filter: drop-shadow(0 12px 32px rgba(2, 6, 16, 0.6));
+}
+.view-popover .persona-card { width: 22rem; max-width: 88vw; }
 
 .view-toggle {
   background: var(--panel);
@@ -634,7 +709,6 @@ body {
 .legend-rows { list-style: none; display: flex; flex-direction: column; gap: 0.28rem; margin-top: 0.15rem; }
 .legend-row { display: flex; gap: 0.5rem; font-size: 0.84rem; color: var(--fg); align-items: baseline; }
 .legend-key { color: #67e8f9; font-size: 0.64rem; letter-spacing: 0.05em; min-width: 3.2rem; flex: none; }
-.legend-state { margin-top: 0.25rem; }
 .edge-counts { line-height: 1.5; }
 
 .badge-mock {
@@ -685,8 +759,10 @@ body {
 }
 
 .region-name {
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  /* 3D 콜아웃 영역 제목 — 영문(2026-07-12 재정비): 소형 캡스 트래킹 */
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
 }
 
 .region-score {

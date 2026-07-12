@@ -151,8 +151,9 @@ describe('RegionsPanel (§7-2)', () => {
 
   it('region 선택 시 §7-2 상세: Gold/Synthetic 실데이터 분리 표기, Reliability/Coverage "—"', () => {
     render(<RegionsPanel />)
-    fireEvent.click(screen.getByText('놀이'))
-    const detail = screen.getByText('놀이 영역').closest('.region-detail') as HTMLElement
+    // 영역 제목은 영문(2026-07-12 재정비) — 행 클릭도, 상세 카드 표제도 EN + 한글 병기
+    fireEvent.click(screen.getByText('PLAY'))
+    const detail = screen.getByText('PLAY · 놀이 영역').closest('.region-detail') as HTMLElement
     const d = within(detail)
     expect(d.getByText('사람이 확인한 데이터').nextSibling?.textContent).toBe('231')
     expect(d.getByText('AI가 만든 연습 데이터').nextSibling?.textContent).toBe('8,402')
@@ -183,8 +184,8 @@ describe('RegionsPanel (§7-2)', () => {
     })
     render(<RegionsPanel />)
     expect(screen.getByText('첫 불꽃')).toBeTruthy() // PLAY row — 나머지는 여전히 Dormant
-    fireEvent.click(screen.getByText('놀이'))
-    const detail = screen.getByText('놀이 영역').closest('.region-detail') as HTMLElement
+    fireEvent.click(screen.getByText('PLAY'))
+    const detail = screen.getByText('PLAY · 놀이 영역').closest('.region-detail') as HTMLElement
     const d = within(detail)
     expect(d.getByText('성장 단계').nextSibling?.textContent).toBe('1단계 · 첫 불꽃')
     expect(d.getByText('시험 본 의도').nextSibling?.textContent).toBe('1 / 2개')

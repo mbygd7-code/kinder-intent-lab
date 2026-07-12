@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { PersonaOverlay } from '../api/observatory'
+import type { ObservatoryBrain, PersonaOverlay } from '../api/observatory'
 import { useBrainStore } from './store'
 
 beforeEach(() => {
@@ -13,11 +13,20 @@ beforeEach(() => {
     selectedNodeId: null,
     selectedRegionId: null,
     viewMode: '3d',
+    brain: null,
     personaOverlay: null,
     personaOverlayStatus: 'loading',
     overlayClusterId: null,
   })
 })
+
+// select가 region을 역참조할 때 읽는 최소 brain — node_id → region 매핑만 필요
+const BRAIN = {
+  nodes: [
+    { node_id: 'BN_play_a', intent_id: 'play_a', region: 'PLAY' },
+    { node_id: 'BN_doc_b', intent_id: 'doc_b', region: 'DOCUMENT' },
+  ],
+} as unknown as ObservatoryBrain
 
 const OVERLAY: PersonaOverlay = {
   state_version: 'PS_1',
@@ -45,6 +54,27 @@ describe('useBrainStore', () => {
     expect(useBrainStore.getState().viewMode).toBe('2d')
     useBrainStore.getState().setViewMode('3d')
     expect(useBrainStore.getState().viewMode).toBe('3d')
+  })
+
+  it('노드 선택 시 그 노드의 region이 좌 패널에서 함께 선택된다 (brain.nodes 역참조)', () => {
+    useBrainStore.setState({ brain: BRAIN })
+    useBrainStore.getState().select('BN_play_a')
+    expect(useBrainStore.getState().selectedNodeId).toBe('BN_play_a')
+    expect(useBrainStore.getState().selectedRegionId).toBe('PLAY')
+    // 다른 region 노드로 전환하면 region 선택도 따라 바뀐다
+    useBrainStore.getState().select('BN_doc_b')
+    expect(useBrainStore.getState().selectedRegionId).toBe('DOCUMENT')
+    // 노드 해제(null)는 펼쳐 둔 region 상세를 갑자기 닫지 않는다 — region 유지
+    useBrainStore.getState().select(null)
+    expect(useBrainStore.getState().selectedNodeId).toBeNull()
+    expect(useBrainStore.getState().selectedRegionId).toBe('DOCUMENT')
+  })
+
+  it('brain 미도착 시 노드 선택은 region을 건드리지 않는다 (역참조 실패 안전)', () => {
+    useBrainStore.getState().selectRegion('PLAY')
+    useBrainStore.getState().select('BN_unknown') // brain null → region 유지
+    expect(useBrainStore.getState().selectedNodeId).toBe('BN_unknown')
+    expect(useBrainStore.getState().selectedRegionId).toBe('PLAY')
   })
 
   it('region 선택은 노드 선택을 지운다 (§7-2 — 좌 패널 포커스 전환)', () => {
