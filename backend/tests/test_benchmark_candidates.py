@@ -66,7 +66,8 @@ def _train_episode(db, prompt):
     """학습 분할(TRAIN)에 이미 있는 발화 — 오염 가드 대상."""
     db.add(Episode(
         episode_id="EP_TRAIN_X", ontology_version="onto-1.0", lang="ko", dataset_split="TRAIN",
-        reliability_tier="SILVER", label_state="LABEL_CANDIDATE", origin_channel="FOUNDRY_SYNTHETIC",
+        reliability_tier="SILVER", label_state="LABEL_CANDIDATE",
+        origin_channel="FOUNDRY_SYNTHETIC",
         episode_creator_type="FOUNDRY_PIPELINE", primary_subject_type="SIMULATED_TEACHER",
         teacher_prompt=prompt, label_distribution={_intents(1)[0]: 1.0},
     ))

@@ -345,7 +345,12 @@ approved_by: "y"
 origin_channel: EXPERT_AUTHORED
 dataset_split: BENCHMARK_HOLDOUT
 episodes:
-  - {{episode_id: EP_SOLO, teacher_prompt: "한명검수 발화", intent: {ints[0]}, lang: ko, reviewers: ["혼자"], agreement_kappa: 1.0}}
+  - episode_id: EP_SOLO
+    teacher_prompt: "한명검수 발화"
+    intent: {ints[0]}
+    lang: ko
+    reviewers: ["혼자"]
+    agreement_kappa: 1.0
 """
     r = client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True})
     assert r.json()["ok"] is False

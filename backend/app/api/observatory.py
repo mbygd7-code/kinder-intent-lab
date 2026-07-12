@@ -23,6 +23,13 @@ from sqlalchemy.orm import Session
 from app.aggregator.review import canonical_reviewer, weighted_cohens_kappa
 from app.arena.ktib import EmptyKtib, build_ktib
 from app.arena.stages import STAGE_NAMES, brain_stage, region_stages, stage4_inputs
+from app.brain.diagnosis import diagnose_node
+from app.brain.priors import current_state_version
+from app.brain.version_gate import current_brain_version, version_gate_status
+from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
+from app.core.config import ExperimentsConfig, get_config
+from app.core.db import get_session
+from app.core.ontology import CANONICAL_DOMAINS, UNKNOWN_INTENT_ID, load_ontology
 from app.foundry.expert_ingest import (
     BenchmarkNeedsReview,
     ExpertEpisode,
@@ -31,13 +38,6 @@ from app.foundry.expert_ingest import (
     UnknownIngestIntent,
     ingest_expert_episodes,
 )
-from app.brain.diagnosis import diagnose_node
-from app.brain.priors import current_state_version
-from app.brain.version_gate import current_brain_version, version_gate_status
-from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
-from app.core.config import ExperimentsConfig, get_config
-from app.core.db import get_session
-from app.core.ontology import CANONICAL_DOMAINS, UNKNOWN_INTENT_ID, load_ontology
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
 from app.models.benchmark_candidates import (
     BenchmarkCandidateBatch,
@@ -563,7 +563,8 @@ def ktib_upload(
 
     if payload.commit:
         sp.commit()  # savepoint 해제 → 실제 저장 (get_session이 최종 커밋)
-        msg = f"시험지 등록 완료 — 신규 {report.inserted}문항 (중복 {report.skipped_duplicate} 제외)"
+        msg = (f"시험지 등록 완료 — 신규 {report.inserted}문항 "
+               f"(중복 {report.skipped_duplicate} 제외)")
         if ktib_version:
             msg += (f", 시험지 버전 {ktib_version} · 총 {eligible_total}문항. "
                     "채점(시험 실행)은 운영자가 별도로 돌립니다.")
@@ -695,7 +696,9 @@ def create_candidate_batch(
         if not (1 <= it.rating <= 5):
             raise HTTPException(status_code=422, detail=f"{i}번째 문항 점수는 1~5여야 합니다")
         if prompt in seen:
-            raise HTTPException(status_code=409, detail=f"배치 안에 같은 질문이 중복됩니다: {prompt}")
+            raise HTTPException(
+                status_code=409, detail=f"배치 안에 같은 질문이 중복됩니다: {prompt}"
+            )
         seen.add(prompt)
         # 학습 오염 가드(§8-2) — 이미 학습 분할에 있는 발화는 시험 후보가 될 수 없다(등록 시 재확인)
         clash = session.scalars(
@@ -705,7 +708,9 @@ def create_candidate_batch(
             ).limit(1)
         ).first()
         if clash is not None:
-            raise HTTPException(status_code=409, detail=f"이미 학습 문항에 있는 질문입니다: {prompt}")
+            raise HTTPException(
+                status_code=409, detail=f"이미 학습 문항에 있는 질문입니다: {prompt}"
+            )
         rows.append((intent, prompt, it.rating))
 
     batch = BenchmarkCandidateBatch(
@@ -888,7 +893,8 @@ def register_candidate_batch(
                "채점(시험 실행)은 운영자가 별도로 돌립니다.")
     else:
         sp.rollback()
-        msg = (f"검증 통과 — 등록 가능 {report.inserted}문항 (중복 {report.skipped_duplicate} 제외), "
+        msg = (f"검증 통과 — 등록 가능 {report.inserted}문항 "
+               f"(중복 {report.skipped_duplicate} 제외), "
                f"등록하면 시험지 총 {ktib.episode_count}문항. '등록'을 눌러 저장하세요.")
 
     return KtibUploadOut(

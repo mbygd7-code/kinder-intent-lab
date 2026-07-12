@@ -38,7 +38,7 @@ class BenchmarkCandidateBatch(Base):
 
 
 class BenchmarkCandidateItem(Base):
-    """배치 안의 문항 1건. rating_a=작성자 평점(1~5), rating_b=2차 검수자 평점(1~5, 검수 전 null)."""
+    """배치 안의 문항 1건. rating_a=작성자 평점(1~5), rating_b=2차 검수자 평점(검수 전 null)."""
     __tablename__ = "benchmark_candidate_items"
     __table_args__ = (
         CheckConstraint("rating_a BETWEEN 1 AND 5"),
