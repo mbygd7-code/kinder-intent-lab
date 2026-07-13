@@ -481,6 +481,10 @@ function ExamGuide() {
           </tr>
         </tbody>
       </table>
+      <p className="help-note">
+        ⚠️ 위 예시들도 <b>그대로 베끼진 마세요</b> — 안내용 예문이라 대부분 이미 공부용에
+        있어요. 스타일만 참고하고 <b>새 문장</b>을 써주세요.
+      </p>
 
       <h3>③ 두 분이 O/X 체크</h3>
       <p className="help-note">
