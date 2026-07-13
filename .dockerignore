@@ -1,0 +1,12 @@
+# 빌드 컨텍스트(저장소 루트)에서 제외 — 이미지 크기·전송량 축소, 비밀키 유입 차단
+.git/
+.env
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+backend/.venv/
+backend/tests/
+frontend/node_modules/
+frontend/dist/
+scratchpad/
