@@ -102,22 +102,37 @@ def main() -> int:
                 inserted[t] = scur.rowcount
                 scur.execute("DROP TABLE _sync")
 
-            # 노드 훈련 가시화 필드만 UPDATE (밝기 계열 제외 — 규칙 3)
-            lcur.execute(
-                f"select intent_id, {', '.join(NODE_SYNC_COLS)} from brain_nodes"
-            )
-            node_rows = lcur.fetchall()
-            for intent, pending, estats, xstats in node_rows:
-                scur.execute(
-                    "update brain_nodes set pending_evaluation=%s, evidence_stats=%s, "
-                    "exemplar_stats=%s where intent_id=%s",
-                    (
-                        pending,
-                        Jsonb(estats) if estats is not None else None,
-                        Jsonb(xstats) if xstats is not None else None,
-                        intent,
-                    ),
+            # 노드 훈련 가시화 필드 UPDATE (밝기 계열 제외 — 규칙 3).
+            # 단, 다른 컴퓨터가 Supabase에 직접 훈련해 evidence/episodes가 앞서 있으면
+            # 로컬의 stats·pending은 낡은 값이다 — 덮으면 상대의 훈련 흔적(pending 링)이
+            # 꺼진다(2026-07-13 실제 발생). 그때는 건너뛰고 역방향 반영을 안내한다.
+            node_rows = []
+            stale = []
+            for t in ("evidence", "episodes"):
+                lcur.execute(f'select count(*) from "{t}"')
+                ln = lcur.fetchone()[0]
+                scur.execute(f'select count(*) from "{t}"')
+                if scur.fetchone()[0] > ln:
+                    stale.append(t)
+            if stale:
+                print(f"⚠ 노드 필드 갱신 건너뜀 — Supabase가 앞섬({', '.join(stale)}). "
+                      "역방향 반영(수파→로컬) 후 다시 푸시하면 갱신된다")
+            else:
+                lcur.execute(
+                    f"select intent_id, {', '.join(NODE_SYNC_COLS)} from brain_nodes"
                 )
+                node_rows = lcur.fetchall()
+                for intent, pending, estats, xstats in node_rows:
+                    scur.execute(
+                        "update brain_nodes set pending_evaluation=%s, evidence_stats=%s, "
+                        "exemplar_stats=%s where intent_id=%s",
+                        (
+                            pending,
+                            Jsonb(estats) if estats is not None else None,
+                            Jsonb(xstats) if xstats is not None else None,
+                            intent,
+                        ),
+                    )
             sc.commit()
         except Exception:
             sc.rollback()
