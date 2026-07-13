@@ -90,6 +90,33 @@ function App() {
         </div>
       </header>
 
+      {/* 첫-실행 넛지 — 라이브인데 아직 채점 점수(KTIB)가 없으면 "시험지부터"를 안내한다.
+          강화하기만 하면 밝기가 안 생겨 고장처럼 보이는 온보딩 갭을 메운다(훈련≠채점, 절대 규칙 3).
+          시험이 채점되면 ktib != null → 조건이 꺼져 배너가 사라진다. */}
+      {dataSource === 'live' && ktib == null && (
+        <div className="firstrun-nudge" role="note">
+          <span className="firstrun-nudge-icon" aria-hidden>
+            🧭
+          </span>
+          <div className="firstrun-nudge-text">
+            아직 시험 점수가 없어요 — <strong>시험 문항</strong>을 만들면 뇌를 채점해 밝힐 수 있어요.
+            <div className="firstrun-nudge-sub">
+              강화하기(공부)는 지금 해도 되지만, 점수·밝기는 시험지가 있어야 매겨져요.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="firstrun-nudge-btn"
+            onClick={() => {
+              setHelpTab('exam')
+              setHelpOpen(true)
+            }}
+          >
+            시험 문항 만들기 →
+          </button>
+        </div>
+      )}
+
       <div className="observatory-body">
         <RegionsPanel />
         <BrainScreen />
