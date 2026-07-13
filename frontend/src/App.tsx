@@ -12,7 +12,7 @@
  * 즉석 문답(§6-7 [4])은 교사의 핵심 학습 행동이라 톱바 CTA로 승격 — 라이브 추론이
  * 필요하므로 실데이터(live)에서만 활성.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { BrainScreen } from './brain3d/BrainScreen'
 import { useBrainStore } from './brain3d/store'
@@ -34,6 +34,18 @@ function App() {
   const [helpTab, setHelpTab] = useState<'service' | 'manual' | 'exam' | 'study'>('service')
   const [liveQuizOpen, setLiveQuizOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [showExamHint, setShowExamHint] = useState(false)
+  // 라이브인데 아직 채점 점수가 없으면 "시험지부터"를 5초 말풍선으로 안내(온보딩 갭). 시험이
+  // 채점되면 ktib != null → 안 뜬다. 훈련≠채점 원칙 자체는 유지 — 밝기와 무관한 안내일 뿐.
+  useEffect(() => {
+    if (dataSource !== 'live' || ktib != null) {
+      setShowExamHint(false)
+      return
+    }
+    setShowExamHint(true)
+    const t = setTimeout(() => setShowExamHint(false), 5000)
+    return () => clearTimeout(t)
+  }, [dataSource, ktib])
   // §7-6 스테이지 — 값은 Arena 산출 그대로, 표시만 교사용 한글(terms.ts)
   const stageLabel = stageWithNumber(brainStage, brainStageName)
   return (
@@ -68,9 +80,17 @@ function App() {
         <div className="topbar-actions">
           {/* 시험지 검수 — 즉석 문답 왼쪽. 1~5 평점 2차 검수 흐름(2026-07-12).
               데이터 상태와 무관하게 항상 노출 */}
-          <button type="button" className="cta-upload" onClick={() => setReviewOpen(true)}>
-            📄 시험지 검수
-          </button>
+          <span className="cta-upload-wrap">
+            <button type="button" className="cta-upload" onClick={() => setReviewOpen(true)}>
+              📄 시험지 검수
+            </button>
+            {showExamHint && (
+              <div className="exam-hint-bubble" role="status">
+                🧭 아직 시험 점수가 없어요 — <strong>시험 문항</strong>부터 만들면 뇌를 밝힐 수
+                있어요.
+              </div>
+            )}
+          </span>
           {/* 즉석 문답 — 라이브 추론 필요: 실데이터(live)에서만 (§6-7 [4]) */}
           {dataSource === 'live' && (
             <button type="button" className="cta-live" onClick={() => setLiveQuizOpen(true)}>
@@ -89,33 +109,6 @@ function App() {
           </button>
         </div>
       </header>
-
-      {/* 첫-실행 넛지 — 라이브인데 아직 채점 점수(KTIB)가 없으면 "시험지부터"를 안내한다.
-          강화하기만 하면 밝기가 안 생겨 고장처럼 보이는 온보딩 갭을 메운다(훈련≠채점, 절대 규칙 3).
-          시험이 채점되면 ktib != null → 조건이 꺼져 배너가 사라진다. */}
-      {dataSource === 'live' && ktib == null && (
-        <div className="firstrun-nudge" role="note">
-          <span className="firstrun-nudge-icon" aria-hidden>
-            🧭
-          </span>
-          <div className="firstrun-nudge-text">
-            아직 시험 점수가 없어요 — <strong>시험 문항</strong>을 만들면 뇌를 채점해 밝힐 수 있어요.
-            <div className="firstrun-nudge-sub">
-              강화하기(공부)는 지금 해도 되지만, 점수·밝기는 시험지가 있어야 매겨져요.
-            </div>
-          </div>
-          <button
-            type="button"
-            className="firstrun-nudge-btn"
-            onClick={() => {
-              setHelpTab('exam')
-              setHelpOpen(true)
-            }}
-          >
-            시험 문항 만들기 →
-          </button>
-        </div>
-      )}
 
       <div className="observatory-body">
         <RegionsPanel />

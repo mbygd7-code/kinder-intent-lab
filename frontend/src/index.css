@@ -144,36 +144,46 @@ body {
 }
 .header-help:hover { border-color: var(--accent); }
 
-/* 첫-실행 넛지 — 라이브인데 아직 채점 점수(KTIB null)일 때 "시험지부터" 온보딩 안내.
-   톱바 아래 슬림 배너. 시험이 채점되면 조건이 꺼져 사라진다. */
-.firstrun-nudge {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  margin: 0 0.9rem 0.5rem;
-  padding: 0.6rem 1rem;
-  background: rgba(53, 224, 210, 0.08);
-  border: 1px solid rgba(53, 224, 210, 0.35);
+/* 시험지 검수 버튼 말풍선 — 라이브인데 아직 채점 점수(KTIB null)일 때 5초 뜨는 온보딩 안내.
+   버튼에 앵커(상대 위치)돼 아래로 뜬다. 시험이 채점되면 안 뜬다. pointer-events 없음(클릭 방해 X). */
+.cta-upload-wrap { position: relative; display: inline-flex; }
+.exam-hint-bubble {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 19rem;
+  padding: 0.55rem 0.8rem;
+  background: rgba(13, 20, 38, 0.97);
+  border: 1px solid rgba(53, 224, 210, 0.5);
   border-radius: 0.6rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--fg);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: exam-hint-cycle 5s ease forwards;
 }
-.firstrun-nudge-icon { font-size: 1.2rem; line-height: 1; }
-.firstrun-nudge-text { flex: 1; font-size: 0.86rem; line-height: 1.45; }
-.firstrun-nudge-text strong { color: var(--accent); }
-.firstrun-nudge-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
-.firstrun-nudge-btn {
-  background: linear-gradient(135deg, #0891b2, #6366f1);
-  border: none;
-  color: #fff;
-  padding: 0.46rem 0.95rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
+.exam-hint-bubble strong { color: var(--accent); }
+.exam-hint-bubble::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 1.4rem;
+  width: 11px;
+  height: 11px;
+  background: rgba(13, 20, 38, 0.97);
+  border-left: 1px solid rgba(53, 224, 210, 0.5);
+  border-top: 1px solid rgba(53, 224, 210, 0.5);
+  transform: rotate(45deg);
 }
-.firstrun-nudge-btn:hover { filter: brightness(1.12); }
+@keyframes exam-hint-cycle {
+  0% { opacity: 0; transform: translateY(-5px); }
+  8% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-5px); }
+}
 
 /* §7-6 성장 스테이지 칩 (T5.4) — 톱바 KTIB 수치 곁. Dormant도 실패가 아닌 상태 표기 */
 .ktib-stage {
