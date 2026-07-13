@@ -48,6 +48,16 @@ export function ExamUpload() {
     setError(null)
     setSubmit(null)
     const text = await file.text()
+    // 엑셀 형식(.xlsx/.xls)은 ZIP 바이너리라 파싱 불가 — 확장자와 매직 바이트('PK') 둘 다 검사
+    // (확장자만 바꾼 파일까지 잡는다). 엑셀에서 CSV로 저장하도록 정확히 안내한다.
+    if (/\.xlsx?$/i.test(file.name) || text.startsWith('PK')) {
+      setError(
+        '엑셀 파일(.xlsx)은 그대로 올릴 수 없어요. 엑셀에서 [파일 → 다른 이름으로 저장 → ' +
+          'CSV UTF-8(쉼표로 분리)]로 저장한 뒤, 그 .csv 파일을 올려주세요. ' +
+          '(구글 시트: 파일 → 다운로드 → 쉼표로 구분된 값)',
+      )
+      return
+    }
     const isCsv = /\.csv$/i.test(file.name) || (!/\.ya?ml$/i.test(file.name) && text.includes(','))
 
     if (!isCsv) {
