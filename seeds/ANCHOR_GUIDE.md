@@ -5,7 +5,13 @@
 
 ## 1순위 — KTIB 시험지: `ktib_seed_template.yaml` (또는 `.csv`)
 
-지금 사람이 할 수 있는 **가장 값진 작업**입니다. 63개 의도 × 1문항 초안이 이미 채워져
+지금 사람이 할 수 있는 **가장 값진 작업**입니다. 진척은 언제든
+`python scripts/ktib_coverage.py`로 확인하세요(의도별 등록 수 · 게이트 하한까지의 갭).
+**되돌릴 수 없는 위험 의도 7개(CRITICAL)부터** 채우는 걸 권장합니다 —
+`seeds/ktib_critical7_template.csv`(7×30, '혼동 주의' 힌트 포함)를 웹 ExamUpload로 올리면 돼요.
+의도별 구별 요령은 `docs/09-teacher-guide/exam-authoring-critical7.md`.
+
+전체 63개로 넓힐 때는 아래 YAML 흐름을 씁니다. 63개 의도 × 1문항 초안이 이미 채워져
 있으니, 두 분이 함께:
 
 1. 각 `teacher_prompt`를 실제 현장에서 쓰는 표현인지 검토하고 어색하면 교체한다

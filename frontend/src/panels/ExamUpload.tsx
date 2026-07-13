@@ -205,14 +205,17 @@ export function ExamUploadModal({
         <div className="help-body">
           <div className="help-doc">
             <p className="help-note">
-              전문가가 만든 <strong>시험지(KTIB)</strong>를 올리는 곳이에요. 아래 <strong>쉬운
-              양식</strong>을 받아 63개 의도마다 질문을 채우고(의도당 10칸), 검수자 두 분이
+              전문가가 만든 <strong>시험지(KTIB)</strong>를 올리는 곳이에요. 아래 양식을 받아
+              질문을 채우고(<strong>위험 의도 7개부터</strong> 권장), 검수자 두 분이
               O/X만 체크하면 됩니다. 점수는 자동으로 계산돼요.
             </p>
 
             <div className="help-download">
+              <a className="view-toggle help-dl-btn" href="/ktib_critical7_template.csv" download>
+                ⭐ CRITICAL 7개 먼저 (권장 · 7×30칸)
+              </a>
               <a className="view-toggle help-dl-btn" href="/ktib_exam_template.csv" download>
-                ⬇ 쉬운 양식 받기 (엑셀·구글시트 · 63×10칸)
+                ⬇ 전체 양식 (63×10칸)
               </a>
             </div>
 

@@ -182,13 +182,21 @@ function ExamGuide() {
       </p>
 
       <div className="help-download">
+        <a className="view-toggle help-dl-btn" href="/ktib_critical7_template.csv" download>
+          ⭐ CRITICAL 7개 먼저 받기 (권장 · 7×30칸)
+        </a>
         <a className="view-toggle help-dl-btn" href="/ktib_exam_template.csv" download>
-          ⬇ 쉬운 양식 받기 (엑셀·구글시트 · 63×10칸)
+          ⬇ 전체 양식 받기 (63×10칸)
         </a>
         <a className="view-toggle help-dl-btn" href="/시험문항-안내서.pdf" download>
           ⬇ 안내서 PDF
         </a>
       </div>
+      <p className="help-note">
+        ⚠️ <b>되돌릴 수 없는 위험 의도 7개</b>(부모 전송·출결·삭제)부터 채우는 걸 권장해요 — 안전
+        게이트가 이 7개에 각 30문항을 요구합니다. 양식의 <b>'혼동 주의'</b> 칸에 헷갈리는 이웃이
+        적혀 있으니, 그것과 <b>구별되게</b> 질문을 쓰면 좋은 문항이 돼요.
+      </p>
       <p className="help-note">
         엑셀은 파일을 더블클릭하면 열려요. 구글 시트는 시트 → 파일 → 가져오기 → 업로드.
       </p>
