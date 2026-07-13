@@ -47,7 +47,16 @@ export function ExamUpload() {
     setSummary(null)
     setError(null)
     setSubmit(null)
-    const text = await file.text()
+    // 인코딩 자동 인식: 한국어 Windows 엑셀의 기본 "CSV(쉼표로 분리)"는 UTF-8이 아니라
+    // ANSI(CP949)로 저장된다. UTF-8로 엄격 디코딩해 보고 실패하면 euc-kr(=CP949)로 읽는다 —
+    // 교사가 저장 형식을 몰라도 한글이 깨지지 않게.
+    const buf = await file.arrayBuffer()
+    let text: string
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(buf)
+    } catch {
+      text = new TextDecoder('euc-kr').decode(buf)
+    }
     // 엑셀 형식(.xlsx/.xls)은 ZIP 바이너리라 파싱 불가 — 확장자와 매직 바이트('PK') 둘 다 검사
     // (확장자만 바꾼 파일까지 잡는다). 엑셀에서 CSV로 저장하도록 정확히 안내한다.
     if (/\.xlsx?$/i.test(file.name) || text.startsWith('PK')) {
