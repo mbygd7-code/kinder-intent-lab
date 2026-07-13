@@ -23,7 +23,9 @@ COPY db/ ./db/
 # 패키지는 미리 깔아둬 LLM_PROVIDER=anthropic 등으로 바꿔도 재빌드가 필요 없게 한다.
 RUN pip install -e "./backend[anthropic,openai]"
 
-# 호스트가 주입하는 $PORT를 따른다(기본 8000). 기동 시 마이그레이션 후 서버 실행.
-# 단일 인스턴스 가정 — 다중 인스턴스면 마이그레이션을 릴리즈 단계로 분리(docs/10-deploy).
+# 호스트가 주입하는 $PORT를 따른다(기본 8000). uvicorn만 실행 — 마이그레이션은 부팅에 묶지
+# 않는다. 공유 DB(Supabase)는 이미 스키마가 있고 여러 컴퓨터가 마이그레이션을 의도적으로 관리
+# 하므로, 부팅마다 alembic을 돌리면 접속·드리프트 실패가 서비스 전체를 죽인다. 스키마 변경 시엔
+# 배포와 분리해 한 번만: DATABASE_URL=... alembic upgrade head (docs/10-deploy).
 EXPOSE 8000
-CMD ["sh", "-c", "cd /app/backend && alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "cd /app/backend && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
