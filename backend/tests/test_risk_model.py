@@ -121,7 +121,9 @@ def test_ontology_carries_no_risk_grade() -> None:
     넣으면 등급을 고칠 때마다 ontology_version이 올라가 arena_runs의 replay 축이 흔들린다.
     """
     onto = load_ontology()
-    assert onto.version == "onto-1.0"  # 위험 모델 도입이 온톨로지를 bump하지 않았다
+    # 진짜 불변은 "위험 필드가 온톨로지에 없다"이다. 버전 자체는 예시 시트 반영(minor)으로
+    # 정당하게 움직이므로 리터럴로 고정하지 않는다 — 위험 모델이 버전을 움직이는지는
+    # 필드 부재가 보증한다(필드가 없으면 등급 수정이 이 파일을 건드릴 수 없다).
     intent = onto.intents[0]
     assert not hasattr(intent, "risk_tier") and not hasattr(intent, "evaluation_critical")
 

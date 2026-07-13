@@ -31,6 +31,7 @@ from app.brain.priors import (
 )
 from app.core.config import get_config
 from app.core.ontology import load_ontology
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.episodes import Episode, Evidence
 from app.models.persona import (
     PersonaCluster,
@@ -49,6 +50,10 @@ def _empty(db_session):
 
     population·teacher·version을 모두 비워, 이월(carry-forward) 테스트가 실 DB의 기존 스냅샷에
     오염되지 않게 한다."""
+    # 실 KTIB(ktib_items)가 episodes를 FK로 잡는다 — 자식 먼저
+    db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Episode))
     db_session.execute(delete(TeacherPrior))

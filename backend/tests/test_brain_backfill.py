@@ -19,6 +19,7 @@ from app.core.config import get_config
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.llm.base import EmbeddingRequest
 from app.llm.mock import MockProvider
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.governance import GovernanceEvent
@@ -30,6 +31,10 @@ def _empty_brain_bank(db_session):
     영구 적재된 뒤에도 정확 카운트 전제를 유지하도록 세이브포인트 안에서 비운다(종료 시 롤백,
     실 데이터 무손상). aggregate_evidence_stats가 전체 Evidence를 훑으므로 Evidence·Episode도
     비워야 한다(FK 순서: evidence·exemplar → episode → node)."""
+    # 실 KTIB(ktib_items)가 episodes를 FK로 잡는다 — 자식 먼저
+    db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))

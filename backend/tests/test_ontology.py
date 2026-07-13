@@ -1,5 +1,6 @@
 """T1.5 AC (§5-8·§5-9): 중복 intent_id·미정의 domain·예시 누락 검출 · UNKNOWN 포함."""
 import copy
+import re
 
 import pytest
 from pydantic import ValidationError
@@ -123,7 +124,8 @@ def test_quality_rejects_too_few_intents() -> None:
 
 def test_seed_loads_and_meets_quality() -> None:
     onto = load_ontology()
-    assert onto.version == "onto-1.0"
+    # 예시 시트 반영(apply_ontology_examples)이 minor를 올리므로 리터럴 고정 대신 형식 검사
+    assert re.fullmatch(r"onto-\d+\.\d+", onto.version), onto.version
     validate_seed_quality(onto)  # ≥ min_intents, 7 도메인 커버, 예시 수
     ids = {i.intent_id for i in onto.intents}
     assert "UNKNOWN" in ids

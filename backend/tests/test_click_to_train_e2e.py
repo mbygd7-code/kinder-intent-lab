@@ -19,6 +19,7 @@ from app.gym.growth import finalize_session
 from app.gym.pack import build_items
 from app.gym.session import start_session, submit_results
 from app.main import app
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, ConfusionEdge, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import AtlasEntry, CanonicalScenario, FoundryWorkOrder
@@ -34,6 +35,7 @@ BUCKETS = ("synthetic", "weak_behavioral", "human_confirmed", "gold", "expert")
 def _empty(db_session):
     """빈 슬레이트 — 실 DB 뱅크가 커버리지/카운트 전제를 깨지 않게 세이브포인트 안에서 비운다."""
     for model in (
+        ArenaRun, KtibItem, KtibVersion,  # 실 KTIB가 episodes를 FK로 잡는다 — 자식 먼저
         Evidence, Exemplar, FoundryWorkOrder, GymSession, ChallengePack,
         Episode, CanonicalScenario, AtlasEntry, ConfusionEdge,
         PopulationPrior, PersonaCluster, BrainNode,

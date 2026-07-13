@@ -14,6 +14,7 @@ from app.core.config import get_config
 from app.core.ontology import load_ontology
 from app.gym.pack import build_items, build_pack
 from app.gym.session import start_session, submit_results
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.gym import ChallengePack, GymSession
@@ -25,6 +26,10 @@ CFG = get_config()
 def _empty_bank(db_session):
     """전역 evidence/episode 카운트 단언은 빈 뱅크 전제 — 실DB에 gym 산출이 쌓여도(운영에선
     당연히 쌓인다) 깨지지 않게 세이브포인트 안에서 비운다(FK 순서, 롤백으로 원복)."""
+    # 실 KTIB(ktib_items)가 episodes를 FK로 잡는다 — 자식 먼저
+    db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))

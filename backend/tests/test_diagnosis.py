@@ -13,6 +13,7 @@ from sqlalchemy import delete
 from app.brain.diagnosis import diagnose_node
 from app.core.config import get_config
 from app.core.ontology import load_ontology
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import AtlasEntry, CanonicalScenario
@@ -22,7 +23,10 @@ CFG = get_config()
 
 @pytest.fixture(autouse=True)
 def _empty(db_session):
-    # FK 순서: evidence·exemplar → episode → canonical_scenario → situation_frame (자식 먼저)
+    # FK 순서: arena/ktib → evidence·exemplar → episode → canonical_scenario (자식 먼저)
+    db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibItem))
+    db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))

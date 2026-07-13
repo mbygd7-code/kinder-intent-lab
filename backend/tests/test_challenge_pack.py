@@ -28,6 +28,7 @@ from app.gym.challenge import (
     rank_target_edges,
 )
 from app.main import app
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import ConfusionEdge, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import AtlasEntry, CanonicalScenario, FoundryWorkOrder
@@ -49,6 +50,7 @@ def _empty(db_session):
     persona_clusters까지 비운다 — _persona_mix가 이를 읽어 남겨두면 persona_mix가 실 DB
     상태를 반영해 재현 불가해진다. population_priors가 clusters를 FK 참조하므로 먼저 지운다."""
     for model in (
+        ArenaRun, KtibItem, KtibVersion,  # 실 KTIB가 episodes를 FK로 잡는다 — 자식 먼저
         Evidence, Exemplar, FoundryWorkOrder, GymSession, ChallengePack,
         Episode, CanonicalScenario, AtlasEntry, ConfusionEdge,
         PopulationPrior, PersonaCluster,
