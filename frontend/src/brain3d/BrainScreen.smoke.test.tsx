@@ -256,9 +256,9 @@ describe('BrainScreen (WebGL 없음 = jsdom, API 스텁)', () => {
     // 사용설명서 탭 전환 — 강화하기 안내가 보인다
     fireEvent.click(within(dialog).getByRole('button', { name: '사용설명서' }))
     expect(within(dialog).getByText(/뇌 가르치기 — 강화하기/)).toBeTruthy()
-    // 시험 문항 만들기 탭 — 쉬운 양식(63×10) + PDF 다운로드
+    // 시험 문항 만들기 탭 — 전체 양식(63×10) + PDF 다운로드
     fireEvent.click(within(dialog).getByRole('button', { name: '시험 문항 만들기' }))
-    const csvTpl = within(dialog).getByRole('link', { name: /쉬운 양식 받기/ }) as HTMLAnchorElement
+    const csvTpl = within(dialog).getByRole('link', { name: /전체 양식 받기/ }) as HTMLAnchorElement
     expect(csvTpl.getAttribute('href')).toBe('/ktib_exam_template.csv')
     expect(within(dialog).getByRole('link', { name: /안내서 PDF/ })).toBeTruthy()
     // 업로드 버튼 + 검수자 A/B 이름 입력 (O/X→kappa 자동, 업로드 플로우는 브라우저에서 검증)
