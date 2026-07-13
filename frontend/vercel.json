@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/v1/:path*", "destination": "https://YOUR-BACKEND-HOST/v1/:path*" },
+    { "source": "/v1/:path*", "destination": "https://kinder-intent-lab.onrender.com/v1/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
