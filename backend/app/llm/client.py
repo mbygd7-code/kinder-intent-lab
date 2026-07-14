@@ -177,6 +177,23 @@ def get_embedding_client(recorder: Recorder | None = None) -> LLMClient:
     return LLMClient(_provider_from_env("EMBEDDING_PROVIDER"), get_config().llm, recorder)
 
 
+def embed_fn_from_env(mock_dim: int = 1536):
+    """env 기반 임베딩 함수 — run_backfill·검수 후 자동 backfill이 공유하는 단일 조립점.
+
+    mock이면 DB vector(1536)와 차원을 맞춘 MockProvider(오프라인). 실 provider면
+    EMBEDDING_MODEL(기본 text-embedding-3-small 계열)을 쓴다. 반환: texts → vectors.
+    """
+    provider = (os.environ.get("EMBEDDING_PROVIDER") or "mock").lower()
+    if provider in ("", "mock"):
+        from app.llm.mock import MockProvider
+
+        p = MockProvider(embed_dim=mock_dim)
+        return lambda texts: p.embed(EmbeddingRequest(inputs=texts, model="embed")).vectors
+    client = get_embedding_client()
+    model = os.environ.get("EMBEDDING_MODEL", "embed")
+    return lambda texts: client.embed(EmbeddingRequest(inputs=texts, model=model)).vectors
+
+
 # mock provider 등록 (import 시점). 실제 provider는 각 모듈이 register_provider로 등록.
 from app.llm.mock import MockProvider  # noqa: E402
 
@@ -197,6 +214,7 @@ __all__ = [
     "LLMTransientError",
     "Usage",
     "build_provider",
+    "embed_fn_from_env",
     "get_embedding_client",
     "get_llm_client",
     "register_provider",

@@ -38,6 +38,10 @@
 `--apply` — 2인 만장일치만 GOLD, 배치 kappa < 0.65면 전량 거부. `_aggregator_suggests`는
 참고용이며 그대로 베끼면 검수가 아닙니다.
 
+💡 `--apply --commit`이 성공하면 **backfill(대표 예문 채움)이 자동으로 이어집니다** —
+방금 GOLD가 된 답이 곧바로 뇌의 검색 사전에 들어가요. 따로 돌릴 필요 없음
+(수동 재실행이 필요하면 `python scripts/run_backfill.py --commit`).
+
 ## 즉석 문답 "출제"의 2차 검수 — blind 플로우
 
 즉석 문답에서 "시험 문제로 출제"를 켜면 `seeds/benchmark_candidates.yaml`에 쌓입니다.

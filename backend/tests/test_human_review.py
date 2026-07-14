@@ -393,3 +393,30 @@ def test_gold_from_review_becomes_exemplar_material(db_session) -> None:
     assert db_session.scalar(select(func.count()).select_from(Episode).where(
         Episode.reliability_tier == "GOLD", Episode.label_state == "LABELED"
     )) == 4
+
+
+def test_review_then_backfill_chain_fills_exemplars(db_session) -> None:
+    """검수 적용 → backfill 연쇄(run_human_review --apply --commit의 자동 후속) —
+    방금 GOLD가 된 에피소드가 대표 예문으로 실제로 채워진다. 멱등 재실행도 안전."""
+    from app.brain.backfill import run_backfill
+
+    apply_review_batch(db_session, _agreeing_batch(db_session, _intents()), CFG,
+                       approved_by="총괄")
+    db_session.flush()
+
+    # 결정론 임베딩 — 프롬프트마다 다른 기저 벡터(서로 멀어 dedup에 안 걸림)
+    def embed(texts: list[str]) -> list[list[float]]:
+        out = []
+        for t in texts:
+            v = [0.0] * 1536
+            v[hash(t) % 1536] = 1.0
+            out.append(v)
+        return out
+
+    report = run_backfill(db_session, CFG, approved_by="총괄", embed_fn=embed)
+    assert report.exemplars_selected == 4  # 검수로 확정된 GOLD 4건 전부 예문이 됐다
+
+    picked = set(db_session.scalars(select(Exemplar.episode_id)).all())
+    assert picked == {"EP_0", "EP_1", "EP_2", "EP_3"}
+    # 멱등: 같은 연쇄를 다시 돌려도 중복 예문이 생기지 않는다
+    assert run_backfill(db_session, CFG, approved_by="총괄", embed_fn=embed).exemplars_selected == 0

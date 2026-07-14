@@ -30,9 +30,7 @@ from sqlalchemy.pool import NullPool  # noqa: E402
 
 from app.brain.backfill import run_backfill  # noqa: E402
 from app.core.config import get_config  # noqa: E402
-from app.llm.base import EmbeddingRequest  # noqa: E402
-from app.llm.client import get_embedding_client  # noqa: E402
-from app.llm.mock import MockProvider  # noqa: E402
+from app.llm.client import embed_fn_from_env as _embed_fn  # noqa: E402 — 검수 스크립트와 공용
 
 
 def _database_url() -> str:
@@ -40,16 +38,6 @@ def _database_url() -> str:
     if not url:
         raise SystemExit("DATABASE_URL이 없습니다 (.env 확인)")
     return url.replace("postgresql://", "postgresql+psycopg://", 1)
-
-
-def _embed_fn():
-    provider = (os.environ.get("EMBEDDING_PROVIDER") or "mock").lower()
-    if provider in ("", "mock"):
-        p = MockProvider(embed_dim=1536)
-        return lambda texts: p.embed(EmbeddingRequest(inputs=texts, model="embed")).vectors
-    client = get_embedding_client()
-    model = os.environ.get("EMBEDDING_MODEL", "embed")
-    return lambda texts: client.embed(EmbeddingRequest(inputs=texts, model=model)).vectors
 
 
 def main() -> int:

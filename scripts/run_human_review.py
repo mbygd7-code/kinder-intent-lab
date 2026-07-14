@@ -25,6 +25,10 @@ votes:
 **주의:** 합성 에피소드(`FOUNDRY_SYNTHETIC`)도 GOLD가 될 수 있고, 그것은 exemplar와 Version
 Gate의 new_gold에 쓰인다. 그러나 `benchmark_integrity` CHECK 때문에 **KTIB에는 영원히 못
 들어간다**(절대 규칙 2). KTIB용 비합성 에피소드는 `scripts/ingest_expert_episodes.py`로 넣는다.
+
+**자동 후속(backfill):** `--commit` 성공 시 새 GOLD가 바로 대표 예문이 되도록
+`run_backfill`(S13, 멱등)이 자동으로 이어진다 — 사람은 검수만 하면 된다.
+dry-run에서는 임베딩 과금이 없도록 실행하지 않고 예고만 한다.
 """
 import argparse
 import os
@@ -53,7 +57,9 @@ from app.aggregator.review import (  # noqa: E402
     apply_review_batch,
 )
 from app.aggregator.state_machine import IllegalTransition  # noqa: E402
+from app.brain.backfill import run_backfill  # noqa: E402
 from app.core.config import get_config  # noqa: E402
+from app.llm.client import embed_fn_from_env  # noqa: E402
 from app.models.episodes import Episode  # noqa: E402
 
 
@@ -147,9 +153,30 @@ def main() -> int:
             if args.commit:
                 session.commit()
                 print("COMMITTED")
+                # 자동 후속(§5-7): 방금 GOLD가 된 에피소드를 곧바로 대표 예문으로.
+                # 검수 커밋과는 별도 트랜잭션 — 실패해도 검수 결과는 이미 안전하고,
+                # backfill은 멱등이라 나중에 다시 돌리면 이어진다.
+                provider = (os.environ.get("EMBEDDING_PROVIDER") or "mock").lower()
+                try:
+                    bf = run_backfill(
+                        session, config, approved_by=approved_by,
+                        embed_fn=embed_fn_from_env(),
+                    )
+                    session.commit()
+                    print(f"→ backfill 자동 실행: 대표 예문 +{bf.exemplars_selected}"
+                          f"{f' · 노드 +{bf.nodes_created}' if bf.nodes_created else ''}")
+                    if provider in ("", "mock"):
+                        print("  ⚠ EMBEDDING_PROVIDER=mock — 실채점(Arena, 실 임베딩)과 축이 "
+                              "달라 이 예문은 실전에선 무의미합니다. 실 provider로 재실행 권장.")
+                except Exception as exc:  # noqa: BLE001 — 후속 실패는 정직하게 알리고 재실행 안내
+                    session.rollback()
+                    print(f"⚠ backfill 자동 실행 실패({type(exc).__name__}: {exc}) — "
+                          f"검수 결과는 커밋됨. `python scripts/run_backfill.py --commit`으로 "
+                          f"다시 시도하세요.", file=sys.stderr)
             else:
                 session.rollback()
                 print("DRY-RUN (rolled back) — 확정하려면 --commit")
+                print("  (커밋 시에는 backfill이 자동으로 이어져 대표 예문이 채워집니다)")
     finally:
         engine.dispose()
     return 0
