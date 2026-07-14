@@ -14,10 +14,15 @@ import { useBrainStore } from '../brain3d/store'
 import { DashboardView } from './DashboardView'
 import { emptyStream, makeDashboard } from './fixtures'
 
+const IDLE_ARENA = { running: false, started_at: null, error: null, last_run: null }
+
 function stubDashboard(payload: Dashboard) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (String(url).includes('/dashboard')) {
       return { ok: true, json: async () => payload } as Response
+    }
+    if (String(url).includes('/arena/status')) {
+      return { ok: true, json: async () => IDLE_ARENA } as Response
     }
     throw new Error(`unexpected fetch: ${url}`)
   }))
@@ -122,6 +127,51 @@ describe('DashboardView — 액션은 기존 흐름 연결', () => {
     expect(await screen.findByRole('button', { name: /즉석 문답/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /즉석 문답/ }))
     expect(useBrainStore.getState().liveQuizOpen).toBe(true)
+  })
+})
+
+describe('채점 실행 버튼 — PIN 게이트 (대시보드·검수 모달 공용 진입점)', () => {
+  function stubWithArenaRun(runResponse: { ok: boolean; status: number; body: unknown }) {
+    const payload = makeDashboard()
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u.includes('/arena/run')) {
+        void init
+        return {
+          ok: runResponse.ok, status: runResponse.status,
+          json: async () => runResponse.body,
+        } as Response
+      }
+      if (u.includes('/arena/status')) {
+        return { ok: true, json: async () => IDLE_ARENA } as Response
+      }
+      if (u.includes('/dashboard')) return { ok: true, json: async () => payload } as Response
+      throw new Error(`unexpected fetch: ${u}`)
+    }))
+  }
+
+  it('클릭 → 비밀번호 입력 → 확인 시 PIN이 서버로 간다 (검증은 서버가)', async () => {
+    stubWithArenaRun({ ok: true, status: 202, body: { started: true, message: '채점을 시작했어요' } })
+    render(<DashboardView />)
+    fireEvent.click(await screen.findByRole('button', { name: /채점 실행/ }))
+    fireEvent.change(screen.getByLabelText('채점 비밀번호'), { target: { value: '2341' } })
+    fireEvent.click(screen.getByRole('button', { name: '확인' }))
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find(([u]) => String(u).includes('/arena/run'))
+      expect(call).toBeTruthy()
+      expect(String(call![1]?.body)).toContain('2341')
+    })
+    expect(await screen.findByText(/채점을 시작했어요/)).toBeTruthy()
+  })
+
+  it('비밀번호가 틀리면 서버 문구를 그대로 보여주고 입력을 유지한다', async () => {
+    stubWithArenaRun({ ok: false, status: 401, body: { detail: '비밀번호가 달라요' } })
+    render(<DashboardView />)
+    fireEvent.click(await screen.findByRole('button', { name: /채점 실행/ }))
+    fireEvent.change(screen.getByLabelText('채점 비밀번호'), { target: { value: '0000' } })
+    fireEvent.click(screen.getByRole('button', { name: '확인' }))
+    expect(await screen.findByText('비밀번호가 달라요')).toBeTruthy()
+    expect(screen.getByLabelText('채점 비밀번호')).toBeTruthy() // 다시 입력 가능
   })
 })
 

@@ -6,6 +6,7 @@
  */
 import type { Dashboard, RunPoint } from '../api/dashboard'
 import { useBrainStore } from '../brain3d/store'
+import { ArenaRunButton } from './ArenaRunButton'
 import { RunChart } from './viz/RunChart'
 
 function DeltaBadge({ delta }: { delta: number | null }) {
@@ -80,9 +81,12 @@ export function RunTimeline({ data }: { data: Dashboard }) {
 
   return (
     <section aria-label="성능과 귀속">
-      <h2 className="dash-section-title">
-        PERFORMANCE <span>성능 & 귀속 — 무엇이 들어와 무엇이 변했나</span>
-      </h2>
+      <div className="dash-section-head">
+        <h2 className="dash-section-title">
+          PERFORMANCE <span>성능 & 귀속 — 무엇이 들어와 무엇이 변했나</span>
+        </h2>
+        <ArenaRunButton />
+      </div>
 
       {perf.runs.length === 0 ? (
         <div className="dash-card dash-empty">

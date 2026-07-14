@@ -44,6 +44,7 @@ repo_root 기준으로 읽기 때문입니다. 호스트 설정에서 Dockerfile
 | `LLM_MODEL` | `claude-opus-4-8` | 선택 |
 | `EMBEDDING_PROVIDER` | `openai` 또는 `mock` | DB vector(1536)와 차원 일치 |
 | `EMBEDDING_API_KEY` | `sk-...` | 실제 임베딩일 때만 |
+| `ARENA_PIN` | `2341`(기본) | 웹 "채점 실행" 버튼 비밀번호 — 오클릭 방지용, 배포 시 변경 권장 |
 | `PORT` | (호스트가 주입) | 없으면 8000 |
 
 컨테이너는 **uvicorn만** 실행합니다(마이그레이션은 부팅에 묶지 않음 — 아래 참고). 헬스체크는

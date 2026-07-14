@@ -52,6 +52,12 @@ function stubFetch(ok: boolean, brain: ObservatoryBrain = FAKE_BRAIN) {
     if (String(url).includes('/dashboard')) {
       return { ok: true, json: async () => FAKE_DASHBOARD } as Response
     }
+    if (String(url).includes('/arena/status')) {
+      return {
+        ok: true,
+        json: async () => ({ running: false, started_at: null, error: null, last_run: null }),
+      } as Response
+    }
     return { ok: true, json: async () => brain } as Response
   }))
 }

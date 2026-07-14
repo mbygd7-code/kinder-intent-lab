@@ -1123,6 +1123,50 @@ body {
 }
 .dash-gap { color: #fcd34d; font-size: 0.72rem; }
 
+/* 채점 실행 버튼 + PIN 팝오버 — 대시보드 PERFORMANCE 헤더·검수 모달 공용 */
+.dash-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.arena-run-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+.help-head .arena-run-wrap { margin-left: auto; }
+.arena-pin-pop {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  background: rgba(9, 14, 28, 0.97);
+  border: 1px solid rgba(53, 224, 210, 0.45);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+}
+.arena-pin-input {
+  width: 6.5rem;
+  background: rgba(13, 20, 38, 0.8);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.4rem;
+  color: var(--fg);
+  padding: 0.32rem 0.5rem;
+  font-family: ui-monospace, Consolas, monospace;
+  letter-spacing: 0.2em;
+}
+.arena-pin-input:focus { outline: none; border-color: var(--accent); }
+.arena-msg { font-size: 0.72rem; color: var(--muted); max-width: 17rem; text-align: right; }
+.arena-msg-error { color: #fda4af; }
+.arena-msg-done { color: var(--accent); }
+
 /* --- 모션 --- */
 .dash-rise { animation: dash-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .viz-draw {

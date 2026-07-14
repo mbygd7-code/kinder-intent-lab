@@ -23,6 +23,7 @@ import {
 } from '../api/ktibReview'
 import { REGIONS, type RegionId } from '../brain3d/regions'
 import { useBrainStore } from '../brain3d/store'
+import { ArenaRunButton } from '../dashboard/ArenaRunButton'
 import { labelOf } from './intentLabels'
 
 type Tab = 'write' | 'pending' | 'mine'
@@ -110,6 +111,8 @@ export function KtibReviewModal({
               </button>
             ))}
           </div>
+          {/* 채점 트리거 — 문항 등록 흐름 끝에서 바로 실행(운영자 PIN 게이트, 대시보드와 공유) */}
+          <ArenaRunButton />
           <button type="button" className="gym-close" onClick={onClose} aria-label="닫기">
             ✕
           </button>

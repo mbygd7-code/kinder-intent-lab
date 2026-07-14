@@ -58,6 +58,11 @@ def _session_factory() -> sessionmaker[Session]:
     return _factory_instance
 
 
+def open_session() -> Session:
+    """요청 스코프 밖(백그라운드 잡)용 세션 — 호출자가 commit/rollback/close를 책임진다."""
+    return _session_factory()()
+
+
 def get_session() -> Iterator[Session]:
     """요청 스코프 세션. 성공 시 commit(inference_log 등 영속), 예외 시 rollback, 항상 close."""
     session = _session_factory()()
