@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { BrainScreen } from './brain3d/BrainScreen'
 import { effectiveViewMode, useBrainStore } from './brain3d/store'
 import { HelpOverlay } from './panels/HelpOverlay'
+import { ExamUploadModal } from './panels/ExamUpload'
 import { KtibReviewModal } from './panels/KtibReviewModal'
 import { LiveQuizPanel } from './panels/LiveQuizPanel'
 import { NodePanel } from './panels/NodePanel'
@@ -37,6 +38,8 @@ function App() {
   const reviewOpen = useBrainStore((s) => s.reviewOpen)
   const openReview = useBrainStore((s) => s.openReview)
   const closeReview = useBrainStore((s) => s.closeReview)
+  const examUploadOpen = useBrainStore((s) => s.examUploadOpen)
+  const closeExamUpload = useBrainStore((s) => s.closeExamUpload)
   const openLiveQuiz = useBrainStore((s) => s.openLiveQuiz)
   const closeLiveQuiz = useBrainStore((s) => s.closeLiveQuiz)
   const openHelp = useBrainStore((s) => s.openHelp)
@@ -89,11 +92,11 @@ function App() {
         </div>
 
         <div className="topbar-actions">
-          {/* 시험지 검수 — 즉석 문답 왼쪽. 1~5 평점 2차 검수 흐름(2026-07-12).
+          {/* 시험지 작성 — 즉석 문답 왼쪽. 웹에서 문항 작성 + 1~5 평점 2차 검수 흐름.
               데이터 상태와 무관하게 항상 노출 */}
           <span className="cta-upload-wrap">
             <button type="button" className="cta-upload" onClick={openReview}>
-              📄 시험지 검수
+              📝 시험지 작성
             </button>
             {showExamHint && (
               <div className="exam-hint-bubble" role="status">
@@ -130,6 +133,18 @@ function App() {
         <KtibReviewModal
           onClose={closeReview}
           onComplete={bumpReload} // 등록(commit) 성공 시 뇌 상태 refetch
+        />
+      )}
+      {examUploadOpen && (
+        <ExamUploadModal
+          onClose={() => {
+            closeExamUpload()
+            bumpReload() // 업로드 확정 후 닫혔을 수 있다 — 시험지 수치 재조회
+          }}
+          onOpenHelp={() => {
+            closeExamUpload()
+            openHelp('exam')
+          }}
         />
       )}
       {helpOpen && <HelpOverlay onClose={closeHelp} initialTab={helpTab} />}

@@ -62,6 +62,7 @@ interface BrainViewState {
   edgeDisplayMode: EdgeDisplayMode
   /** 모달 열림 상태 — 톱바·대시보드가 공유하는 단일 진입점 */
   reviewOpen: boolean
+  examUploadOpen: boolean
   liveQuizOpen: boolean
   helpOpen: boolean
   helpTab: HelpTab
@@ -88,6 +89,8 @@ interface BrainViewState {
   setEdgeDisplayMode: (mode: EdgeDisplayMode) => void
   openReview: () => void
   closeReview: () => void
+  openExamUpload: () => void
+  closeExamUpload: () => void
   openLiveQuiz: () => void
   closeLiveQuiz: () => void
   openHelp: (tab?: HelpTab) => void
@@ -116,6 +119,7 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   confusionEdgesStatus: 'loading',
   edgeDisplayMode: 'focus',
   reviewOpen: false,
+  examUploadOpen: false,
   liveQuizOpen: false,
   helpOpen: false,
   helpTab: 'service',
@@ -163,6 +167,8 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   setEdgeDisplayMode: (edgeDisplayMode) => set({ edgeDisplayMode }),
   openReview: () => set({ reviewOpen: true }),
   closeReview: () => set({ reviewOpen: false }),
+  openExamUpload: () => set({ examUploadOpen: true }),
+  closeExamUpload: () => set({ examUploadOpen: false }),
   openLiveQuiz: () => set({ liveQuizOpen: true }),
   closeLiveQuiz: () => set({ liveQuizOpen: false }),
   openHelp: (tab) => set((s) => ({ helpOpen: true, helpTab: tab ?? s.helpTab })),

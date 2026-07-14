@@ -88,10 +88,10 @@ export function KtibReviewModal({
   }, [brain])
 
   return (
-    <div className="gym-backdrop" role="dialog" aria-label="시험지 검수">
+    <div className="gym-backdrop" role="dialog" aria-label="시험지 작성·검수">
       <div className="gym-modal help-modal">
         <div className="help-head">
-          <strong className="help-title">시험지 검수 (1~5 평점)</strong>
+          <strong className="help-title">시험지 작성·검수 (1~5 평점)</strong>
           <div className="help-tabs">
             {(
               [

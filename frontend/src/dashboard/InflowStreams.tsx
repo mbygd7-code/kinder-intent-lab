@@ -72,6 +72,7 @@ export function InflowStreams({ data }: { data: Dashboard }) {
   const webglOk = useBrainStore((s) => s.webglOk)
   const setViewMode = useBrainStore((s) => s.setViewMode)
   const openReview = useBrainStore((s) => s.openReview)
+  const openExamUpload = useBrainStore((s) => s.openExamUpload)
   const openLiveQuiz = useBrainStore((s) => s.openLiveQuiz)
   const openHelp = useBrainStore((s) => s.openHelp)
   const { inflow } = data
@@ -116,7 +117,10 @@ export function InflowStreams({ data }: { data: Dashboard }) {
           tip="시험지 금고에 등록된 문항의 총량이에요 — 뇌 실력을 재는 용도로만 쓰이고, 공부(훈련)에는 절대 쓰이지 않아요."
         >
           <button type="button" className="dash-btn dash-btn-primary" onClick={openReview}>
-            📄 시험지 검수
+            📝 시험지 작성
+          </button>
+          <button type="button" className="dash-btn dash-btn-primary" onClick={openExamUpload}>
+            ⬆ 시험지 업로드
           </button>
           <button type="button" className="dash-btn" onClick={() => openHelp('exam')}>
             양식 · 만들기 안내
