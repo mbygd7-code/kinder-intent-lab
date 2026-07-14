@@ -24,7 +24,10 @@ export function ktibArc(ktib: number | null): { thetaLength: number } | null {
   return { thetaLength: v * Math.PI * 2 }
 }
 
-/** region 은은한 광 — reliability(Arena 파생)에 단조. null → null(무광 = 미측정). */
+/**
+ * region 글로우 — reliability(Arena 파생)에 단조. null → null(무광 = 미측정).
+ * 표현은 BrainFieldLayer→particles.ts: 그 영역 입자의 수·밝기 가산(블롭 스프라이트 폐지).
+ */
 export function regionGlow(reliability: number | null): { intensity: number } | null {
   if (reliability === null || reliability === undefined) return null
   return { intensity: Math.min(1, Math.max(0, reliability)) }

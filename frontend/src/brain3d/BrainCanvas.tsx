@@ -3,10 +3,13 @@
  *
  * 레이어 규약(정보 정직성): 유색 = 데이터, 단색 slate = 구조물.
  * - 의미 노드(NodesMesh, 상호작용) · evidence 파티클(훈련 근거량) · 혼동 edge(§5-6)
- *   · region glow(Arena reliability) · 플랫폼 게이지(성장 스테이지·KTIB) = 전부 실데이터
+ *   · 플랫폼 게이지(성장 스테이지·KTIB) = 전부 실데이터
+ * - region reliability(Arena)는 BrainFieldLayer가 그 영역 입자의 수·밝기로 표현
+ *   (2026-07-15 스프라이트 블롭 폐지 — 뇌 자체가 빛난다)
  * - StructuralShell(뇌 실루엣) = 데이터 아님 — 단색·정적
- * 블룸(BLOOM_THRESHOLD)은 §7-5 밝기(Arena 정확도) 채널 전용 — 데이터 파티클·구조물은
- * 임계 미만 광량으로 억제된다(각 인코더 테스트가 강제).
+ * 블룸(BLOOM_THRESHOLD)은 §7-5 밝기(Arena 정확도) 채널 전용 — 훈련·구조 광량은
+ * 임계 미만으로 억제되고(인코더 테스트 강제), reliability 글로우 기여만 고득점에서
+ * 임계를 넘을 수 있다(그것이 곧 정확도 채널).
  */
 import { OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
@@ -23,7 +26,6 @@ import { NodesMesh } from './NodesMesh'
 import type { ParticleMetrics } from './particles'
 import { PersonaOverlayLayer } from './PersonaOverlayLayer'
 import { Platform } from './Platform'
-import { RegionGlowLayer } from './RegionGlowLayer'
 import { RegionHoverTargets } from './RegionHoverTargets'
 import { RegionLabels } from './RegionLabels'
 import { StructuralShell } from './StructuralShell'
@@ -60,8 +62,6 @@ export function BrainCanvas({ nodes, visuals, metrics, overlayPriors }: Props) {
       {/* 선택 노드의 연결 사유 칩 — 상대 노드 위에 방향·상태·출처·혼동률 */}
       <EdgeInfoLabels nodes={nodes} />
       <StructuralShell />
-      {/* Arena reliability의 공간 광 — 미측정 region은 무광(부재) */}
-      <RegionGlowLayer />
       {/* region 호버 — 투명 타깃 (활성화 표현은 BrainFieldLayer가 그 region 입자를 밝힘) */}
       <RegionHoverTargets />
       <Platform />

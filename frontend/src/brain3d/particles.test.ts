@@ -217,6 +217,49 @@ describe('buildShellField — 뇌 형태 상시 + 훈련 에너지 표정 (regio
   })
 })
 
+describe('reliability 글로우 — 측정된 region 입자의 수·밝기 가산 (Arena 파생)', () => {
+  const midE = new Map<RegionId, number>(REGIONS.map((r) => [r.id, 0.5]))
+  const glowsOf = (v: number | null) =>
+    new Map<RegionId, number | null>(REGIONS.map((r) => [r.id, v]))
+  const lumaOf = (c: Float32Array, i: number) =>
+    0.2126 * c[i] + 0.7152 * c[i + 1] + 0.0722 * c[i + 2]
+
+  it('미측정(null) = 완전 무변화 — 글로우 없는 필드와 동일 버퍼', () => {
+    expect(buildShellField(midE, glowsOf(null))).toEqual(buildShellField(midE))
+  })
+
+  it('측정 0점도 미측정과 구분된다: bead·accent 수와 luma가 소폭 오른다 (측정 표시)', () => {
+    const none = buildShellField(midE)[0]
+    const zero = buildShellField(midE, glowsOf(0))[0]
+    expect(zero.beads.positions.length).toBeGreaterThan(none.beads.positions.length)
+    expect(zero.accents.positions.length).toBeGreaterThan(none.accents.positions.length)
+    expect(lumaOf(zero.dust.colors, 0)).toBeGreaterThan(lumaOf(none.dust.colors, 0))
+  })
+
+  it('단조: 정답률이 높을수록 입자가 더 많고 더 밝다', () => {
+    const low = buildShellField(midE, glowsOf(0.2))[0]
+    const high = buildShellField(midE, glowsOf(0.9))[0]
+    expect(high.beads.positions.length).toBeGreaterThan(low.beads.positions.length)
+    expect(high.accents.positions.length).toBeGreaterThan(low.accents.positions.length)
+    expect(lumaOf(high.dust.colors, 0)).toBeGreaterThan(lumaOf(low.dust.colors, 0))
+  })
+
+  it('광량 규율은 훈련·호버 전용 잠금 그대로: 글로우 없는 최대 에너지는 블룸 미만 (기존 테스트) — 글로우 기여만 고득점에서 임계를 넘을 수 있다', () => {
+    const fullGlow = buildShellField(midE, glowsOf(1))
+    // 글로우가 luma를 실제로 끌어올렸는지(표현이 살아있는지)만 확인 — 상한은 정확도 채널이라 없음
+    const none = buildShellField(midE)
+    for (const [i, rf] of fullGlow.entries()) {
+      expect(lumaOf(rf.beads.colors, 0)).toBeGreaterThan(lumaOf(none[i].beads.colors, 0))
+    }
+  })
+
+  it('서명: 글로우 변화(측정 도착)만으로도 필드가 재빌드된다', () => {
+    expect(shellSignature(midE, glowsOf(null))).not.toBe(shellSignature(midE, glowsOf(0)))
+    expect(shellSignature(midE, glowsOf(0.3))).not.toBe(shellSignature(midE, glowsOf(0.7)))
+    expect(shellSignature(midE)).toBe(shellSignature(midE, glowsOf(null)))
+  })
+})
+
 describe('cloudsSignature — 캐시 키', () => {
   const base = metricsFor(() => ({ evidence_total: 10 }))
 

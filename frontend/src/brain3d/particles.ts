@@ -8,6 +8,12 @@
  *  - 풍성함: 중간 알갱이(bead)·큰 알갱이(accent) 수가 에너지에 비례해 늘어난다
  * 즉 "학습이 없어도 뇌 형태는 있고, 학습될수록 그 영역이 화려해진다".
  *
+ * [reliability 글로우 — 두 번째 입력] region 정답률(Arena 파생, statusEncodings.regionGlow)이
+ * 있으면 그 region 입자의 **수가 더 늘고 색이 더 밝아진다**(스프라이트 블롭 아님 —
+ * 2026-07-15 뇌 자체가 빛나는 표현으로 교체). null(미측정) = 완전 무변화(무광 = 부재).
+ * 글로우 기여만은 높은 점수에서 블룸 임계를 넘을 수 있다 — 그것이 곧 "빛남 = Arena
+ * 정확도" 채널이라 의미가 오염되지 않는다. 훈련 에너지·호버만으로는 여전히 블룸 불가.
+ *
  * [노드 디테일 — buildEvidenceClouds] 노드 주변 미세 입자 = 노드별 근거량(√포화+waterfill),
  * 산포 ∝ diversity, 금색 스파크 = GOLD·전문가 evidence. 무학습 노드 = 무입자.
  *
@@ -68,6 +74,21 @@ export interface RegionField {
 
 /** 호버 시 그 region 필드 광량 배수 — 최대 광량×배수도 블룸 임계 미만(테스트 잠금) */
 export const HOVER_BOOST = 1.3
+
+// reliability 글로우(Arena 파생) — 측정된 region의 입자 수·밝기 가산.
+// BASE(정답률 0이어도 적용)가 "측정됨"의 표시다 — 미측정(null)과 0점을 구분한다.
+export const GLOW_BEAD_BASE = 24 // 측정 표시 — 정답률 0이어도 bead 소량 추가
+export const GLOW_BEAD_GAIN = 96 // 정답률 1.0에서 추가되는 bead
+export const GLOW_ACCENT_BASE = 8
+export const GLOW_ACCENT_GAIN = 36
+export const GLOW_LUMA_FLOOR = 0.06 // 측정 표시 — 미묘한 상시 립
+export const GLOW_LUMA_GAIN = 0.55 // 정답률 1.0에서 색 밝기 ×1.61 — 고득점 region만 블룸 진입
+
+/** 글로우 색 배수 — null(미측정) = 1(무변화). 정답률에 단조 증가. */
+export function glowLumaBoost(glow: number | null): number {
+  if (glow == null) return 1
+  return 1 + GLOW_LUMA_FLOOR + GLOW_LUMA_GAIN * clamp01(glow)
+}
 
 // 전부 표현 상수 — 형태 예산과 지각 가능성의 균형점
 export const DUST_COUNT = 2600
@@ -144,19 +165,21 @@ function pools() {
   })
 }
 
-/** 풀의 region 버킷에서 앞 take개 — region 단색(에너지 립×램프) 버퍼로 */
+/** 풀의 region 버킷에서 앞 take개 — region 단색(에너지 립×램프×글로우) 버퍼로 */
 function sliceBucket(
   pool: RegionPool,
   region: RegionId,
   take: number,
   energies: ReadonlyMap<RegionId, number>,
   ramp: readonly [number, number],
+  lumaBoost = 1,
 ): ShellLayerBuffers {
   const bucket = pool.buckets.get(region)!
   const n = Math.min(bucket.length, Math.max(0, Math.round(take)))
   const positions = new Float32Array(n * 3)
   const colors = new Float32Array(n * 3)
-  const [r, g, b] = fieldColor(region, energies.get(region) ?? 0, ramp)
+  const base = fieldColor(region, energies.get(region) ?? 0, ramp)
+  const [r, g, b] = [base[0] * lumaBoost, base[1] * lumaBoost, base[2] * lumaBoost]
   for (let i = 0; i < n; i++) {
     const pi = bucket[i]
     positions[i * 3] = pool.points[pi * 3]
@@ -169,30 +192,51 @@ function sliceBucket(
   return { positions, colors }
 }
 
-export function buildShellField(energies: ReadonlyMap<RegionId, number>): RegionField[] {
+const NO_GLOW: ReadonlyMap<RegionId, number | null> = new Map()
+
+export function buildShellField(
+  energies: ReadonlyMap<RegionId, number>,
+  glows: ReadonlyMap<RegionId, number | null> = NO_GLOW,
+): RegionField[] {
   const p = pools()
   return REGIONS.map((reg) => {
     const e = energies.get(reg.id) ?? 0
+    const glow = glows.get(reg.id) ?? null
+    const boost = glowLumaBoost(glow)
+    const beadTake =
+      BEAD_BASE + BEAD_GAIN * e +
+      (glow == null ? 0 : GLOW_BEAD_BASE + GLOW_BEAD_GAIN * clamp01(glow))
+    const accentTake =
+      ACCENT_MAX * e + (glow == null ? 0 : GLOW_ACCENT_BASE + GLOW_ACCENT_GAIN * clamp01(glow))
     return {
       region: reg.id,
-      volume: sliceBucket(p.volume, reg.id, Infinity, energies, VOLUME_INTENSITY),
-      dust: sliceBucket(p.dust, reg.id, Infinity, energies, DUST_INTENSITY),
-      beads: sliceBucket(p.beads, reg.id, BEAD_BASE + BEAD_GAIN * e, energies, BEAD_INTENSITY),
-      accents: sliceBucket(p.accents, reg.id, ACCENT_MAX * e, energies, ACCENT_INTENSITY),
+      volume: sliceBucket(p.volume, reg.id, Infinity, energies, VOLUME_INTENSITY, boost),
+      dust: sliceBucket(p.dust, reg.id, Infinity, energies, DUST_INTENSITY, boost),
+      beads: sliceBucket(p.beads, reg.id, beadTake, energies, BEAD_INTENSITY, boost),
+      accents: sliceBucket(p.accents, reg.id, accentTake, energies, ACCENT_INTENSITY, boost),
     }
   })
 }
 
-/** 에너지 서명(3자리 반올림) — region 에너지가 바뀔 때만 필드를 재빌드 */
-export function shellSignature(energies: ReadonlyMap<RegionId, number>): string {
-  return REGIONS.map((r) => `${r.id}:${(energies.get(r.id) ?? 0).toFixed(3)}`).join('|')
+/** 에너지·글로우 서명(3자리 반올림) — 어느 쪽이 바뀌어도 필드를 재빌드 */
+export function shellSignature(
+  energies: ReadonlyMap<RegionId, number>,
+  glows: ReadonlyMap<RegionId, number | null> = NO_GLOW,
+): string {
+  return REGIONS.map((r) => {
+    const g = glows.get(r.id) ?? null
+    return `${r.id}:${(energies.get(r.id) ?? 0).toFixed(3)}:${g == null ? '-' : g.toFixed(3)}`
+  }).join('|')
 }
 
 let fieldCache: { sig: string; field: RegionField[] } | null = null
 
-export function cachedShellField(energies: ReadonlyMap<RegionId, number>): RegionField[] {
-  const sig = shellSignature(energies)
-  if (fieldCache?.sig !== sig) fieldCache = { sig, field: buildShellField(energies) }
+export function cachedShellField(
+  energies: ReadonlyMap<RegionId, number>,
+  glows: ReadonlyMap<RegionId, number | null> = NO_GLOW,
+): RegionField[] {
+  const sig = shellSignature(energies, glows)
+  if (fieldCache?.sig !== sig) fieldCache = { sig, field: buildShellField(energies, glows) }
   return fieldCache.field
 }
 

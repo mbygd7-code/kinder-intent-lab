@@ -3,6 +3,9 @@
  *
  * 뇌 모양 파티클 필드는 항상 존재(형태)하고, region 훈련 에너지에 따라
  * 채도·광량·알갱이 수가 커진다 — "학습될수록 그 영역이 화려해진다".
+ * region 정답률(Arena reliability)은 그 영역 입자의 수·밝기를 더 올린다
+ * (statusEncodings.regionGlow → particles.ts 글로우 입력) — 별도 블롭 스프라이트 없이
+ * 뇌 자체가 빛난다. 미측정 region은 무변화(무광 = 부재, 0이 아님).
  * region별 그룹 렌더: 호버된 region은 재질 배수(HOVER_BOOST)로 그 입자들만 살짝
  * 밝아진다 — 별도 오버레이 없이 뇌 자체가 반응한다(2026-07-11 사용자 요청).
  * 입자는 비정형 감광 트윙클(twinkle.ts 전용 셰이더 — 장식, 광량 상한 불변)로 깜박인다.
@@ -22,6 +25,8 @@ import {
   type RegionField,
   type ShellLayerBuffers,
 } from './particles'
+import { REGIONS, type RegionId } from './regions'
+import { regionGlow } from './statusEncodings'
 import { useBrainStore } from './store'
 import { makeTwinkleMaterial, sharedPointScale, sharedTwinkleTime } from './twinkle'
 
@@ -83,9 +88,16 @@ export function BrainFieldLayer({ nodes, metrics }: {
   metrics: ReadonlyMap<string, ParticleMetrics>
 }) {
   const hoveredRegionId = useBrainStore((s) => s.hoveredRegionId)
+  const regionScores = useBrainStore((s) => s.regionScores)
+  // Arena reliability → 글로우 강도 — 유일 인코더는 statusEncodings.regionGlow
+  const glows = useMemo(() => {
+    const m = new Map<RegionId, number | null>()
+    for (const r of REGIONS) m.set(r.id, regionGlow(regionScores[r.id] ?? null)?.intensity ?? null)
+    return m
+  }, [regionScores])
   const field = useMemo(
-    () => cachedShellField(regionEnergies(nodes, metrics)),
-    [nodes, metrics],
+    () => cachedShellField(regionEnergies(nodes, metrics), glows),
+    [nodes, metrics, glows],
   )
   // 트윙클 드라이버 — 전 재질이 공유하는 uniform 2개만 갱신 (CPU 비용 ≈ 0)
   useFrame(({ clock, gl }) => {
