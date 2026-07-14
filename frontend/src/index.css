@@ -1137,16 +1137,17 @@ body {
 /* 채점 실행 버튼 + PIN 팝오버 — 대시보드 PERFORMANCE 헤더·검수 모달 공용 */
 .dash-section-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center; /* 타이틀과 버튼을 한 줄 세로 중앙 정렬 — 메시지가 아래로 매달리지 않게 */
   justify-content: space-between;
   gap: 1rem;
 }
+.dash-section-head .dash-section-title { min-width: 0; }
 .arena-run-wrap {
   position: relative;
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3rem;
+  align-items: center; /* 한 줄 배치: [상태 메시지] [버튼] — 헤더 높이를 흔들지 않는다 */
+  gap: 0.6rem;
+  flex: none;
 }
 .help-head .arena-run-wrap { margin-left: auto; }
 .arena-pin-pop {
@@ -1174,15 +1175,27 @@ body {
   letter-spacing: 0.2em;
 }
 .arena-pin-input:focus { outline: none; border-color: var(--accent); }
-.arena-msg { font-size: 0.72rem; color: var(--muted); max-width: 17rem; text-align: right; }
+.arena-msg {
+  order: -1; /* 헤더에선 버튼 왼쪽에 눕는다 — 아래로 매달리면 헤더가 무너진다 */
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+  max-width: 24rem;
+  text-align: right;
+  /* 긴 안내(mock 사유 등)는 2줄에서 말줄임 — 전문은 버튼 툴팁이 이미 담는다 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .arena-msg-error { color: #fda4af; }
-.arena-msg-done { color: var(--accent); }
+.arena-msg-done { color: var(--accent); font-weight: 700; }
 /* 카드 안 액션 행에 버튼이 살 때: PIN 팝오버가 카드 밖으로 나온다 —
    overflow 해제 + 카드를 이웃 카드(backdrop-filter 쌓임 맥락) 위로 올려 팝오버가 깔리지 않게 */
 .dash-has-pop { overflow: visible; z-index: 5; }
-.dash-actions .arena-run-wrap { align-items: flex-start; }
 .dash-actions .arena-pin-pop { left: 0; right: auto; }
-.dash-actions .arena-msg { text-align: left; }
+/* 카드 액션 행에선 자연 순서(버튼 → 메시지)·왼쪽 정렬이 읽기 방향과 맞다 */
+.dash-actions .arena-msg { order: 0; text-align: left; }
 
 /* --- 모션 --- */
 /* fill은 backwards: 끝 상태는 기본 스타일과 같고, both로 두면 filled transform이
