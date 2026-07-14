@@ -1166,6 +1166,12 @@ body {
 .arena-msg { font-size: 0.72rem; color: var(--muted); max-width: 17rem; text-align: right; }
 .arena-msg-error { color: #fda4af; }
 .arena-msg-done { color: var(--accent); }
+/* 카드 안 액션 행에 버튼이 살 때: PIN 팝오버가 카드 밖으로 나온다 —
+   overflow 해제 + 카드를 이웃 카드(backdrop-filter 쌓임 맥락) 위로 올려 팝오버가 깔리지 않게 */
+.dash-has-pop { overflow: visible; z-index: 5; }
+.dash-actions .arena-run-wrap { align-items: flex-start; }
+.dash-actions .arena-pin-pop { left: 0; right: auto; }
+.dash-actions .arena-msg { text-align: left; }
 
 /* --- 모션 --- */
 .dash-rise { animation: dash-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }

@@ -85,11 +85,11 @@ export function RunTimeline({ data }: { data: Dashboard }) {
         <h2 className="dash-section-title">
           PERFORMANCE <span>성능 & 귀속 — 무엇이 들어와 무엇이 변했나</span>
         </h2>
-        <ArenaRunButton />
+        {perf.runs.length > 0 && <ArenaRunButton />}
       </div>
 
       {perf.runs.length === 0 ? (
-        <div className="dash-card dash-empty">
+        <div className="dash-card dash-empty dash-has-pop">
           <p className="dash-empty-title">아직 채점 전이에요</p>
           <p className="dash-card-sub">
             시험지 {sb.ktib_registered_total}문항이 준비되어 있어요. 운영자가 채점(Arena)을
@@ -100,6 +100,7 @@ export function RunTimeline({ data }: { data: Dashboard }) {
             <button type="button" className="dash-btn dash-btn-primary" onClick={openReview}>
               📄 시험 문항 더 만들기
             </button>
+            <ArenaRunButton />
           </div>
         </div>
       ) : (
