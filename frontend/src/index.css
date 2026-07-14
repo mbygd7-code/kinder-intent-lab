@@ -1053,6 +1053,17 @@ body {
 }
 .dash-btn-primary:hover { filter: brightness(1.12); }
 
+/* 실행 조건 미충족(사전 판정) — 보이되 회색으로 선다. 클릭은 안내 문구만 띄운다 */
+.dash-btn-blocked,
+.dash-btn-blocked:hover {
+  background: rgba(100, 116, 139, 0.18);
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  color: var(--muted);
+  cursor: not-allowed;
+  filter: none;
+  box-shadow: none;
+}
+
 .dash-gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
 .dash-gauge-caption { font-size: 0.64rem; color: var(--muted); text-align: center; line-height: 1.35; }
 .viz-gauge-text {

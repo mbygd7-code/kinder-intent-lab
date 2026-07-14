@@ -44,6 +44,14 @@ def api(db_session):
     app.dependency_overrides.clear()
 
 
+def _freeze_ktib(db) -> None:
+    """사전 판정(동결 시험지 존재) 통과용 최소 ktib — start 계약이 이제 이를 요구한다."""
+    db.add(KtibVersion(ktib_version=f"ktib-{uuid.uuid4().hex[:6]}", seq=1,
+                       extractor_versions={}, episode_count=1,
+                       content_hash=f"h-{uuid.uuid4().hex}"))
+    db.flush()
+
+
 def test_wrong_pin_is_rejected(api, monkeypatch) -> None:
     client, _ = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
@@ -61,9 +69,43 @@ def test_mock_provider_cannot_score(api, monkeypatch) -> None:
     assert "mock" in res.json()["detail"]
 
 
-def test_start_runs_job_and_clears_state(api, monkeypatch) -> None:
+# --- 사전 판정(runnable/blocked_reason) — 버튼이 미리 회색+안내로 서게 한다 ---
+
+
+def test_status_blocked_when_mock_provider(api, monkeypatch) -> None:
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    _freeze_ktib(db)
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is False
+    assert "mock" in status["blocked_reason"]
+    # 우회 POST도 같은 문구의 409 (방어 이중화)
+    res = client.post("/v1/observatory/arena/run", json={"pin": PIN})
+    assert res.status_code == 409 and res.json()["detail"] == status["blocked_reason"]
+
+
+def test_status_blocked_without_frozen_ktib(api, monkeypatch) -> None:
     client, _ = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is False
+    assert "시험지" in status["blocked_reason"]
+    res = client.post("/v1/observatory/arena/run", json={"pin": PIN})
+    assert res.status_code == 409 and "시험지" in res.json()["detail"]
+
+
+def test_status_runnable_with_real_provider_and_ktib(api, monkeypatch) -> None:
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    _freeze_ktib(db)
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is True and status["blocked_reason"] is None
+
+
+def test_start_runs_job_and_clears_state(api, monkeypatch) -> None:
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    _freeze_ktib(db)  # 사전 판정: 동결 시험지 필요
     calls: list[str] = []
 
     def fake_execute() -> None:  # 실 채점 대신 — 완료 상태 전이만 재현
@@ -81,8 +123,9 @@ def test_start_runs_job_and_clears_state(api, monkeypatch) -> None:
 
 
 def test_double_start_conflicts(api, monkeypatch) -> None:
-    client, _ = api
+    client, db = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    _freeze_ktib(db)  # 사전 판정 통과 후 '이미 실행 중' 가드가 잡혀야 한다
     with arena_ops._lock:
         arena_ops._state.update(running=True, started_at=datetime.now(UTC).isoformat())
     res = client.post("/v1/observatory/arena/run", json={"pin": PIN})

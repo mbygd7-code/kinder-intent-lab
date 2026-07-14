@@ -46,6 +46,22 @@ def _pin() -> str:
     return os.environ.get("ARENA_PIN", "2341")
 
 
+def _blocked_reason(session: Session) -> str | None:
+    """채점을 시작할 수 없는 이유(사전 판정) — 버튼 비활성 안내와 409 가드가 같은 문구를 쓴다.
+
+    None이면 실행 가능. 순서: provider(환경) → 시험지(데이터). 실행 중 여부는 별도 상태다.
+    """
+    provider = (os.environ.get("LLM_PROVIDER") or "mock").lower()
+    if provider in _MOCK_PROVIDERS:
+        return (
+            "LLM_PROVIDER가 mock이라 채점하지 않아요 — 가짜 응답으로 매긴 점수는 "
+            "무의미해서 기록을 오염시켜요. 서버 .env에 실 provider를 설정하세요."
+        )
+    if latest_ktib(session) is None:
+        return "동결된 시험지가 아직 없어요 — 시험지 검수에서 문항을 등록하면 채점할 수 있어요."
+    return None
+
+
 def _embed_fn():
     client = get_embedding_client()
     model = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
@@ -99,19 +115,22 @@ class ArenaStatusOut(BaseModel):
     started_at: str | None
     error: str | None
     last_run: LastRunOut | None  # DB 원천 — 현행 뇌의 최신 brain run
+    # 사전 판정 — 버튼이 미리 비활성(회색)으로 안내할 수 있게 (409 가드와 같은 문구)
+    runnable: bool = True
+    blocked_reason: str | None = None
 
 
 @router.post("/arena/run", response_model=ArenaStartOut, status_code=202)
-def start_arena_run(payload: ArenaRunIn, background: BackgroundTasks) -> ArenaStartOut:
+def start_arena_run(
+    payload: ArenaRunIn,
+    background: BackgroundTasks,
+    session: Session = Depends(get_session),
+) -> ArenaStartOut:
     if not hmac.compare_digest(payload.pin, _pin()):
         raise HTTPException(status_code=401, detail="비밀번호가 달라요")
-    provider = (os.environ.get("LLM_PROVIDER") or "mock").lower()
-    if provider in _MOCK_PROVIDERS:
-        raise HTTPException(
-            status_code=409,
-            detail="LLM_PROVIDER가 mock이라 채점하지 않아요 — 가짜 응답으로 매긴 점수는 "
-                   "무의미해서 기록을 오염시켜요. 서버 .env에 실 provider를 설정하세요.",
-        )
+    reason = _blocked_reason(session)  # 사전 판정과 동일 문구 — 우회 요청도 같은 벽(방어 이중화)
+    if reason is not None:
+        raise HTTPException(status_code=409, detail=reason)
     with _lock:
         if _state["running"]:
             raise HTTPException(status_code=409, detail="이미 채점이 실행 중이에요")
@@ -147,9 +166,12 @@ def arena_status(session: Session = Depends(get_session)) -> ArenaStatusOut:
         )
     with _lock:
         snapshot = dict(_state)
+    reason = _blocked_reason(session)
     return ArenaStatusOut(
         running=snapshot["running"],
         started_at=snapshot["started_at"],
         error=snapshot["error"],
         last_run=last,
+        runnable=reason is None,
+        blocked_reason=reason,
     )

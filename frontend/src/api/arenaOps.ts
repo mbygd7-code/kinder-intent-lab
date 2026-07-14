@@ -17,6 +17,9 @@ export interface ArenaStatus {
   started_at: string | null
   error: string | null
   last_run: ArenaLastRun | null
+  /** 사전 판정 — false면 버튼이 회색으로 서고 blocked_reason을 안내한다 (구 서버 응답엔 부재) */
+  runnable?: boolean
+  blocked_reason?: string | null
 }
 
 export async function startArenaRun(pin: string): Promise<string> {
