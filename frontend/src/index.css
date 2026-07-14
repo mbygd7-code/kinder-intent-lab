@@ -1094,9 +1094,10 @@ body {
 /* run 타임라인 */
 .dash-axis-note { margin-bottom: 0.5rem; }
 .viz-runchart { width: 100%; height: auto; max-width: 100%; }
-.viz-axis-text { fill: var(--muted); font-size: 0.6rem; font-family: ui-monospace, Consolas, monospace; }
-.viz-target-text { fill: rgba(232, 241, 255, 0.6); font-size: 0.62rem; }
-.viz-pt-label { fill: var(--fg); font-size: 0.64rem; font-family: ui-monospace, Consolas, monospace; }
+/* 차트 글자 — 직원이 서서 봐도 읽히게 (2026-07-14 확대) */
+.viz-axis-text { fill: var(--muted); font-size: 0.8rem; font-family: ui-monospace, Consolas, monospace; }
+.viz-target-text { fill: rgba(232, 241, 255, 0.75); font-size: 0.84rem; font-weight: 700; }
+.viz-pt-label { fill: var(--fg); font-size: 0.9rem; font-weight: 700; font-family: ui-monospace, Consolas, monospace; }
 .dash-run-list { list-style: none; margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.45rem; }
 .dash-run-row { border-top: 1px solid rgba(90, 120, 190, 0.16); padding-top: 0.45rem; }
 .dash-run-head { display: flex; align-items: baseline; gap: 0.7rem; }

@@ -14,31 +14,41 @@ function DeltaBadge({ delta }: { delta: number | null }) {
     return (
       <span
         className="dash-delta dash-dim"
-        title="비교할 직전 run이 없어요 — 0이 아니라 '측정 전'이라는 뜻이에요."
+        title="비교할 이전 점수가 없어요 — 0이 아니라 '처음'이라는 뜻이에요."
       >
-        — 기준 없음
+        첫 채점
       </span>
     )
-  const title = '직전 채점 대비 전체 정확도 변화(퍼센트포인트)예요.'
+  const title = '바로 전 채점과 비교해 점수가 얼마나 변했는지예요.'
   if (delta > 0)
-    return <span className="dash-delta dash-delta-up" title={title}>▲ +{delta.toFixed(1)}pp</span>
+    return <span className="dash-delta dash-delta-up" title={title}>▲ +{delta.toFixed(1)}%p 올랐어요</span>
   if (delta < 0)
-    return <span className="dash-delta dash-delta-down" title={title}>▼ {delta.toFixed(1)}pp</span>
-  return <span className="dash-delta" title={title}>± 0.0pp</span>
+    return <span className="dash-delta dash-delta-down" title={title}>▼ {delta.toFixed(1)}%p 내렸어요</span>
+  return <span className="dash-delta" title={title}>변화 없음</span>
 }
 
-function RunRow({ run }: { run: RunPoint }) {
+/** "7월 14일 19:20" — 코드형 run id 대신 사람이 읽는 시각 라벨 */
+function runTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function RunRow({ run, seq }: { run: RunPoint; seq: number }) {
   const inflow = run.inflow_since_prev
   return (
     <li className="dash-run-row">
       <div className="dash-run-head">
-        <span className="dash-run-id">{run.run_id}</span>
+        {/* run id는 코드 냄새라 감춘다 — 추적이 필요한 운영자는 툴팁으로 */}
+        <span className="dash-run-id" title={`기록 번호: ${run.run_id}`}>
+          {seq}번째 채점 · {runTime(run.created_at)}
+        </span>
         <span
           className="dash-run-acc"
           title={
             run.accuracy == null
-              ? '이 run은 정확도가 기록되지 않았어요 — 0이 아니라 미측정이에요.'
-              : `이 채점 run에서 뇌가 첫 시도에 맞힌 비율이에요 (문항 ${run.item_count ?? '—'}개 기준).`
+              ? '이 채점은 점수가 기록되지 않았어요 — 0이 아니라 미측정이에요.'
+              : `${run.item_count ?? '—'}문항 중 뇌가 첫 시도에 맞힌 비율이에요.`
           }
         >
           {run.accuracy == null ? '—' : `${(run.accuracy * 100).toFixed(1)}%`}
@@ -48,26 +58,26 @@ function RunRow({ run }: { run: RunPoint }) {
       <div className="dash-run-detail">
         {inflow ? (
           <span className="dash-card-sub">
-            직전 run 이후 유입: 공부 +{inflow.train_episodes} · GOLD +{inflow.gold} · 시험문항 +
-            {inflow.benchmark_episodes}
+            이 채점 전에 새로 들어온 것: 공부 {inflow.train_episodes}건 · 사람검증(GOLD){' '}
+            {inflow.gold}건 · 시험문항 {inflow.benchmark_episodes}건
           </span>
         ) : (
-          <span className="dash-card-sub dash-dim">첫 run — 비교 대상 없음</span>
+          <span className="dash-card-sub dash-dim">첫 채점이에요 — 비교할 이전 점수가 없어요</span>
         )}
         {run.region_regressions.length > 0 && (
           <span
             className="dash-chip dash-chip-warn"
-            title="직전 채점보다 평균 정확도가 내려간 뇌 영역이에요 — 그 영역의 데이터를 보강할 신호예요."
+            title="바로 전 채점보다 평균 점수가 내려간 뇌 영역이에요 — 그 영역을 보강하라는 신호예요."
           >
-            영역 하락: {run.region_regressions.join(', ')}
+            내려간 영역: {run.region_regressions.join(', ')}
           </span>
         )}
         {run.critical_worse.length > 0 && (
           <span
             className="dash-chip dash-chip-danger"
-            title="직전 채점보다 정확도가 떨어진 CRITICAL(되돌릴 수 없는 행동) 의도 수예요 — 안전 게이트 통과를 막는 가장 급한 신호예요."
+            title="바로 전 채점보다 점수가 떨어진 위험 의도(학부모 전송·출결·삭제처럼 되돌릴 수 없는 것) 수예요 — 가장 급한 신호예요."
           >
-            위험 의도 악화: {run.critical_worse.length}건
+            위험 의도 나빠짐: {run.critical_worse.length}건
           </span>
         )}
       </div>
@@ -83,7 +93,7 @@ export function RunTimeline({ data }: { data: Dashboard }) {
     <section aria-label="성능과 귀속">
       <div className="dash-section-head">
         <h2 className="dash-section-title">
-          PERFORMANCE <span>성능 & 귀속 — 무엇이 들어와 무엇이 변했나</span>
+          PERFORMANCE <span>시험 점수 변화 — 무엇을 배워서 얼마나 올랐나</span>
         </h2>
         {perf.runs.length > 0 && <ArenaRunButton />}
       </div>
@@ -92,9 +102,9 @@ export function RunTimeline({ data }: { data: Dashboard }) {
         <div className="dash-card dash-empty dash-has-pop">
           <p className="dash-empty-title">아직 채점 전이에요</p>
           <p className="dash-card-sub">
-            시험지 {sb.ktib_registered_total}문항이 준비되어 있어요. 운영자가 채점(Arena)을
-            실행하면 여기에 첫 점수가 그려지고, 두 번째 채점부터는 "그 사이 들어온 데이터가
-            점수를 어떻게 바꿨는지"가 나란히 표시됩니다.
+            시험지 {sb.ktib_registered_total}문항이 준비되어 있어요. 채점을 실행하면 여기에
+            첫 점수가 그려지고, 두 번째 채점부터는 "그 사이 배운 것이 점수를 얼마나
+            올렸는지"가 나란히 표시돼요.
           </p>
           <div className="dash-actions">
             <button type="button" className="dash-btn dash-btn-primary" onClick={openReview}>
@@ -105,20 +115,22 @@ export function RunTimeline({ data }: { data: Dashboard }) {
         </div>
       ) : (
         <div className="dash-card">
-          <div className="dash-card-sub dash-axis-note">
-            같은 시험지({perf.axis?.ktib_version}) · 같은 뇌({perf.axis?.model_version}) 축의
-            run만 비교합니다 — 유입 증분은 도착 시각 기준 근사예요.
+          <div
+            className="dash-card-sub dash-axis-note"
+            title={`같은 시험지(${perf.axis?.ktib_version})로 같은 뇌(${perf.axis?.model_version})를 잰 기록만 비교해요. "새로 들어온 것" 개수는 도착 시각 기준이라 약간의 오차가 있을 수 있어요.`}
+          >
+            같은 시험지로 같은 뇌를 반복해서 잰 점수예요 — 공정한 비교를 위해서예요.
           </div>
           <RunChart runs={perf.runs} target={cfg.first_intent_accuracy_target} />
           {!perf.attribution_ready && (
             <p className="dash-empty-note">
-              귀속 측정 전 — 같은 시험지로 <strong>두 번 이상</strong> 채점해야 상승·하락의
-              원인을 붙일 수 있어요.
+              같은 시험지로 <strong>두 번 이상</strong> 채점해야 "무엇 때문에 오르내렸는지"를
+              붙일 수 있어요.
             </p>
           )}
           <ul className="dash-run-list">
-            {[...perf.runs].reverse().map((r) => (
-              <RunRow key={r.run_id} run={r} />
+            {[...perf.runs].reverse().map((r, i) => (
+              <RunRow key={r.run_id} run={r} seq={perf.runs.length - i} />
             ))}
           </ul>
         </div>

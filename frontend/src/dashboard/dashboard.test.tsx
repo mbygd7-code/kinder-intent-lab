@@ -70,8 +70,8 @@ describe('DashboardView — 정직한 빈 상태', () => {
       },
     }))
     render(<DashboardView />)
-    expect(await screen.findByText(/귀속 측정 전/)).toBeTruthy()
-    expect(screen.getByText(/— 기준 없음/)).toBeTruthy() // 첫 run delta는 0이 아니라 '없음'
+    expect(await screen.findByText('두 번 이상')).toBeTruthy()
+    expect(screen.getAllByText(/첫 채점/).length).toBeGreaterThanOrEqual(1) // delta는 0이 아니라 '처음'
   })
 })
 

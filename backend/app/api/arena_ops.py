@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.arena.ktib import latest_ktib
@@ -32,6 +32,7 @@ from app.core.db import get_session, open_session
 from app.llm.base import EmbeddingRequest
 from app.llm.client import get_embedding_client, get_llm_client
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
+from app.models.episodes import Episode, Evidence
 
 router = APIRouter(prefix="/v1/observatory", tags=["observatory"])
 
@@ -46,10 +47,24 @@ def _pin() -> str:
     return os.environ.get("ARENA_PIN", "2341")
 
 
+def _latest_brain_run(session: Session) -> ArenaRun | None:
+    """현행 뇌의 최신 brain run — 상태 표시와 사전 판정이 공유한다."""
+    return session.scalar(
+        select(ArenaRun)
+        .where(
+            ArenaRun.run_type == RUN_TYPE_BRAIN,
+            ArenaRun.model_version == current_brain_version(session),
+        )
+        .order_by(ArenaRun.created_at.desc())
+        .limit(1)
+    )
+
+
 def _blocked_reason(session: Session) -> str | None:
     """채점을 시작할 수 없는 이유(사전 판정) — 버튼 비활성 안내와 409 가드가 같은 문구를 쓴다.
 
-    None이면 실행 가능. 순서: provider(환경) → 시험지(데이터). 실행 중 여부는 별도 상태다.
+    None이면 실행 가능. 순서: provider(환경) → 시험지(데이터) → 새 유입(경제성).
+    실행 중 여부는 별도 상태다.
     """
     provider = (os.environ.get("LLM_PROVIDER") or "mock").lower()
     if provider in _MOCK_PROVIDERS:
@@ -57,8 +72,23 @@ def _blocked_reason(session: Session) -> str | None:
             "LLM_PROVIDER가 mock이라 채점하지 않아요 — 가짜 응답으로 매긴 점수는 "
             "무의미해서 기록을 오염시켜요. 서버 .env에 실 provider를 설정하세요."
         )
-    if latest_ktib(session) is None:
+    ktib = latest_ktib(session)
+    if ktib is None:
         return "동결된 시험지가 아직 없어요 — 시험지 검수에서 문항을 등록하면 채점할 수 있어요."
+    # 같은 시험지·같은 뇌로 그 사이 배운 것이 없으면 점수는 그대로다 — 호출 비용만 나간다
+    # (2026-07-14 실측: 유입 0 재채점 → 동일 0.0%). 시험지가 바뀌었으면 다시 잴 가치가 있다.
+    last = _latest_brain_run(session)
+    if last is not None and last.ktib_version == ktib.ktib_version:
+        new_rows = session.scalar(
+            select(func.count()).select_from(Episode).where(Episode.created_at > last.created_at)
+        ) + session.scalar(
+            select(func.count()).select_from(Evidence).where(Evidence.created_at > last.created_at)
+        )
+        if not new_rows:
+            return (
+                "지난 채점 이후 새로 배운 것이 없어요 — 점수가 그대로라 다시 잴 이유가 없어요. "
+                "공부(즉석 문답·강화하기)나 시험 문항을 추가하면 버튼이 다시 켜져요."
+            )
     return None
 
 
@@ -146,15 +176,7 @@ def start_arena_run(
 
 @router.get("/arena/status", response_model=ArenaStatusOut)
 def arena_status(session: Session = Depends(get_session)) -> ArenaStatusOut:
-    run = session.scalar(
-        select(ArenaRun)
-        .where(
-            ArenaRun.run_type == RUN_TYPE_BRAIN,
-            ArenaRun.model_version == current_brain_version(session),
-        )
-        .order_by(ArenaRun.created_at.desc())
-        .limit(1)
-    )
+    run = _latest_brain_run(session)
     last = None
     if run is not None:
         metrics = run.metrics or {}

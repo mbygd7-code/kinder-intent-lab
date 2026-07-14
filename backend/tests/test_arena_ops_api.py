@@ -102,6 +102,78 @@ def test_status_runnable_with_real_provider_and_ktib(api, monkeypatch) -> None:
     assert status["runnable"] is True and status["blocked_reason"] is None
 
 
+def _brain_run(db, *, ktib_version: str, hours_ago: int = 1) -> None:
+    """현행 뇌(seed-v0)의 완료된 채점 run — '새 유입' 판정의 기준 시각."""
+    from datetime import timedelta
+
+    db.add(ArenaRun(
+        run_id=f"AR_{uuid.uuid4().hex[:8]}", model_version="seed-v0",
+        ontology_version="onto-test", persona_state_version=NO_PERSONA_STATE,
+        extractor_versions={}, ktib_version=ktib_version, run_type=RUN_TYPE_BRAIN,
+        metrics={"first_intent_accuracy": 0.0, "item_count": 1},
+        created_at=datetime.now(UTC) - timedelta(hours=hours_ago),
+    ))
+    db.flush()
+
+
+def test_blocked_when_nothing_new_since_last_run(api, monkeypatch) -> None:
+    """유입 0 재채점은 같은 점수에 비용만 낸다(실측) — 회색+안내로 막는다."""
+    from app.models.arena import KtibVersion as KV
+
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    db.add(KV(ktib_version="ktib-same", seq=1, extractor_versions={},
+              episode_count=1, content_hash=f"h-{uuid.uuid4().hex}"))
+    db.flush()
+    _brain_run(db, ktib_version="ktib-same")
+
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is False and "새로 배운 것이 없어요" in status["blocked_reason"]
+    res = client.post("/v1/observatory/arena/run", json={"pin": PIN})
+    assert res.status_code == 409 and res.json()["detail"] == status["blocked_reason"]
+
+
+def test_new_training_data_reenables_grading(api, monkeypatch) -> None:
+    from app.models.arena import KtibVersion as KV
+    from app.models.episodes import Episode
+
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    db.add(KV(ktib_version="ktib-same", seq=1, extractor_versions={},
+              episode_count=1, content_hash=f"h-{uuid.uuid4().hex}"))
+    db.flush()
+    _brain_run(db, ktib_version="ktib-same")
+    # run 이후 새 공부 데이터 1건 — 다시 잴 이유가 생겼다
+    db.add(Episode(
+        episode_id=f"EP_new_{uuid.uuid4().hex[:8]}", ontology_version="onto-test",
+        lang="ko", dataset_split="TRAIN", origin_channel="GYM_HUMAN",
+        episode_creator_type="GYM_SESSION", primary_subject_type="TEACHER",
+        teacher_prompt="새로 배운 발화", label_distribution={},
+    ))
+    db.flush()
+
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is True and status["blocked_reason"] is None
+
+
+def test_new_frozen_exam_reenables_grading(api, monkeypatch) -> None:
+    """시험지가 새로 동결되면(문항 추가) 유입 0이어도 다시 잴 가치가 있다."""
+    from app.models.arena import KtibVersion as KV
+
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    db.add(KV(ktib_version="ktib-old", seq=1, extractor_versions={},
+              episode_count=1, content_hash=f"h-{uuid.uuid4().hex}"))
+    db.flush()
+    _brain_run(db, ktib_version="ktib-old")
+    db.add(KV(ktib_version="ktib-new", seq=2, extractor_versions={},
+              episode_count=2, content_hash=f"h-{uuid.uuid4().hex}"))
+    db.flush()
+
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is True and status["blocked_reason"] is None
+
+
 def test_start_runs_job_and_clears_state(api, monkeypatch) -> None:
     client, db = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
