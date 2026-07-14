@@ -79,6 +79,16 @@ describe('DashboardView — 기준선은 payload.config 원천 (하드코딩 회
     expect(await screen.findByText(/의도당 42문항/)).toBeTruthy()
     expect(screen.queryByText(/의도당 30문항/)).toBeNull()
   })
+
+  it('위험 배지에 호버 설명(title)이 있고 하한도 config 값을 쓴다', async () => {
+    const payload = makeDashboard()
+    payload.config = { ...payload.config, critical_surface_min_items: 42 }
+    stubDashboard(payload)
+    render(<DashboardView />)
+    const badge = (await screen.findAllByText('위험'))[0] as HTMLElement
+    expect(badge.getAttribute('title')).toMatch(/되돌릴 수 없는/)
+    expect(badge.getAttribute('title')).toMatch(/42문항/)
+  })
 })
 
 describe('DashboardView — 액션은 기존 흐름 연결', () => {

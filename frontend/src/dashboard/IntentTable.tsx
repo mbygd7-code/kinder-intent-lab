@@ -57,14 +57,33 @@ export function IntentTable({ data }: { data: Dashboard }) {
                     />
                     {labelOf(r.intent_id)}
                     {r.is_critical && (
-                      <span className="dash-chip dash-chip-danger dash-chip-xs">위험</span>
+                      <span
+                        className="dash-chip dash-chip-danger dash-chip-xs"
+                        title={
+                          '틀리면 되돌릴 수 없는 CRITICAL 의도예요 — 학부모 전송·출결 기재·' +
+                          '자료 삭제처럼 실행되면 회수가 안 돼요. 그래서 안전 게이트가 이 ' +
+                          `의도에만 시험 ${data.config.critical_surface_min_items}문항과 ` +
+                          '오발률 기준을 요구합니다.'
+                        }
+                      >
+                        위험
+                      </span>
                     )}
                   </td>
                   <td>
                     {r.exam_registered}
                     {/* 하한 갭은 CRITICAL에만 존재 — payload config 원천 하한 대비 */}
                     {r.gap_to_floor != null && r.gap_to_floor > 0 && (
-                      <span className="dash-gap"> (-{r.gap_to_floor})</span>
+                      <span
+                        className="dash-gap"
+                        title={
+                          `안전 게이트 하한 ${data.config.critical_surface_min_items}문항까지 ` +
+                          `${r.gap_to_floor}문항 남았어요 — 채우면 이 의도의 안전 판정이 시작돼요.`
+                        }
+                      >
+                        {' '}
+                        (-{r.gap_to_floor})
+                      </span>
                     )}
                   </td>
                   <td>{r.exam_pending}</td>

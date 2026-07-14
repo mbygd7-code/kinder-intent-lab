@@ -49,7 +49,11 @@ export function Scoreboard({ data }: { data: Dashboard }) {
               : '뇌 상태 미연결'
             : '공식 시험(KTIB) 기준'}
         </p>
-        {stageLabel != null && <span className="dash-chip">{stageLabel}</span>}
+        {stageLabel != null && (
+          <span className="dash-chip" title="성장 단계 — 시험(채점) 결과로만 바뀌어요">
+            {stageLabel}
+          </span>
+        )}
       </article>
 
       {/* 시험지 — 등록 문항 + CRITICAL 게이트 진척 */}
@@ -67,7 +71,14 @@ export function Scoreboard({ data }: { data: Dashboard }) {
                 : '동결된 시험지 없음'}
             </p>
           </div>
-          <div className="dash-gauge-wrap">
+          <div
+            className="dash-gauge-wrap"
+            title={
+              '되돌릴 수 없는 행동(학부모 전송·출결·삭제 등) 의도 ' +
+              `${sb.critical_total}개 중 시험 ${cfg.critical_surface_min_items}문항을 채운 수예요. ` +
+              '전부 채워야 안전 게이트가 판정을 시작해요.'
+            }
+          >
             <RadialGauge value={sb.critical_met} max={sb.critical_total} />
             <span className="dash-gauge-caption">
               위험 의도 게이트

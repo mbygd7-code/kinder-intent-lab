@@ -9,10 +9,21 @@ import { useBrainStore } from '../brain3d/store'
 import { RunChart } from './viz/RunChart'
 
 function DeltaBadge({ delta }: { delta: number | null }) {
-  if (delta == null) return <span className="dash-delta dash-dim">— 기준 없음</span>
-  if (delta > 0) return <span className="dash-delta dash-delta-up">▲ +{delta.toFixed(1)}pp</span>
-  if (delta < 0) return <span className="dash-delta dash-delta-down">▼ {delta.toFixed(1)}pp</span>
-  return <span className="dash-delta">± 0.0pp</span>
+  if (delta == null)
+    return (
+      <span
+        className="dash-delta dash-dim"
+        title="비교할 직전 run이 없어요 — 0이 아니라 '측정 전'이라는 뜻이에요."
+      >
+        — 기준 없음
+      </span>
+    )
+  const title = '직전 채점 대비 전체 정확도 변화(퍼센트포인트)예요.'
+  if (delta > 0)
+    return <span className="dash-delta dash-delta-up" title={title}>▲ +{delta.toFixed(1)}pp</span>
+  if (delta < 0)
+    return <span className="dash-delta dash-delta-down" title={title}>▼ {delta.toFixed(1)}pp</span>
+  return <span className="dash-delta" title={title}>± 0.0pp</span>
 }
 
 function RunRow({ run }: { run: RunPoint }) {
@@ -36,12 +47,18 @@ function RunRow({ run }: { run: RunPoint }) {
           <span className="dash-card-sub dash-dim">첫 run — 비교 대상 없음</span>
         )}
         {run.region_regressions.length > 0 && (
-          <span className="dash-chip dash-chip-warn">
+          <span
+            className="dash-chip dash-chip-warn"
+            title="직전 채점보다 평균 정확도가 내려간 뇌 영역이에요 — 그 영역의 데이터를 보강할 신호예요."
+          >
             영역 하락: {run.region_regressions.join(', ')}
           </span>
         )}
         {run.critical_worse.length > 0 && (
-          <span className="dash-chip dash-chip-danger">
+          <span
+            className="dash-chip dash-chip-danger"
+            title="직전 채점보다 정확도가 떨어진 CRITICAL(되돌릴 수 없는 행동) 의도 수예요 — 안전 게이트 통과를 막는 가장 급한 신호예요."
+          >
             위험 의도 악화: {run.critical_worse.length}건
           </span>
         )}
