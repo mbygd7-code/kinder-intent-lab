@@ -1174,7 +1174,9 @@ body {
 .dash-actions .arena-msg { text-align: left; }
 
 /* --- 모션 --- */
-.dash-rise { animation: dash-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* fill은 backwards: 끝 상태는 기본 스타일과 같고, both로 두면 filled transform이
+   섹션마다 영구 쌓임 맥락을 만들어 카드 밖 PIN 팝오버가 다음 섹션에 깔린다 */
+.dash-rise { animation: dash-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 .viz-draw {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
