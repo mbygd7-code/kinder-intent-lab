@@ -24,7 +24,7 @@ function recentSum(s: Stream): number {
 }
 
 function StreamCard({
-  stream, title, sub, color, children, empty,
+  stream, title, sub, color, children, empty, tip,
 }: {
   stream: Stream
   title: string
@@ -33,6 +33,8 @@ function StreamCard({
   children?: React.ReactNode
   /** 총량 0일 때의 정직한 안내 문구 */
   empty?: string
+  /** 총량 숫자의 호버 설명 */
+  tip?: string
 }) {
   const recent = recentSum(stream)
   return (
@@ -48,9 +50,12 @@ function StreamCard({
         <div className="dash-card-row">
           <div>
             <div className="dash-stream-value">
-              <CountUp value={stream.total} suffix="건" />
+              <CountUp value={stream.total} suffix="건" tip={tip} />
             </div>
-            <p className="dash-card-sub">
+            <p
+              className="dash-card-sub"
+              title={`최근 ${stream.last_days.length}일 동안 새로 도착한 수예요 — 옆 선이 일별 흐름이에요.`}
+            >
               최근 {stream.last_days.length}일 <strong>+{recent}</strong>
             </p>
           </div>
@@ -80,6 +85,7 @@ export function InflowStreams({ data }: { data: Dashboard }) {
         <StreamCard
           stream={inflow.foundry} color={STREAM_COLOR.foundry}
           title="시나리오 공장" sub="컴퓨터 연습문제 · 자동 생성(낮은 등급)"
+          tip="컴퓨터가 자동으로 지어낸 연습문제가 지금까지 도착한 총량이에요 — 여러 AI의 교차 검토를 통과해야 저장되고, '컴퓨터 생성' 등급으로 낮게 취급돼요."
         >
           <button type="button" className="dash-btn" onClick={() => openHelp('study')}>
             공부 문항 보기
@@ -89,6 +95,7 @@ export function InflowStreams({ data }: { data: Dashboard }) {
         <StreamCard
           stream={inflow.human_teaching} color={STREAM_COLOR.human_teaching}
           title="선생님 가르침" sub="강화하기 · 즉석 문답(사람 확인 등급)"
+          tip="선생님이 강화하기·즉석 문답으로 직접 가르친 데이터의 총량이에요 — 답 하나하나가 뇌의 교과서가 되는, 가장 귀한 유입이에요."
         >
           {/* 즉석 문답은 라이브 추론 필요 — live에서만 (App 톱바와 동일 게이트) */}
           {dataSource === 'live' && (
@@ -106,6 +113,7 @@ export function InflowStreams({ data }: { data: Dashboard }) {
         <StreamCard
           stream={inflow.exam} color={STREAM_COLOR.exam}
           title="시험지" sub="사람 출제 · 2인 검수 · 등록 후 동결"
+          tip="시험지 금고에 등록된 문항의 총량이에요 — 뇌 실력을 재는 용도로만 쓰이고, 공부(훈련)에는 절대 쓰이지 않아요."
         >
           <button type="button" className="dash-btn dash-btn-primary" onClick={openReview}>
             📄 시험지 검수

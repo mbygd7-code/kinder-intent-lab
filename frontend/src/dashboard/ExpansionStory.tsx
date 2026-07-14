@@ -19,7 +19,11 @@ export function ExpansionStory({ data }: { data: Dashboard }) {
       <div className="dash-expansion-row">
         <div className="dash-stat">
           <div className="dash-stream-value">
-            <CountUp value={e.intent_count} suffix="개" />
+            <CountUp
+              value={e.intent_count}
+              suffix="개"
+              tip={`지금 뇌가 배우는 의도(과목) 수예요 — 사전(${e.ontology_version}) 기준. 아래 후보가 승격되면 늘어나요.`}
+            />
           </div>
           <span className="dash-card-sub">현재 배우는 의도</span>
         </div>
@@ -28,7 +32,11 @@ export function ExpansionStory({ data }: { data: Dashboard }) {
         </span>
         <div className="dash-stat">
           <div className="dash-stream-value">
-            <CountUp value={growing} suffix="건" />
+            <CountUp
+              value={growing}
+              suffix="건"
+              tip="새 의도(과목)가 될 후보예요 — 뇌가 못 알아들은 발화(미분류)와 즉석 문답의 '새 의도 제안'의 합. 사람 검토·승인을 거쳐야만 과목이 돼요."
+            />
           </div>
           <span className="dash-card-sub">
             자라는 중 — 미분류 발화 {e.unknown_pool} · 새 의도 후보 {e.atlas_queue_pending}
@@ -36,7 +44,11 @@ export function ExpansionStory({ data }: { data: Dashboard }) {
         </div>
         <div className="dash-stat">
           <div className="dash-stream-value">
-            <CountUp value={e.positive_examples_total} suffix="문장" />
+            <CountUp
+              value={e.positive_examples_total}
+              suffix="문장"
+              tip="의도마다 '이런 말 = 이 의도'를 보여주는 기준 예문의 총합이에요 — 강화하기 문제의 재료라서, 늘리면 훈련 문제도 늘어나요."
+            />
           </div>
           <span className="dash-card-sub">의도별 기준 예문(사전)</span>
         </div>

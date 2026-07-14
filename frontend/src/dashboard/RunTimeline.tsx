@@ -32,7 +32,14 @@ function RunRow({ run }: { run: RunPoint }) {
     <li className="dash-run-row">
       <div className="dash-run-head">
         <span className="dash-run-id">{run.run_id}</span>
-        <span className="dash-run-acc">
+        <span
+          className="dash-run-acc"
+          title={
+            run.accuracy == null
+              ? '이 run은 정확도가 기록되지 않았어요 — 0이 아니라 미측정이에요.'
+              : `이 채점 run에서 뇌가 첫 시도에 맞힌 비율이에요 (문항 ${run.item_count ?? '—'}개 기준).`
+          }
+        >
           {run.accuracy == null ? '—' : `${(run.accuracy * 100).toFixed(1)}%`}
         </span>
         <DeltaBadge delta={run.delta_pp} />

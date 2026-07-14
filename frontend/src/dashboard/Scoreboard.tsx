@@ -36,9 +36,19 @@ export function Scoreboard({ data }: { data: Dashboard }) {
         <header className="dash-card-label">ACCURACY · 실력</header>
         <div className="dash-hero-value">
           {ktib == null ? (
-            <span className="viz-num dash-dim">—%</span>
+            <span
+              className="viz-num dash-dim"
+              title="아직 시험(채점)을 본 적이 없어요 — 0%가 아니라 '측정 전'이에요. 시험지를 채우고 채점을 돌리면 여기 첫 점수가 생겨요."
+            >
+              —%
+            </span>
           ) : (
-            <CountUp value={ktib * 100} decimals={1} suffix="%" />
+            <CountUp
+              value={ktib * 100}
+              decimals={1}
+              suffix="%"
+              tip="공식 시험(KTIB)에서 뇌가 선생님 말뜻을 첫 시도에 맞힌 비율이에요 — 목표는 80%."
+            />
           )}
         </div>
         <p className="dash-card-sub">
@@ -62,7 +72,11 @@ export function Scoreboard({ data }: { data: Dashboard }) {
         <div className="dash-card-row">
           <div>
             <div className="dash-hero-value">
-              <CountUp value={sb.ktib_registered_total} suffix="문항" />
+              <CountUp
+                value={sb.ktib_registered_total}
+                suffix="문항"
+                tip="사람이 출제하고 2인 검수를 통과해 등록된 시험 문항 수예요 — 뇌 실력을 재는 '자'이고, 공부용 데이터와는 절대 겹치지 않아요."
+              />
             </div>
             <p className="dash-card-sub">
               검수 중 {sb.ktib_pending_total} ·{' '}
@@ -93,7 +107,11 @@ export function Scoreboard({ data }: { data: Dashboard }) {
       <article className="dash-card">
         <header className="dash-card-label">TRAINING · 공부 데이터</header>
         <div className="dash-hero-value">
-          <CountUp value={sb.train_total} suffix="건" />
+          <CountUp
+            value={sb.train_total}
+            suffix="건"
+            tip="뇌가 공부하는 연습 데이터(문장+상황+정답) 수예요 — 공부하면 점이 커지고, 점수(빛)는 시험에서만 바뀌어요."
+          />
         </div>
         <p className="dash-card-sub">
           GOLD(2인 검증) {sb.gold_total} · 목표 의도당 {cfg.gold_low_threshold}
@@ -111,7 +129,11 @@ export function Scoreboard({ data }: { data: Dashboard }) {
       <article className="dash-card">
         <header className="dash-card-label">HUMAN · 사람 가르침</header>
         <div className="dash-hero-value">
-          <CountUp value={humanTotal} suffix="건" />
+          <CountUp
+            value={humanTotal}
+            suffix="건"
+            tip="사람 손을 거친 가르침의 합이에요 — 선생님이 확인·교정한 답 + 2인 검증 GOLD + 전문가 데이터. 컴퓨터 생성보다 훨씬 귀하게 취급돼요."
+          />
         </div>
         <p className="dash-card-sub">
           사람 확인 {sb.human_evidence.human_confirmed ?? 0} · GOLD{' '}

@@ -15,9 +15,11 @@ interface Props {
   duration?: number
   /** 표기 접미(%, 개 등) — 숫자와 같은 톤으로 뒤에 붙는다 */
   suffix?: string
+  /** 호버 설명(title) — "이 숫자가 뭘 세는지"를 쉬운 말로 */
+  tip?: string
 }
 
-export function CountUp({ value, decimals = 0, duration = 800, suffix = '' }: Props) {
+export function CountUp({ value, decimals = 0, duration = 800, suffix = '', tip }: Props) {
   const [display, setDisplay] = useState(() => (motionOff() ? value : 0))
   const [flash, setFlash] = useState(false)
   const displayRef = useRef(motionOff() ? value : 0)
@@ -61,7 +63,7 @@ export function CountUp({ value, decimals = 0, duration = 800, suffix = '' }: Pr
   }, [value, duration])
 
   return (
-    <span className={`viz-num${flash ? ' viz-num-flash' : ''}`}>
+    <span className={`viz-num${flash ? ' viz-num-flash' : ''}`} title={tip}>
       {display.toLocaleString('ko-KR', {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,

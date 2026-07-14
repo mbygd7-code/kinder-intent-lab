@@ -35,13 +35,19 @@ export function IntentTable({ data }: { data: Dashboard }) {
         <table className="help-table dash-table">
           <thead>
             <tr>
-              <th>의도</th>
-              <th>시험 등록</th>
-              <th>검수 중</th>
-              <th>공부</th>
-              <th>GOLD</th>
-              <th>예문</th>
-              <th>정확도</th>
+              <th title="뇌가 배우는 과목 — 색 점은 소속 영역이에요">의도</th>
+              <th title="2인 검수를 통과해 시험지에 등록된 문항 수 — 이 의도를 잴 수 있는 '자'의 크기예요">
+                시험 등록
+              </th>
+              <th title="작성됐지만 아직 2차 검수를 기다리는 문항 수예요">검수 중</th>
+              <th title="이 의도의 연습 데이터(공부) 수예요 — 공부하면 3D의 점이 커져요">공부</th>
+              <th title="두 사람이 따로 검토해 일치한 검증 데이터 수예요 — 0이면 아직 검수 전(고장 아님)">
+                GOLD
+              </th>
+              <th title="사전의 기준 예문 수 — 강화하기 문제의 재료예요">예문</th>
+              <th title="마지막 채점에서 이 의도의 정답률 — '—'는 0%가 아니라 아직 안 잰 것이에요">
+                정확도
+              </th>
             </tr>
           </thead>
           <tbody>
