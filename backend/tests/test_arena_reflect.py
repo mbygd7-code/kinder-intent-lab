@@ -290,6 +290,12 @@ def test_baseline_run_does_not_leak_into_ktib_global(api, db_session) -> None:
     assert body["brain_stage"] == 0
 
 
+def _above_target() -> float:
+    """Stage 5(목표 도달) 케이스용 — 현행 목표 바로 위 값 (목표 개정에 면역)."""
+    from app.core.config import get_config
+    return round(min(get_config().arena.first_intent_accuracy_target + 0.01, 1.0), 4)
+
+
 def test_brain_run_sets_ktib_global(api, db_session) -> None:
     db_session.add(KtibVersion(ktib_version="ktib-1", seq=1, extractor_versions={},
                                episode_count=1, content_hash="h1"))
@@ -297,11 +303,13 @@ def test_brain_run_sets_ktib_global(api, db_session) -> None:
     db_session.add(ArenaRun(
         run_id="AR_brain", model_version="seed-v0", ontology_version="onto-1.0",
         persona_state_version="none", extractor_versions={}, ktib_version="ktib-1",
-        run_type=RUN_TYPE_BRAIN, metrics={"first_intent_accuracy": 0.81}, confusion_matrix=[],
+        run_type=RUN_TYPE_BRAIN,
+        metrics={"first_intent_accuracy": _above_target()},  # 목표 상대 — 목표 개정에 면역
+        confusion_matrix=[],
     ))
     db_session.flush()
     body = api.get("/v1/observatory/brain").json()
-    assert body["ktib_global"] == 0.81
+    assert body["ktib_global"] == _above_target()
     assert body["brain_stage"] == 5 and body["brain_stage_name"] == "Whole Brain Resonance"
 
 

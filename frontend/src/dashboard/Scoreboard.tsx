@@ -47,7 +47,7 @@ export function Scoreboard({ data }: { data: Dashboard }) {
               value={ktib * 100}
               decimals={1}
               suffix="%"
-              tip="공식 시험(KTIB)에서 뇌가 선생님 말뜻을 첫 시도에 맞힌 비율이에요 — 목표는 80%."
+              tip={`공식 시험(KTIB)에서 뇌가 선생님 말뜻을 첫 시도에 맞힌 비율이에요 — 목표는 ${(cfg.first_intent_accuracy_target * 100).toFixed(0)}%.`}
             />
           )}
         </div>

@@ -34,7 +34,7 @@ def _empty(db_session):
 def _healthy_metrics(**over) -> dict:
     """네 레그를 전부 통과하는 metrics (표본 하한도 만족)."""
     m = {
-        "first_intent_accuracy": 0.85,
+        "first_intent_accuracy": round(min(TARGET + 0.01, 1.0), 4),  # 목표 상대 — 목표 개정에 면역
         "recovery": {"rate": 0.9, "numerator": 27, "denominator": 30},
         "critical": {
             "cwar_fire": 0.0, "cwar_fire_n": 40, "cwar_fire_wrong": 0,

@@ -125,7 +125,7 @@ arena:
   ood_score_threshold: 0.25       # OOD 판정 (전 후보 score 미만)
   ece_bins: 10                    # calibration ECE 등간격 신뢰도 버킷 수 (§8-2 calibration)
   confusion_confirm_min: 3        # arena 오답이 이 횟수 이상인 pair만 edge state=confirmed (§5-6)
-  first_intent_accuracy_target: 0.80  # §10-2 KTIB 1차 목표 — zero-shot 베이스라인 후 재확정 대상
+  first_intent_accuracy_target: 0.96  # §10-2 KTIB 목표 — zero-shot 88.1% 실측 위에서 재확정(v1.4, 2026-07-14 운영자 승인). Stage 5 기준도 이 값을 재사용
   # §6-6 promote의 'critical 악화 없음' 대상 + CWAR 집합. seeds/risk_model_v1.yaml(rm-1.0)에서
   # 파생되며 validate_schemas.py가 정합을 강제한다 — 여기를 비우면 게이트가 조용히 무력화된다.
   critical_intents:

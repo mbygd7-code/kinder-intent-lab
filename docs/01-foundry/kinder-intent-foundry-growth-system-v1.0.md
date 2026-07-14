@@ -1,8 +1,8 @@
-# Kinder Intent Brain Foundry & Growth System v1.3
+# Kinder Intent Brain Foundry & Growth System v1.4
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | DRAFT v1.3 |
+| 상태 | DRAFT v1.4 |
 | 지위 | **Kinder Intent Lab의 제1 설계 문서** — 킨더버스와 분리된 독립 실험실 설계 |
 | 범위 밖 | 킨더버스 **live rollout** API·서빙 (0%) → PARTIAL HOLD 문서 `/docs/06-runtime-integration/kinder-intent-runtime-spec-v0.1.md`(v0.2). 단, **Shadow 0a(Distribution Capture)/0b(Shadow Inference)는 거버넌스 조건 충족 시 조기 병행 가능**(동 문서 §2) — 실사용 언어가 Atlas·OOD 검증에 조기 공급되는 플라이휠 |
 | 후속 문서 | ② 어노테이션 가이드 · ③ 위험 등급표 + 지표 정의 |
@@ -11,6 +11,7 @@
 
 | 버전 | 일자 | 변경 요약 |
 |---|---|---|
+| v1.4 | 2026-07-14 | **KTIB 목표 80% → 96% 상향 (운영자 승인).** ktib-2(185문항) 동결 후 §8-2 베이스라인 규칙에 따라 zero-shot(claude-sonnet-5) **88.1%**를 실측 — 베이스라인이 기존 목표를 넘어 목표가 변별력을 잃었다. `config.arena.first_intent_accuracy_target` 0.80→0.96. §7-6 Stage 5는 동일 값을 재사용하므로 동반 상향(목표가 둘이면 안 된다). 표기 갱신: §0-1 개요·범위 선언·§7-6 스테이지 표·§10-2 로드맵·문서 지도. §8-2 베이스라인 규칙 원문은 수치 제거(목표 확정 절차로 일반화) |
 | v1.3 | 2026-07-10 | **Phase 5 게이트 4결정 확정 (사용자 승인).** ① §7-6 Stage 판정을 `highest-satisfied-wins` 단조 사다리로 확정 — Stage 1~3 기준이 상호 배타적이지 않았다. ② §7-6 Stage 4를 **Semantic Cross-Region Flow**로 재정의: "인접 region"이 설계에 정의된 적 없고 공간 인접 그래프를 발명하지 않기로 하여, Arena가 실측하는 유일한 인접 신호인 **`state=confirmed` cross-region confusion edge**로 대체. "주요 confusion edge 감소 추세"는 동일 `ktib_version` 최근 `stages.cross_region_trend_window`개 brain run 윈도에서, **시작 run에 스냅샷된** 주요 다리(rate ≥ `cross_region_major_edge_min`) 평균 rate가 `cross_region_trend_min_drop` 이상 순감소하는 것으로 확정. 인접을 rate가 아니라 state로 잡아 "혼동이 줄면 인접이 사라져 Stage 4가 자기소멸"하는 결함을 제거. Stage 4는 읽기 시점 VIEW이며 `arena_runs`에 저장하지 않는다(run 이력 의존 → replay 비결정). ③ §6-6의 `critical intent`를 **Risk Model rm-1.0**(`seeds/risk_model_v1.yaml`)에서 파생 — 축 E(비가역 외부 유출)/D(비가역 파괴)/R(공식 등록부 오기재), CRITICAL 7종. 위험 등급은 intent의 *의미*가 아니라 *평가 정책*이므로 **온톨로지에 넣지 않는다**(넣으면 등급 개정마다 `arena_runs.ontology_version` replay 축이 churn). ④ §8-2가 문서 ③으로 미룬 지표를 확정: **1-Turn Recovery**(분모=clarify, 분자=gold ∈ top-2), **Persona Lift/Harm**(§5-5의 LLM-외 prior 곱셈을 재사용해 추가 LLM 호출 0; Arena는 persona_state를 변이하지 않고 비활성화를 *제안*만 — KTIB 수치의 추론 상태 역류 차단 §8-2), **CWAR 양방향**(fire = P(오발\|critical 커밋), miss = P(오인식\|정답이 critical)) + **Critical Commit Coverage** 하한. §10-2 부활 트리거를 이 4지표 게이트로 구체화. 네 지표는 전부 run 시점에 계산돼 `arena_runs.metrics`에 **동결**되고 게이트는 저장값만 읽는다(게이트 시점 재계산 시 config 편집만으로 과거 판정이 바뀌어 replay 붕괴). 미측정은 0%가 아니라 null이며, **critical 표면이 존재하는데 지표가 null이면 게이트 FAIL**(측정 못 한 안전은 안전이 아니다) |
 | v1.2 | 2026-07-08 | §3-4에 두 번째 DB constraint `gold_requires_labeled` 추가: `reliability_tier=GOLD ⇒ label_state=LABELED` (§3-3의 스키마 강제). 앱 레벨 가드(promote_tier)를 우회하는 statement 레벨 쓰기가 T1.3 교차 검증에서 실증되어 물리 백스톱으로 승격 — 마이그레이션 0002. 사용자 승인 |
 | v1.1 | 2026-07-08 | 개발총괄 2차 리뷰 전파: 범위 선언에서 Shadow 전면 보류 해제→0a/0b 조기 병행(헤더·§0-2·§10-2), evidence에 `WEAK_BEHAVIORAL`·`DOMAIN_RULE` 추가 + 서열 고정 폐지(§3-1), episode 스키마 3축 provenance(`origin_channel`/`episode_creator_type`/`primary_subject_type`) + `dataset_split` + `label_state`(§3-2), tier에서 SYNTHETIC 제외·UNVERIFIED 추가(§3-3), constraint 재정의(§3-4), Label State Machine + Aggregator 신설(§3-6), S5 canonical scenario에 `visual_semantics` 통제 어휘 필드(§1-S5), Arena replay 무결성·KTIB extractor 버전 고정(§8-2), End-to-End Trace 신설(§6-7), config 추가(§10-1) |
@@ -30,13 +31,13 @@
 2. **Seed Brain** — 내부가 들여다보이는 의도 추론 엔진 (블랙박스 금지 — §5가 내부 구조 전체를 정의한다)
 3. **3D Brain** — 별도 대시보드가 아니라 **시스템의 첫 화면이자 유일한 진입점** (§7)
 4. **Growth Loop** — 클릭 → 진단 → 전략 → 훈련 → 검증 → 성장의 강화 루프 (§6)
-5. **KTIB** — 독립 벤치마크. 목표: First Intent Accuracy 80% (§8)
+5. **KTIB** — 독립 벤치마크. 목표: First Intent Accuracy 96% (§8, v1.4 상향)
 
 ### 0-2. 지금 만들지 않는 것 / 조기 병행 가능한 것
 
-**만들지 않는 것:** 킨더버스 live rollout(Suggest/Assist/Auto), 서빙 인프라. **KTIB 80% + 안전 지표 충족**이 live 경로의 부활 조건이다.
+**만들지 않는 것:** 킨더버스 live rollout(Suggest/Assist/Auto), 서빙 인프라. **KTIB 96% + 안전 지표 충족**이 live 경로의 부활 조건이다.
 
-**조기 병행 가능한 것:** Shadow Adapter — **0a Distribution Capture**(추론 없이 실사용 발화·컨텍스트 로깅만, Brain 불필요)와 **0b Shadow Inference**(Brain v0의 비노출 추론). 진입 게이트는 정확도가 아니라 **거버넌스 7항목**(목적 정의·법적 근거·PII 게이트·최소 수집·보존·옵트아웃·스키마 매핑, runtime 문서 §2)이다. 폐쇄 실험실에서만 80%를 만들면 Gym 82% ≠ 실사용 58% 같은 sim-to-real 붕괴를 늦게 발견한다 — 0a가 공급하는 실제 교사 언어는 Atlas → Simulator 현실성 → 합성 데이터 품질로 이어지는 플라이휠의 시동이다.
+**조기 병행 가능한 것:** Shadow Adapter — **0a Distribution Capture**(추론 없이 실사용 발화·컨텍스트 로깅만, Brain 불필요)와 **0b Shadow Inference**(Brain v0의 비노출 추론). 진입 게이트는 정확도가 아니라 **거버넌스 7항목**(목적 정의·법적 근거·PII 게이트·최소 수집·보존·옵트아웃·스키마 매핑, runtime 문서 §2)이다. 폐쇄 실험실에서만 목표 정확도를 만들면 Gym 82% ≠ 실사용 58% 같은 sim-to-real 붕괴를 늦게 발견한다 — 0a가 공급하는 실제 교사 언어는 Atlas → Simulator 현실성 → 합성 데이터 품질로 이어지는 플라이휠의 시동이다.
 
 ### 0-3. 운영 원칙 9
 
@@ -815,7 +816,7 @@ Persona Mix
 | 2 | Cluster Awake | region 내 노드 50% 이상 측정 완료 |
 | 3 | Region Online | region reliability ≥ 70% |
 | 4 | **Semantic** Cross-Region Flow | 의미적 인접 region 쌍이 모두 ≥ 70% ∧ 그 쌍의 주요 confusion edge 감소 추세 (정의: 아래 각주, 문서 ③) |
-| 5 | Whole Brain Resonance | **global ≥ 80% = KTIB 목표 도달** |
+| 5 | Whole Brain Resonance | **global ≥ 96% = KTIB 목표 도달** (v1.4 상향) |
 
 **판정 방식 (v1.3 확정):** 위 표의 Stage 1~3 기준은 서로 배타적이지 않다(예: 측정비율 40% + reliability 60%). **높은 단계부터 검사해 처음 만족하는 값**을 쓴다 — `highest-satisfied-wins` 단조 사다리. Stage 1의 `reliability < 50%`는 임계값이 아니라 사다리 폴백의 *서술*이며, 그 이름의 config 키는 존재하지 않는다.
 
@@ -852,7 +853,7 @@ Persona Mix
 - 산출: 노드/region/global heldout accuracy, 방향성 confusion matrix, calibration → **3D Brain의 밝기·edge flicker의 유일한 원천.**
 - **replay 무결성:** 모든 arena run은 `model_version + ontology_version + persona_state_version + visual extractor_version`을 기록한다. Brain이 좋아진 것인지 Extractor가 좋아진 것인지 귀속을 분리할 수 없으면 그 점수는 신뢰할 수 없다.
 - **KTIB extractor 고정 규칙:** 벤치마크 에피소드의 `visual_semantics`는 채택 시점 버전으로 동결한다. Extractor 업그레이드로 재추출하면 그것은 **새 KTIB 버전**이며, 신·구 벤치마크 점수를 같은 축에 그리지 않는다.
-- **베이스라인 규칙:** 첫 KTIB 완성 직후 범용 LLM zero-shot 베이스라인을 측정하고, 그 위에서 80% 목표의 난이도를 재확정한다. 목표 수치를 베이스라인보다 먼저 확정하지 않는다.
+- **베이스라인 규칙:** 첫 KTIB 완성 직후 범용 LLM zero-shot 베이스라인을 측정하고, 그 위에서 목표의 난이도를 재확정한다. 목표 수치를 베이스라인보다 먼저 확정하지 않는다 (v1.4: zero-shot 88.1% 실측 후 96%로 확정).
 - 세부 지표 정의(Recovery, Calibration, Persona Lift/Harm, CWAR)는 문서 ③(`docs/05-arena/README.md`). **v1.3에서 전부 확정됨:** 1-Turn Recovery(분모=clarify인 아이템, 분자=gold가 제시된 top-2에 포함), Persona Lift/Harm(§5-5의 LLM-외 prior 곱셈을 재사용 — 추가 LLM 호출 0), CWAR 양방향(fire = P(오발 | critical을 커밋함), miss = P(오인식 | 정답이 critical)) + Critical Commit Coverage 하한.
 - **네 게이트 지표는 run 시점에 계산되어 `arena_runs.metrics`에 동결된다.** 게이트는 저장값만 읽는다 — 게이트 시점에 live config/DB로 재계산하면 config를 고치는 것만으로 과거 판정이 바뀌어 replay가 무너진다.
 - **Arena는 추론 상태를 변이하지 않는다.** Persona Harm > Lift여도 prior 비활성화를 *제안*만 하고 `persona_state_version`을 바꾸지 않는다 — KTIB 수치가 추론 상태로 자동 역류하면 벤치마크 격리가 깨진다.
@@ -924,7 +925,7 @@ visual_semantics:
 | 2 | 3~4주 | Foundry 스케일 10~30k · Atlas v1 · Persona Discovery 1차 클러스터링 | 합의도·reject율·비용 단가 안정 |
 | 3 | 3~4주 | Seed Brain v0 (retrieval + LLM scorer + prior) · **3D Brain MVP를 Gym보다 먼저**(네비게이션이므로) · Gym 3모드 | 뇌에서 클릭→pack 생성 루프 동작 |
 | 4 | 3주 | 진단 엔진 · Challenge Pack · Version Gate = **Growth Loop 완성** | 훈련→evidence→candidate→Arena 사이클 1회전 성공 |
-| 5 | 2주~ | KTIB 구축 · zero-shot 베이스라인 측정 · 80% 도전 사이클 반복 | — |
+| 5 | 2주~ | KTIB 구축 · zero-shot 베이스라인 측정 · 96% 도전 사이클 반복 | — |
 
 **킨더버스 live rollout은 이 로드맵에 없다.** 부활 트리거 (v1.3 확정 — 4지표 게이트, 전부 `arena_runs.metrics` 동결값):
 
@@ -951,7 +952,7 @@ visual_semantics:
   /04-observatory  (3D Brain 구현 상세 — §7 확장 시)
   /05-arena        (위험 등급표 + 지표 정의 = 문서 ③)  ← 구현·확정 완료
   /06-runtime-integration
-      kinder-intent-runtime-spec-v0.1.md            ← 보류 (KTIB 80% 후 부활)
+      kinder-intent-runtime-spec-v0.1.md            ← 보류 (KTIB 96% 후 부활)
 ```
 
 ---
