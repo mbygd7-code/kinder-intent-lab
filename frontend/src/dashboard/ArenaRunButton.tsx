@@ -47,13 +47,27 @@ export function ArenaRunButton() {
     [bumpReload],
   )
 
+  // 사전 판정 재조회 — 마운트 1회로 끝내지 않는다: 그 순간 서버가 재시작 중이면 판정을
+  // 놓친 채 버튼이 활성으로 남고, 사용자는 PIN까지 넣고서야 409 문구만 보게 된다(실사고).
+  // 클릭·제출 실패 시마다 다시 물어 스스로 회복한다.
+  const refreshBlocked = useCallback(async (signal?: AbortSignal): Promise<string | null> => {
+    try {
+      const s = await fetchArenaStatus(signal)
+      // 구 서버(runnable 부재)는 기존처럼 활성 — 지어내지 않고 서버 판정만 따른다
+      const b = s.runnable === false ? (s.blocked_reason ?? '지금은 채점할 수 없어요') : null
+      setBlocked(b)
+      return b
+    } catch {
+      return null // 상태 채널 실패는 버튼을 막지 않는다 — 다음 기회에 재판정
+    }
+  }, [])
+
   // 마운트 시 1회 — 진행 중 채점 이어보기 + 사전 판정(실행 불가면 회색 버튼)
   useEffect(() => {
     const ctrl = new AbortController()
     fetchArenaStatus(ctrl.signal)
       .then((s) => {
         if (s.running) setPhase('running')
-        // 구 서버(runnable 부재)는 기존처럼 활성 — 지어내지 않고 서버 판정만 따른다
         setBlocked(s.runnable === false ? (s.blocked_reason ?? '지금은 채점할 수 없어요') : null)
       })
       .catch(() => undefined) // 상태 채널 실패는 버튼을 막지 않는다
@@ -84,8 +98,11 @@ export function ArenaRunButton() {
       setPhase('running')
       setMsg(message)
     } catch (err) {
-      setPhase('pin') // 팝오버는 유지하되 입력은 비움 — 서버 문구 그대로 보여준다 (401/409)
-      setMsg(err instanceof Error ? err.message : String(err))
+      setMsg(err instanceof Error ? err.message : String(err)) // 서버 문구 그대로 (401/409)
+      // 거절 사유가 사전 판정 조건(mock·시험지 없음)이면 버튼을 회색으로 전환하고
+      // 팝오버를 닫는다 — 다시 PIN을 넣어도 소용없는 상태를 열어두지 않는다
+      const b = await refreshBlocked()
+      setPhase(b ? 'idle' : 'pin') // 잘못된 PIN 등은 팝오버 유지(입력은 이미 비움)
     }
   }
 
@@ -102,6 +119,14 @@ export function ArenaRunButton() {
     setMsg(null)
     setPin('') // 다시 열 때 항상 빈 입력창
     setPhase((p) => (p === 'pin' ? 'idle' : 'pin'))
+    // 여는 순간 백그라운드 재판정 — 마운트 때 놓쳤거나 그 사이 서버 상태가 바뀐 경우
+    // (예: provider 변경·시험지 등록) 팝오버를 닫고 회색+안내로 정정한다
+    void refreshBlocked().then((b) => {
+      if (b) {
+        setPhase('idle')
+        setMsg(b)
+      }
+    })
   }
 
   const busy = phase === 'starting' || phase === 'running'

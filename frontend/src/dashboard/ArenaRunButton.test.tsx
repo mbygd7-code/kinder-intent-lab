@@ -92,3 +92,49 @@ describe('ArenaRunButton — PIN 입력 잔류 금지', () => {
     expect((screen.getByLabelText('채점 비밀번호') as HTMLInputElement).value).toBe('')
   })
 })
+
+describe('ArenaRunButton — 사전 판정 자가 회복 (마운트 1회로 끝내지 않는다)', () => {
+  const BLOCKED = {
+    running: false, started_at: null, error: null, last_run: null,
+    runnable: false, blocked_reason: 'LLM_PROVIDER가 mock이라 채점하지 않아요',
+  }
+
+  it('마운트 때 상태 조회가 실패해도, 클릭 시 재판정으로 회색+안내로 정정한다', async () => {
+    let first = true
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (first) { first = false; throw new Error('backend 재시작 중') } // 마운트 시점 실패
+      return { ok: true, json: async () => BLOCKED }
+    }))
+    render(<ArenaRunButton />)
+    const btn = await screen.findByRole('button', { name: /채점 실행/ })
+
+    fireEvent.click(btn) // 판정을 놓친 상태 — 일단 열리지만 백그라운드 재판정이 정정한다
+    await waitFor(() => expect(screen.queryByLabelText('채점 비밀번호')).toBeNull())
+    expect(btn.className).toContain('dash-btn-blocked')
+    expect(screen.getByRole('status').textContent).toContain('mock이라 채점하지 않아요')
+  })
+
+  it('PIN 제출이 409(실행 불가)면 팝오버를 닫고 버튼을 회색으로 전환한다', async () => {
+    let runnableNow = true
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: { method?: string }) => {
+      if (init?.method === 'POST') {
+        runnableNow = false // 서버 상태가 바뀐 상황 재현 — 이후 status가 blocked를 알린다
+        return { ok: false, status: 409,
+                 json: async () => ({ detail: BLOCKED.blocked_reason }) }
+      }
+      return { ok: true, json: async () => (runnableNow
+        ? { ...BLOCKED, runnable: true, blocked_reason: null } : BLOCKED) }
+    }))
+    render(<ArenaRunButton />)
+    const btn = await screen.findByRole('button', { name: /채점 실행/ })
+
+    fireEvent.click(btn)
+    const input = await screen.findByLabelText('채점 비밀번호')
+    fireEvent.change(input, { target: { value: '2341' } })
+    fireEvent.click(screen.getByRole('button', { name: '확인' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('채점 비밀번호')).toBeNull())
+    expect(btn.className).toContain('dash-btn-blocked')
+    expect(screen.getByRole('status').textContent).toContain('mock이라 채점하지 않아요')
+  })
+})
