@@ -10,22 +10,8 @@
     },
     {
       "name": "backend-dev",
-      "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000"],
-      "cwd": "backend",
-      "port": 8000
-    },
-    {
-      "name": "backend-dev-mac",
-      "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000"],
-      "cwd": "backend",
-      "port": 8000
-    },
-    {
-      "name": "backend-dev-win",
-      "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--port", "8000"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dev-backend.mjs"],
       "cwd": "backend",
       "port": 8000
     }
