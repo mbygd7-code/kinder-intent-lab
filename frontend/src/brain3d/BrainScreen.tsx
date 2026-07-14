@@ -3,13 +3,13 @@
  *
  * 데이터 정직성: 실 데이터(live)만 무배지로 보여준다. 백엔드 미연결이면 에러 칩 +
  * 명시적 "데모 노드 보기" 버튼 — 데모(mock)는 MOCK 배지를 계속 띄운다(실데이터로 오인 방지).
- * WebGL 판정은 첫 렌더 전에 동기(useState initializer) — 미지원이면 2D 강제 + 토글 숨김.
+ * WebGL 판정은 store 초기값(webglOk, brain3d/webgl.ts) — 미지원이면 대시보드 강제.
  * BrainCanvas는 lazy import(three 분리 청크).
  *
- * 2026-07-12 레이아웃 재정비: 우측 상단 HUD 스택 폐지 —
- *   보기 컨트롤(2D/3D · 성향 렌즈 · 헷갈림 연결 · 그림 읽는 법)은 하단 중앙 "뷰 독"의
- *   칩+팝오버로 통합, MOCK/에러 배지는 상단 중앙(.brain-status)으로.
- *   덕분에 우측 컬럼은 NodePanel(진단·강화하기)이 풀 높이로 쓴다(--hud-h 메커니즘 제거).
+ * 2026-07-14: "2D 지도" 뷰를 브레인 운영실 대시보드(DashboardView)로 완전 교체.
+ * 대시보드도 여기(BrainScreen 안)서 렌더한다 — /brain fetch가 계속 돌아야
+ * KtibReviewModal 등 store.brain 소비자가 의도 목록을 잃지 않는다.
+ * 뷰 독·MOCK/에러 배지는 3D 전용(대시보드는 자체 헤더·연결 상태를 가진다).
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 
@@ -19,7 +19,7 @@ import {
   fetchPersonaOverlay,
   type ObservatoryBrain,
 } from '../api/observatory'
-import { Brain2DFallback } from './Brain2DFallback'
+import { DashboardView } from '../dashboard/DashboardView'
 import { ConfusionEdgeControl } from './ConfusionEdgeControl'
 import { visualFromNode, type NodeVisual } from './encodings'
 import { layoutNodes, type NodeSeed, type PlacedNode } from './layout'
@@ -27,20 +27,11 @@ import { LegendChip } from './LegendChip'
 import { makeMockNodes } from './mockNodes'
 import type { ParticleMetrics } from './particles'
 import { PersonaOverlayControl } from './PersonaOverlayControl'
-import { useBrainStore } from './store'
+import { effectiveViewMode, useBrainStore } from './store'
 
 const BrainCanvas = lazy(() =>
   import('./BrainCanvas').then((m) => ({ default: m.BrainCanvas })),
 )
-
-function webglAvailable(): boolean {
-  try {
-    const canvas = document.createElement('canvas')
-    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
-  } catch {
-    return false
-  }
-}
 
 interface BrainData {
   nodes: PlacedNode[]
@@ -74,7 +65,7 @@ function fromApi(brain: ObservatoryBrain): BrainData {
 type DockKey = 'persona' | 'edges' | 'legend'
 
 export function BrainScreen() {
-  const [webglOk] = useState(webglAvailable) // 마운트 전 1회 동기 판정
+  const webglOk = useBrainStore((s) => s.webglOk) // 마운트 전 1회 동기 판정(store 초기값)
   const [data, setData] = useState<BrainData>({
     nodes: [],
     visuals: new Map(),
@@ -176,24 +167,29 @@ export function BrainScreen() {
     setDataSource('mock')
   }
 
-  const effectiveMode = webglOk ? viewMode : '2d'
+  const effectiveMode = effectiveViewMode({ viewMode, webglOk })
   const lensOn = overlayClusterId != null
   const toggleDock = (key: DockKey) => setDockOpen((v) => (v === key ? null : key))
 
+  // 대시보드 모드 — 전폭 페이지. /brain 등 fetch effect는 위에서 계속 돈다(store.brain 소비자 유지).
+  if (effectiveMode === 'dashboard') {
+    return (
+      <div className="brain-screen">
+        <DashboardView />
+      </div>
+    )
+  }
+
   return (
     <div className="brain-screen">
-      {effectiveMode === '3d' ? (
-        <Suspense fallback={<p className="rotate-hint">3D 로딩…</p>}>
-          <BrainCanvas
-            nodes={data.nodes}
-            visuals={data.visuals}
-            metrics={data.metrics}
-            overlayPriors={overlayPriors}
-          />
-        </Suspense>
-      ) : (
-        <Brain2DFallback nodes={data.nodes} overlayPriors={overlayPriors} />
-      )}
+      <Suspense fallback={<p className="rotate-hint">3D 로딩…</p>}>
+        <BrainCanvas
+          nodes={data.nodes}
+          visuals={data.visuals}
+          metrics={data.metrics}
+          overlayPriors={overlayPriors}
+        />
+      </Suspense>
 
       {/* 데이터 출처 배지 — 상단 중앙: 정상(live)일 땐 아무것도 띄우지 않는다(정직성 표기만) */}
       {(dataSource === 'mock' || dataSource === 'error') && (
@@ -222,15 +218,9 @@ export function BrainScreen() {
             </div>
           )}
           <div className="view-dock">
-            {webglOk && (
-              <button
-                type="button"
-                className="dock-chip"
-                onClick={() => setViewMode(effectiveMode === '3d' ? '2d' : '3d')}
-              >
-                {effectiveMode === '3d' ? '🗺 2D 지도로 보기' : '🧠 3D 뇌로 보기'}
-              </button>
-            )}
+            <button type="button" className="dock-chip" onClick={() => setViewMode('dashboard')}>
+              📊 대시보드
+            </button>
             <span className="dock-divider" aria-hidden />
             {/* T5.4 Persona Overlay(§7-6) — 렌즈가 켜져 있으면 칩에도 상태 표시 */}
             <button

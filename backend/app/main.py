@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.dashboard import router as dashboard_router
 from app.api.gym import router as gym_router
 from app.api.infer import router as infer_router
 from app.api.observatory import router as observatory_router
@@ -28,6 +29,7 @@ if _cors_origins:
 
 app.include_router(infer_router)
 app.include_router(observatory_router)
+app.include_router(dashboard_router)
 app.include_router(gym_router)
 
 

@@ -210,6 +210,13 @@ class CampaignConfig(_Section):
         return v
 
 
+class DashboardConfig(_Section):
+    """브레인 운영실 대시보드 창 크기 — 표시 범위이지 판정 임계값이 아니다."""
+
+    run_timeline_window: int = Field(ge=1)   # C 섹션 최근 brain run 수
+    inflow_window_days: int = Field(ge=1)    # B 섹션 유입 스파크라인 창(일)
+
+
 class ExperimentsConfig(_Section):
     foundry: FoundryConfig
     brain: BrainConfig
@@ -231,6 +238,7 @@ class ExperimentsConfig(_Section):
     arena: ArenaConfig
     latency: LatencyConfig
     campaign: CampaignConfig
+    dashboard: DashboardConfig
 
 
 def load_config(path: Path | None = None) -> ExperimentsConfig:

@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react'
 
 import { BrainScreen } from './brain3d/BrainScreen'
-import { useBrainStore } from './brain3d/store'
+import { effectiveViewMode, useBrainStore } from './brain3d/store'
 import { HelpOverlay } from './panels/HelpOverlay'
 import { KtibReviewModal } from './panels/KtibReviewModal'
 import { LiveQuizPanel } from './panels/LiveQuizPanel'
@@ -30,10 +30,21 @@ function App() {
   const brainStageName = useBrainStore((s) => s.brainStageName)
   const dataSource = useBrainStore((s) => s.dataSource)
   const bumpReload = useBrainStore((s) => s.bumpReload)
-  const [helpOpen, setHelpOpen] = useState(false)
-  const [helpTab, setHelpTab] = useState<'service' | 'manual' | 'exam' | 'study'>('service')
-  const [liveQuizOpen, setLiveQuizOpen] = useState(false)
-  const [reviewOpen, setReviewOpen] = useState(false)
+  // 모달 상태는 store — 톱바와 대시보드 액션 버튼이 같은 진입점을 공유한다
+  const helpOpen = useBrainStore((s) => s.helpOpen)
+  const helpTab = useBrainStore((s) => s.helpTab)
+  const liveQuizOpen = useBrainStore((s) => s.liveQuizOpen)
+  const reviewOpen = useBrainStore((s) => s.reviewOpen)
+  const openReview = useBrainStore((s) => s.openReview)
+  const closeReview = useBrainStore((s) => s.closeReview)
+  const openLiveQuiz = useBrainStore((s) => s.openLiveQuiz)
+  const closeLiveQuiz = useBrainStore((s) => s.closeLiveQuiz)
+  const openHelp = useBrainStore((s) => s.openHelp)
+  const closeHelp = useBrainStore((s) => s.closeHelp)
+  // 대시보드 모드면 좌우 패널을 걷는다 — 대시보드가 전폭 스크롤 페이지가 된다
+  const viewMode = useBrainStore((s) => s.viewMode)
+  const webglOk = useBrainStore((s) => s.webglOk)
+  const dashboardMode = effectiveViewMode({ viewMode, webglOk }) === 'dashboard'
   const [showExamHint, setShowExamHint] = useState(false)
   // 라이브인데 아직 채점 점수가 없으면 "시험지부터"를 5초 말풍선으로 안내(온보딩 갭). 시험이
   // 채점되면 ktib != null → 안 뜬다. 훈련≠채점 원칙 자체는 유지 — 밝기와 무관한 안내일 뿐.
@@ -81,7 +92,7 @@ function App() {
           {/* 시험지 검수 — 즉석 문답 왼쪽. 1~5 평점 2차 검수 흐름(2026-07-12).
               데이터 상태와 무관하게 항상 노출 */}
           <span className="cta-upload-wrap">
-            <button type="button" className="cta-upload" onClick={() => setReviewOpen(true)}>
+            <button type="button" className="cta-upload" onClick={openReview}>
               📄 시험지 검수
             </button>
             {showExamHint && (
@@ -93,42 +104,35 @@ function App() {
           </span>
           {/* 즉석 문답 — 라이브 추론 필요: 실데이터(live)에서만 (§6-7 [4]) */}
           {dataSource === 'live' && (
-            <button type="button" className="cta-live" onClick={() => setLiveQuizOpen(true)}>
+            <button type="button" className="cta-live" onClick={openLiveQuiz}>
               💬 즉석 문답
             </button>
           )}
-          <button
-            type="button"
-            className="header-help"
-            onClick={() => {
-              setHelpTab('service')
-              setHelpOpen(true)
-            }}
-          >
+          <button type="button" className="header-help" onClick={() => openHelp('service')}>
             ❔ 도움말
           </button>
         </div>
       </header>
 
       <div className="observatory-body">
-        <RegionsPanel />
+        {!dashboardMode && <RegionsPanel />}
         <BrainScreen />
-        <NodePanel />
+        {!dashboardMode && <NodePanel />}
       </div>
 
       {liveQuizOpen && (
         <LiveQuizPanel
-          onClose={() => setLiveQuizOpen(false)}
+          onClose={closeLiveQuiz}
           onComplete={bumpReload} // 훈련 evidence 저장 시에만 — 노드 size/pending 갱신(§6-7 [6])
         />
       )}
       {reviewOpen && (
         <KtibReviewModal
-          onClose={() => setReviewOpen(false)}
+          onClose={closeReview}
           onComplete={bumpReload} // 등록(commit) 성공 시 뇌 상태 refetch
         />
       )}
-      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} initialTab={helpTab} />}
+      {helpOpen && <HelpOverlay onClose={closeHelp} initialTab={helpTab} />}
     </main>
   )
 }

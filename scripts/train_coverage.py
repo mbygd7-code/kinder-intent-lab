@@ -5,22 +5,13 @@
   python scripts/train_coverage.py           # 사람용 표
   python scripts/train_coverage.py --json     # 기계용 JSON
 
-시험지 커버리지(ktib_coverage.py)의 **훈련 쪽 짝**이다. "부트스트랩이 어느 의도를 아직 못
-덮었나"를 알려줘, 시나리오 기반 campaign을 그 방향으로 몰 수 있게 한다(도메인 가중치 조정).
-
-경계(설계 준수):
-- **TRAIN split만** 센다 — 벤치마크(BENCHMARK_HOLDOUT)는 학습 데이터가 아니다(절대 규칙 2).
-- **역방향 생성 금지**(s6 원칙): 의도로부터 발화를 만들어 그 의도로 라벨링하지 않는다. 합성 훈련의
-  유일한 경로는 시나리오 기반 campaign이며 라벨은 blind 합의(S7~S10)가 붙인다. 이 스크립트는
-  **아무것도 생성하지 않고** 이미 쌓인 것을 셀 뿐이다(읽기 전용, brightness 무관).
-
-의도 귀속 = label_distribution의 유일 최댓값(top intent). 동률은 '모호'로 따로 빼 지어내지 않는다.
-하한은 config뿐(절대 규칙 1): GOLD 목표는 growth.gold_low_threshold.
+집계 로직은 app/observatory/aggregate.py(대시보드와 공유)에 있다 — 이 파일은 CLI 출력만.
+경계(설계 준수)는 aggregate.train_coverage_report docstring 참고: TRAIN split만, 역방향 생성
+금지(s6 원칙 — 이 스크립트는 아무것도 생성하지 않는다), 임베딩 컬럼 미로딩.
 """
 import argparse
 import json
 import sys
-from collections import Counter
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -31,16 +22,12 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(_ROOT / ".env")
 
-from sqlalchemy import create_engine, select  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 
 from app.core.config import get_config  # noqa: E402
-from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology  # noqa: E402
-from app.models.episodes import Episode  # noqa: E402
-
-TRAIN_SPLIT = "TRAIN"
-REJECTED = "REJECTED"
+from app.observatory.aggregate import train_coverage_report as build_report  # noqa: E402
 
 
 def _database_url() -> str:
@@ -50,92 +37,6 @@ def _database_url() -> str:
     if not url:
         raise SystemExit("DATABASE_URL이 없습니다 (.env 확인)")
     return url.replace("postgresql://", "postgresql+psycopg://", 1)
-
-
-def _top_intent(dist: dict | None) -> str | None:
-    """label_distribution의 유일 최댓값. 비었거나 동률이면 None(모호 — 귀속하지 않는다)."""
-    if not dist:
-        return None
-    top = max(dist.values())
-    winners = [i for i, v in dist.items() if v == top]
-    return winners[0] if len(winners) == 1 else None
-
-
-def build_report(session: Session, config) -> dict:
-    """TRAIN 에피소드를 의도·도메인별로 집계한 순수 리포트 (임베딩 컬럼은 읽지 않는다)."""
-    onto = load_ontology()
-    domain_of = {i.intent_id: i.domain for i in onto.intents}
-    real_intents = [i.intent_id for i in onto.intents if i.domain]  # UNKNOWN 제외 = 63
-    gold_target = config.growth.gold_low_threshold
-
-    # 임베딩(Vector 1536)을 끌어오지 않도록 필요한 컬럼만 select
-    rows = session.execute(
-        select(
-            Episode.label_distribution,
-            Episode.reliability_tier,
-            Episode.label_state,
-            Episode.origin_channel,
-        ).where(Episode.dataset_split == TRAIN_SPLIT)
-    ).all()
-
-    train = Counter()      # 의도별 사용 가능 훈련 문항 (REJECTED 제외)
-    gold = Counter()       # 그중 GOLD (검수 확정)
-    channels = Counter()   # origin_channel 구성 (REJECTED 제외)
-    ambiguous = 0          # top intent 동률 — 귀속 불가
-    unknown_pool = 0       # top intent가 UNKNOWN — 미분류 pool
-    rejected = 0
-
-    for dist, tier, state, channel in rows:
-        if state == REJECTED:
-            rejected += 1
-            continue
-        channels[channel] += 1
-        top = _top_intent(dist)
-        if top is None:
-            ambiguous += 1
-            continue
-        if top == UNKNOWN_INTENT_ID:
-            unknown_pool += 1
-            continue
-        train[top] += 1
-        if tier == "GOLD":
-            gold[top] += 1
-
-    def row(intent: str) -> dict:
-        return {
-            "intent": intent,
-            "domain": domain_of.get(intent),
-            "train": train.get(intent, 0),
-            "gold": gold.get(intent, 0),
-        }
-
-    intent_rows = [row(i) for i in real_intents]
-    uncovered = [r["intent"] for r in intent_rows if r["train"] == 0]
-    gold_low = [r["intent"] for r in intent_rows if r["gold"] < gold_target]
-
-    domains: dict[str, dict] = {}
-    for d in {r["domain"] for r in intent_rows}:
-        drows = [r for r in intent_rows if r["domain"] == d]
-        domains[d] = {
-            "train": sum(r["train"] for r in drows),
-            "gold": sum(r["gold"] for r in drows),
-            "intents": len(drows),
-            "covered": sum(1 for r in drows if r["train"] > 0),
-        }
-
-    return {
-        "gold_target": gold_target,
-        "intents": sorted(intent_rows, key=lambda r: (r["train"], r["intent"])),
-        "uncovered": uncovered,
-        "gold_low": gold_low,
-        "domains": dict(sorted(domains.items())),
-        "train_total": int(sum(train.values())),
-        "gold_total": int(sum(gold.values())),
-        "channels": dict(channels),
-        "ambiguous": ambiguous,
-        "unknown_pool": unknown_pool,
-        "rejected": rejected,
-    }
 
 
 def _print_human(rep: dict) -> None:

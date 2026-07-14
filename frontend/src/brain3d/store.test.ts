@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { ObservatoryBrain, PersonaOverlay } from '../api/observatory'
-import { useBrainStore } from './store'
+import { effectiveViewMode, useBrainStore } from './store'
 
 beforeEach(() => {
   useBrainStore.setState({
@@ -49,11 +49,14 @@ describe('useBrainStore', () => {
     expect(useBrainStore.getState().selectedNodeId).toBeNull()
   })
 
-  it('2D fallback 전환 (저사양·WebGL 불가 대응, §7-5)', () => {
-    useBrainStore.getState().setViewMode('2d')
-    expect(useBrainStore.getState().viewMode).toBe('2d')
+  it('대시보드 전환 (2D 지도 대체, 2026-07-14) + WebGL 불가면 대시보드 강제', () => {
+    useBrainStore.getState().setViewMode('dashboard')
+    expect(useBrainStore.getState().viewMode).toBe('dashboard')
     useBrainStore.getState().setViewMode('3d')
     expect(useBrainStore.getState().viewMode).toBe('3d')
+    // 저사양(WebGL 불가) 기기는 viewMode와 무관하게 대시보드가 실제 화면이다
+    expect(effectiveViewMode({ viewMode: '3d', webglOk: false })).toBe('dashboard')
+    expect(effectiveViewMode({ viewMode: '3d', webglOk: true })).toBe('3d')
   })
 
   it('노드 선택 시 그 노드의 region이 좌 패널에서 함께 선택된다 (brain.nodes 역참조)', () => {

@@ -1,8 +1,11 @@
 /**
- * Observatory 뷰 상태 (zustand) — 선택 노드 + 3D/2D 뷰 전환 + region 점수(API 적재).
+ * Observatory 뷰 상태 (zustand) — 선택 노드 + 3D/대시보드 뷰 전환 + region 점수(API 적재).
  *
  * regionScores: region reliability(§7-2, Arena heldout 원천). Arena 미실행이면 null/부재 —
  * 라벨은 "—"를 보여준다. 시각 인코딩 계산(brightness 등)은 여기 두지 않는다(encodings.ts 소관).
+ *
+ * 모달(검수·즉석문답·도움말) 열림 상태도 여기 둔다 — 톱바(App)와 대시보드 액션 버튼이
+ * 같은 진입점을 공유하기 위해서다(2026-07-14 대시보드 도입).
  */
 import { create } from 'zustand'
 
@@ -13,8 +16,11 @@ import type {
   PersonaOverlay,
 } from '../api/observatory'
 import type { RegionId } from './regions'
+import { webglAvailable } from './webgl'
 
-export type ViewMode = '3d' | '2d'
+export type ViewMode = '3d' | 'dashboard'
+
+export type HelpTab = 'service' | 'manual' | 'exam' | 'study'
 
 /** 데이터 소스 상태: live=실 API, mock=명시적 데모(배지 표시), error=미연결 */
 export type DataSource = 'loading' | 'live' | 'mock' | 'error'
@@ -31,6 +37,8 @@ interface BrainViewState {
   /** 호버 중인 region — 3D 스피어·라벨·좌 패널·2D 원이 공유(활성화 하이라이트) */
   hoveredRegionId: RegionId | null
   viewMode: ViewMode
+  /** WebGL 가용성(마운트 전 1회 판정) — false면 effectiveMode가 dashboard로 고정된다 */
+  webglOk: boolean
   brain: ObservatoryBrain | null // 패널이 읽는 원본 응답(regions[]/nodes[])
   regionScores: Partial<Record<RegionId, number | null>>
   ktibGlobal: number | null // §7-1 중앙 수치 — 마지막 Arena run만 (null="—")
@@ -52,6 +60,11 @@ interface BrainViewState {
   confusionEdges: GlobalConfusionEdges | null
   confusionEdgesStatus: PersonaOverlayStatus
   edgeDisplayMode: EdgeDisplayMode
+  /** 모달 열림 상태 — 톱바·대시보드가 공유하는 단일 진입점 */
+  reviewOpen: boolean
+  liveQuizOpen: boolean
+  helpOpen: boolean
+  helpTab: HelpTab
   select: (nodeId: string | null) => void
   selectRegion: (regionId: RegionId | null) => void
   setHoveredRegion: (regionId: RegionId | null) => void
@@ -73,6 +86,12 @@ interface BrainViewState {
   setConfusionEdges: (edges: GlobalConfusionEdges) => void
   setConfusionEdgesError: () => void
   setEdgeDisplayMode: (mode: EdgeDisplayMode) => void
+  openReview: () => void
+  closeReview: () => void
+  openLiveQuiz: () => void
+  closeLiveQuiz: () => void
+  openHelp: (tab?: HelpTab) => void
+  closeHelp: () => void
 }
 
 export const useBrainStore = create<BrainViewState>()((set) => ({
@@ -80,6 +99,7 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   selectedRegionId: null,
   hoveredRegionId: null,
   viewMode: '3d',
+  webglOk: webglAvailable(),
   brain: null,
   regionScores: {},
   ktibGlobal: null,
@@ -95,6 +115,10 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   confusionEdges: null,
   confusionEdgesStatus: 'loading',
   edgeDisplayMode: 'focus',
+  reviewOpen: false,
+  liveQuizOpen: false,
+  helpOpen: false,
+  helpTab: 'service',
   // 노드 선택 시 그 노드의 region도 좌 패널에서 함께 선택된다(brain.nodes에서 역참조).
   // 노드 해제(null)는 region 선택을 그대로 둔다(펼쳐 둔 상세가 갑자기 닫히지 않게).
   // region 선택은 노드 선택을 지운다.
@@ -137,4 +161,15 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   setConfusionEdgesError: () =>
     set((s) => (s.confusionEdgesStatus === 'ready' ? {} : { confusionEdgesStatus: 'error' })),
   setEdgeDisplayMode: (edgeDisplayMode) => set({ edgeDisplayMode }),
+  openReview: () => set({ reviewOpen: true }),
+  closeReview: () => set({ reviewOpen: false }),
+  openLiveQuiz: () => set({ liveQuizOpen: true }),
+  closeLiveQuiz: () => set({ liveQuizOpen: false }),
+  openHelp: (tab) => set((s) => ({ helpOpen: true, helpTab: tab ?? s.helpTab })),
+  closeHelp: () => set({ helpOpen: false }),
 }))
+
+/** 실제 렌더 모드 — WebGL 미지원 기기는 대시보드 고정(2D 지도 폴백 대체, 2026-07-14) */
+export function effectiveViewMode(s: { viewMode: ViewMode; webglOk: boolean }): ViewMode {
+  return s.webglOk ? s.viewMode : 'dashboard'
+}

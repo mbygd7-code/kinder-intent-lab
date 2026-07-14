@@ -907,9 +907,262 @@ body {
   display: inline-block;
 }
 
-/* --- 2D fallback --- */
-.brain-2d {
-  width: 100%;
-  height: 100%;
-  display: block;
+/* ============================================================
+   브레인 운영실 대시보드 (2026-07-14, 2D 지도 대체)
+   미션 컨트롤 룩: 유리 패널 + 도트 그리드 + 모노스페이스 계기 숫자.
+   모션 원칙: transform/opacity만, 진입 1회 스태거, 무한 루프는 flow·pulse 2종.
+   색: 기존 앱 팔레트 계승 — CVD 분리·대비 검증 통과, 식별은 항상 라벨 병행.
+   ============================================================ */
+.dashboard {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* 관제실 배경 — 미세 도트 그리드 + 비네트 (콘텐츠 우선, 은은하게) */
+.dash-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(90, 120, 190, 0.13) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, black 30%, transparent 100%);
+}
+.dash-inner {
+  position: relative;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 1.2rem 1.4rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.dash-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(90, 120, 190, 0.22);
+}
+.dash-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  color: var(--accent);
+}
+.dash-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+.dash-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: rgba(148, 197, 253, 0.75);
+  margin-bottom: 0.55rem;
+}
+.dash-section-title span {
+  letter-spacing: 0.02em;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 0.6rem;
+}
+.dash-section-title-inset { margin-bottom: 0.8rem; }
+
+.dash-grid { display: grid; gap: 0.9rem; }
+.dash-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dash-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 68rem) { .dash-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 44rem) {
+  .dash-grid-4, .dash-grid-2 { grid-template-columns: 1fr; }
+}
+
+.dash-card {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 0.7rem;
+  padding: 0.9rem 1rem;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  overflow: hidden;
+}
+.dash-card:hover {
+  border-color: rgba(53, 224, 210, 0.45);
+  box-shadow: 0 0 22px rgba(53, 224, 210, 0.08);
+}
+.dash-card-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: rgba(148, 197, 253, 0.8);
+  margin-bottom: 0.45rem;
+}
+.dash-card-sub { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+.dash-card-row { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
+.dash-dim { color: var(--muted); }
+
+/* 계기 숫자 — 모노스페이스 tabular (관제실 카운터 룩) */
+.viz-num {
+  font-family: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.viz-num-flash { animation: dash-flash 0.9s ease; }
+.dash-hero-value { font-size: 1.9rem; font-weight: 300; line-height: 1.15; color: var(--fg); }
+.dash-hero-card .dash-hero-value { font-size: 2.5rem; color: var(--accent); }
+.dash-stream-value { font-size: 1.35rem; font-weight: 400; color: var(--fg); }
+
+.dash-chip {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #a5b4fc;
+  background: rgba(49, 46, 129, 0.35);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+  padding: 0.16rem 0.6rem;
+  margin-top: 0.4rem;
+}
+.dash-chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.dash-chip-dim { color: var(--muted); background: rgba(30, 41, 59, 0.5); border-color: rgba(100, 116, 139, 0.3); }
+.dash-chip-warn { color: #fcd34d; background: rgba(120, 90, 10, 0.25); border-color: rgba(250, 204, 21, 0.4); }
+.dash-chip-danger { color: #fda4af; background: rgba(136, 19, 55, 0.3); border-color: rgba(251, 113, 133, 0.45); }
+.dash-chip-xs { font-size: 0.62rem; padding: 0.05rem 0.4rem; margin-left: 0.35rem; margin-top: 0; }
+
+.dash-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.7rem; }
+.dash-btn {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(90, 120, 190, 0.4);
+  color: var(--fg);
+  padding: 0.34rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.dash-btn:hover { border-color: var(--accent); background: rgba(53, 224, 210, 0.12); }
+.dash-btn-primary {
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.85), rgba(99, 102, 241, 0.85));
+  border: none;
+  color: #fff;
+}
+.dash-btn-primary:hover { filter: brightness(1.12); }
+
+.dash-gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.dash-gauge-caption { font-size: 0.64rem; color: var(--muted); text-align: center; line-height: 1.35; }
+.viz-gauge-text {
+  fill: var(--fg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+/* 유입 흐름 라인 — 카드 상단, 유입 있을 때만 점이 흐른다 */
+.dash-stream { padding-top: 1.15rem; }
+.viz-flow { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.viz-flow-line { position: absolute; inset: 0; background: rgba(100, 116, 139, 0.25); }
+.viz-flow-on .viz-flow-line { background: rgba(53, 224, 210, 0.16); }
+.viz-flow-dot {
+  position: absolute;
+  top: 0;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: dash-flow 1.8s linear infinite;
+}
+.dash-empty-note { font-size: 0.76rem; color: var(--muted); line-height: 1.55; margin-top: 0.5rem; }
+.dash-empty { text-align: left; }
+.dash-empty-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.3rem; }
+
+/* run 타임라인 */
+.dash-axis-note { margin-bottom: 0.5rem; }
+.viz-runchart { width: 100%; height: auto; max-width: 100%; }
+.viz-axis-text { fill: var(--muted); font-size: 0.6rem; font-family: ui-monospace, Consolas, monospace; }
+.viz-target-text { fill: rgba(232, 241, 255, 0.6); font-size: 0.62rem; }
+.viz-pt-label { fill: var(--fg); font-size: 0.64rem; font-family: ui-monospace, Consolas, monospace; }
+.dash-run-list { list-style: none; margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.dash-run-row { border-top: 1px solid rgba(90, 120, 190, 0.16); padding-top: 0.45rem; }
+.dash-run-head { display: flex; align-items: baseline; gap: 0.7rem; }
+.dash-run-id { font-family: ui-monospace, Consolas, monospace; font-size: 0.74rem; color: var(--muted); }
+.dash-run-acc { font-family: ui-monospace, Consolas, monospace; font-size: 0.95rem; font-weight: 600; }
+.dash-delta { font-size: 0.76rem; font-weight: 700; }
+.dash-delta-up { color: var(--accent); }
+.dash-delta-down { color: #fb7185; }
+.dash-run-detail { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.15rem; }
+.dash-run-detail .dash-chip { margin-top: 0; }
+
+/* 확장 스토리 */
+.dash-expansion-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem; margin-bottom: 0.7rem; }
+.dash-expansion-plus { font-size: 1.4rem; color: var(--accent); font-weight: 300; }
+.dash-stat { display: flex; flex-direction: column; gap: 0.15rem; }
+.dash-version-track { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-bottom: 0.6rem; }
+.dash-version-node { display: inline-flex; align-items: center; gap: 0.3rem; }
+.dash-version-node .dash-chip { margin-top: 0; }
+.dash-version-arrow { color: var(--muted); font-size: 0.8rem; }
+
+/* 테이블 */
+.dash-table-scroll { overflow-x: auto; }
+.dash-table th { text-align: left; font-size: 0.7rem; letter-spacing: 0.08em; color: var(--muted); }
+.dash-table td { font-variant-numeric: tabular-nums; }
+.dash-row-click { cursor: pointer; }
+.dash-row-click:hover td { background: rgba(53, 224, 210, 0.06); }
+.dash-row-frozen { opacity: 0.65; }
+.dash-region-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-right: 0.45rem;
+  vertical-align: baseline;
+}
+.dash-gap { color: #fcd34d; font-size: 0.72rem; }
+
+/* --- 모션 --- */
+.dash-rise { animation: dash-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.viz-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: dash-draw 1s ease-out forwards;
+}
+.viz-dot-pulse { animation: dash-pulse 2.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.viz-gauge-fill { animation: dash-gauge 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.viz-seg { opacity: 0; animation: dash-fade 0.4s ease-out forwards; }
+.viz-pt { opacity: 0; animation: dash-fade 0.4s ease-out forwards; }
+
+@keyframes dash-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes dash-draw { to { stroke-dashoffset: 0; } }
+@keyframes dash-fade { to { opacity: 1; } }
+@keyframes dash-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.5); }
+}
+@keyframes dash-gauge { from { stroke-dasharray: 0 100; } }
+@keyframes dash-flow {
+  0% { left: -24px; opacity: 0; }
+  12% { opacity: 0.9; }
+  88% { opacity: 0.9; }
+  100% { left: 100%; opacity: 0; }
+}
+@keyframes dash-flash {
+  0% { color: var(--accent); text-shadow: 0 0 14px rgba(53, 224, 210, 0.7); }
+  100% { text-shadow: none; }
+}
+
+/* 접근성 — 모션 최소화: 전 애니메이션 off, 최종 상태 즉시 (값은 모션 없이도 동일) */
+@media (prefers-reduced-motion: reduce) {
+  .dash-rise, .viz-draw, .viz-dot-pulse, .viz-gauge-fill, .viz-seg, .viz-pt,
+  .viz-flow-dot, .viz-num-flash {
+    animation: none !important;
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
 }

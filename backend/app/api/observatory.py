@@ -25,7 +25,7 @@ from app.arena.ktib import EmptyKtib, build_ktib
 from app.arena.stages import STAGE_NAMES, brain_stage, region_stages, stage4_inputs
 from app.brain.diagnosis import diagnose_node
 from app.brain.priors import current_state_version
-from app.brain.version_gate import current_brain_version, version_gate_status
+from app.brain.version_gate import version_gate_status
 from app.contracts.observatory import ObservatoryBrain, ObservatoryNode, ObservatoryRegion
 from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
@@ -38,7 +38,6 @@ from app.foundry.expert_ingest import (
     UnknownIngestIntent,
     ingest_expert_episodes,
 )
-from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
 from app.models.benchmark_candidates import (
     BenchmarkCandidateBatch,
     BenchmarkCandidateItem,
@@ -46,6 +45,7 @@ from app.models.benchmark_candidates import (
 from app.models.brain import BrainNode, BrainVersion, ConfusionEdge, Exemplar
 from app.models.episodes import Episode
 from app.models.persona import PersonaCluster, PopulationPrior
+from app.observatory import aggregate
 
 router = APIRouter(prefix="/v1/observatory", tags=["observatory"])
 
@@ -67,28 +67,9 @@ def _diversity(stats: dict) -> float:
     return round(entropy / math.log(len(_BUCKETS)), 4)
 
 
-def _ktib_global(session: Session) -> float | None:
-    """§7-1 중앙 수치 — **현행 뇌를 잰 brain run**만.
-
-    두 가지를 배제한다:
-    - `zero_shot_baseline` run — 밝기의 원천이 아니다(§8-2 베이스라인 규칙)
-    - **candidate를 잰 run**(`<base>-rcN`) — promote되기 전이거나 reject됐다면 그 숫자는 이 뇌의
-      것이 아니다(§6-6 "reject → 숫자는 폐기된다"). 이 필터가 없으면 회귀로 거부된 후보의 높은
-      global이 3D 뇌의 중앙 수치와 성장 스테이지로 새어나온다(절대 규칙 3).
-    """
-    metrics = session.scalar(
-        select(ArenaRun.metrics)
-        .where(
-            ArenaRun.run_type == RUN_TYPE_BRAIN,
-            ArenaRun.model_version == current_brain_version(session),
-        )
-        .order_by(ArenaRun.created_at.desc())
-        .limit(1)
-    )
-    if not metrics:
-        return None
-    value = metrics.get("first_intent_accuracy")
-    return float(value) if value is not None else None
+# §7-1 중앙 수치의 단일 원천 — 대시보드와 공유하려 app.observatory.aggregate로 이동.
+# (배제 규칙 — baseline run·candidate run — 의 근거 주석은 aggregate.ktib_global에 있다.)
+_ktib_global = aggregate.ktib_global
 
 
 def _brain_version(session: Session) -> str:

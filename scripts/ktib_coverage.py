@@ -5,20 +5,11 @@
   python scripts/ktib_coverage.py           # 사람용 표
   python scripts/ktib_coverage.py --json     # 기계용 JSON
 
-"다음에 무슨 문항을 써야 하는가"를 사람에게 알려주는 **읽기 전용** 리포트다. 점수(brightness)나
-시험 결과가 아니라 **출제 진척**만 본다 — CRITICAL 7개를 먼저, 게이트 하한(config)까지.
-
-원천:
-- 등록: eligible_episodes (BENCHMARK_HOLDOUT∧GOLD∧LABELED∧비합성)를 gold_intent별 집계
-- 검수 중: benchmark_candidate_items 중 아직 REGISTERED 안 된 배치 → intent_id별 집계
-
-하한은 config뿐(절대 규칙 1): CRITICAL = gate.critical_surface_min_items. 나머지 56개는 게이트
-하한이 없어 "측정 가능 여부(문항 ≥ 1)"만 본다 — 없는 숫자를 지어내지 않는다.
+집계 로직은 app/observatory/aggregate.py(대시보드와 공유)에 있다 — 이 파일은 CLI 출력만.
 """
 import argparse
 import json
 import sys
-from collections import Counter
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -29,22 +20,12 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(_ROOT / ".env")
 
-from sqlalchemy import create_engine, func, select  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 
-from app.arena.ktib import (  # noqa: E402
-    AmbiguousGoldLabel,
-    _gold_intent,
-    eligible_episodes,
-    latest_ktib,
-)
 from app.core.config import get_config  # noqa: E402
-from app.core.ontology import load_ontology  # noqa: E402
-from app.models.benchmark_candidates import (  # noqa: E402
-    BenchmarkCandidateBatch,
-    BenchmarkCandidateItem,
-)
+from app.observatory.aggregate import ktib_coverage_report as build_report  # noqa: E402
 
 
 def _database_url() -> str:
@@ -54,91 +35,6 @@ def _database_url() -> str:
     if not url:
         raise SystemExit("DATABASE_URL이 없습니다 (.env 확인)")
     return url.replace("postgresql://", "postgresql+psycopg://", 1)
-
-
-def _registered_counts(session: Session) -> tuple[Counter, list[str]]:
-    """등록된 벤치마크 문항을 gold_intent별로 집계. 정답 동률(모호)은 따로 모은다.
-
-    gold intent 판정은 ktib 구성기와 동일한 _gold_intent(유일 최댓값)를 재사용한다 — 커버리지가
-    실제 KTIB 구성과 다른 기준으로 세면 안 되기 때문. 동률이면 여기서도 세지 않는다(정직).
-    """
-    counts: Counter = Counter()
-    ambiguous: list[str] = []
-    for ep in eligible_episodes(session):
-        try:
-            counts[_gold_intent(ep)] += 1
-        except AmbiguousGoldLabel:
-            ambiguous.append(ep.episode_id)
-    return counts, ambiguous
-
-
-def _pending_counts(session: Session) -> dict[str, int]:
-    """아직 등록(REGISTERED)되지 않은 후보 배치의 문항을 intent별로 — 작성/검수 중 진행 물량."""
-    rows = session.execute(
-        select(BenchmarkCandidateItem.intent_id, func.count())
-        .join(
-            BenchmarkCandidateBatch,
-            BenchmarkCandidateItem.batch_id == BenchmarkCandidateBatch.batch_id,
-        )
-        .where(BenchmarkCandidateBatch.status != "REGISTERED")
-        .group_by(BenchmarkCandidateItem.intent_id)
-    ).all()
-    return {intent: int(n) for intent, n in rows}
-
-
-def build_report(session: Session, config) -> dict:
-    """의도별 등록/검수중 문항을 게이트 하한 대비로 정리한 순수 리포트(DB 읽기만)."""
-    onto = load_ontology()
-    domain_of = {i.intent_id: i.domain for i in onto.intents}
-    real_intents = [i.intent_id for i in onto.intents if i.domain]  # UNKNOWN 제외 = 63
-    critical = list(config.arena.critical_intents)
-    critical_set = set(critical)
-    floor = config.gate.critical_surface_min_items
-
-    registered, ambiguous = _registered_counts(session)
-    pending = _pending_counts(session)
-
-    def row(intent: str) -> dict:
-        reg = registered.get(intent, 0)
-        return {
-            "intent": intent,
-            "domain": domain_of.get(intent),
-            "registered": reg,
-            "pending": pending.get(intent, 0),
-            "gap_to_floor": max(0, floor - reg),
-            "meets_floor": reg >= floor,
-        }
-
-    crit_rows = [row(i) for i in critical]
-    crit_met = sum(1 for r in crit_rows if r["meets_floor"])
-    noncrit_rows = [row(i) for i in real_intents if i not in critical_set]
-    measured = sum(1 for r in noncrit_rows if r["registered"] >= 1)
-
-    latest = latest_ktib(session)
-    return {
-        "floor_critical": floor,
-        "critical": {
-            "floor": floor,
-            "met": crit_met,
-            "total": len(crit_rows),
-            "ready": crit_met == len(crit_rows),
-            "rows": sorted(crit_rows, key=lambda r: (r["registered"], r["intent"])),
-        },
-        "noncritical": {
-            "measured": measured,
-            "total": len(noncrit_rows),
-            "unmeasured": [r["intent"] for r in noncrit_rows if r["registered"] == 0],
-            "rows": sorted(noncrit_rows, key=lambda r: (r["registered"], r["intent"])),
-        },
-        "registered_total": int(sum(registered.values())),
-        "pending_total": int(sum(pending.values())),
-        "ambiguous_gold": ambiguous,
-        "current_ktib": (
-            None
-            if latest is None
-            else {"version": latest.ktib_version, "episode_count": latest.episode_count}
-        ),
-    }
 
 
 def _print_human(rep: dict) -> None:
