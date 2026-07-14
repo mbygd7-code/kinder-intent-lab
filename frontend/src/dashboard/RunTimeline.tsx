@@ -117,9 +117,10 @@ export function RunTimeline({ data }: { data: Dashboard }) {
         <div className="dash-card">
           <div
             className="dash-card-sub dash-axis-note"
-            title={`같은 시험지(${perf.axis?.ktib_version})로 같은 뇌(${perf.axis?.model_version})를 잰 기록만 비교해요. "새로 들어온 것" 개수는 도착 시각 기준이라 약간의 오차가 있을 수 있어요.`}
+            title="공정한 비교를 위해 매번 같은 시험지로 시험을 봐요. 시험지가 바뀌면 새 기준으로 다시 시작돼요."
           >
-            같은 시험지로 같은 뇌를 반복해서 잰 점수예요 — 공정한 비교를 위해서예요.
+            채점할 때마다 점수가 점 하나로 찍혀요 — 왼쪽이 처음, 오른쪽이 최근.
+            점선({(cfg.first_intent_accuracy_target * 100).toFixed(0)}%)을 넘는 게 목표예요.
           </div>
           <RunChart runs={perf.runs} target={cfg.first_intent_accuracy_target} />
           {!perf.attribution_ready && (
