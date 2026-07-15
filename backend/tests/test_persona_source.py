@@ -13,7 +13,7 @@ from app.core.config import get_config
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.foundry.persona import build_behavior_vectors
 from app.foundry.persona_source import eligible_interactions, load_interactions
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.episodes import Episode, Evidence
 
 CFG = get_config()
@@ -21,7 +21,9 @@ CFG = get_config()
 
 @pytest.fixture(autouse=True)
 def _empty(db_session):
-    # FK: ktib_items → episodes 이므로 KtibItem을 먼저 비운다(벤치마크 episode가 있으면 필수)
+    # FK: arena_runs → ktib_versions, ktib_items → episodes — 실 채점 run이 생긴 뒤로는
+    # ArenaRun → KtibItem → KtibVersion 순으로 비운다
+    db_session.execute(delete(ArenaRun))
     db_session.execute(delete(KtibItem))
     db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))

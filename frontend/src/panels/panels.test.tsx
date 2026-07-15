@@ -139,7 +139,7 @@ afterEach(() => {
 })
 
 describe('RegionsPanel (§7-2)', () => {
-  it('KTIB 미실행이면 "—", 7개 region 리스트를 렌더한다', () => {
+  it('KTIB 미실행이면 "—", 전체 region 리스트(onto-2.0: 8)를 렌더한다', () => {
     render(<RegionsPanel />)
     expect(screen.getByText('브레인 종합 점수')).toBeTruthy()
     for (const r of REGIONS) expect(screen.getByText(r.label)).toBeTruthy()

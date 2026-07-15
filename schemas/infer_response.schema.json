@@ -18,7 +18,7 @@
         "required": ["intent_id", "domain", "score", "risk_tier", "requires_confirmation"],
         "properties": {
           "intent_id": {"type": "string"},
-          "domain": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+          "domain": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION", "STUDIO"]},
           "score": {"type": "number", "minimum": 0, "maximum": 1},
           "risk_tier": {"type": "string", "enum": ["LOW", "MED", "HIGH", "CRITICAL"]},
           "requires_confirmation": {"type": "boolean"},

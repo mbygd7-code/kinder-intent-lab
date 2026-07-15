@@ -11,7 +11,8 @@ from typing import ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, model_validator
 
 Domain = Literal[
-    "PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"
+    "PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION",
+    "STUDIO",
 ]
 
 

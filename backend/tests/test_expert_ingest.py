@@ -21,7 +21,7 @@ from app.foundry.expert_ingest import (
     UnknownIngestIntent,
     ingest_expert_episodes,
 )
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import CanonicalScenario
@@ -33,7 +33,7 @@ REVIEWERS = ("HR_kim", "HR_lee")
 
 @pytest.fixture(autouse=True)
 def _empty(db_session):
-    for model in (KtibItem, KtibVersion, Exemplar, Evidence, Episode, CanonicalScenario,
+    for model in (ArenaRun, KtibItem, KtibVersion, Exemplar, Evidence, Episode, CanonicalScenario,
                   GovernanceEvent):
         db_session.execute(delete(model))
     db_session.flush()

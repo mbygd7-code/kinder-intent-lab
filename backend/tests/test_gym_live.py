@@ -20,7 +20,7 @@ from app.core.config import get_config
 from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.main import app
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import AtlasExpansionEntry
@@ -31,7 +31,9 @@ CFG = get_config()
 @pytest.fixture(autouse=True)
 def _clean_bank(db_session):
     """전역 카운트 단언용 빈 뱅크 + 노드 부트스트랩(거버넌스 경로, 멱등) — 세이브포인트 안.
-    FK 순서: ktib_items→episodes 참조라 KTIB부터 비운다(test_promote와 동일 규율)."""
+    FK 순서: arena_runs→ktib_versions, ktib_items→episodes — ArenaRun→KTIB→episode 순
+    (test_promote와 동일 규율)."""
+    db_session.execute(delete(ArenaRun))
     db_session.execute(delete(KtibItem))
     db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))

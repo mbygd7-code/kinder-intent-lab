@@ -103,10 +103,10 @@ def test_confusable_self_ref_rejected() -> None:
         Ontology.model_validate(data)
 
 
-def test_domains_must_be_canonical_seven() -> None:
+def test_domains_must_be_canonical() -> None:
     data = _mini()
     data["domains"] = ["PLAY", "OBSERVATION"]
-    with pytest.raises(ValidationError, match="7개"):
+    with pytest.raises(ValidationError, match="정본"):
         Ontology.model_validate(data)
 
 
@@ -148,6 +148,45 @@ def test_seed_contains_canonical_confusion_pair() -> None:
         "text_naturalize" in by_id["visual_naturalize"].confusable_with
         or "visual_naturalize" in by_id["text_naturalize"].confusable_with
     )
+
+
+# --- onto-2.0: 8번째 region STUDIO (§5-10 v2, 마스터 문서 v1.5 — B안) ---
+
+STUDIO_NEW_INTENTS = {
+    "studio_worksheet_generate", "studio_video_generate", "studio_slides_draft",
+    "studio_game_generate", "studio_topic_web_generate", "studio_external_resource_search",
+}
+
+
+def test_onto2_studio_region_and_intent_set() -> None:
+    assert len(CANONICAL_DOMAINS) == 8 and CANONICAL_DOMAINS[-1] == "STUDIO"
+    onto = load_ontology()
+    by_id = {i.intent_id: i for i in onto.intents}
+    for iid in STUDIO_NEW_INTENTS:
+        assert by_id[iid].domain == "STUDIO", iid
+    # B안: 기존 이미지 생성 의도가 STUDIO로 이동 (intent_id 불변 — KTIB 골드 라벨 무손상)
+    assert by_id["visual_image_generate"].domain == "STUDIO"
+    assert by_id["refl_child_guidance_consult"].domain == "REFLECTION"
+    real = [i for i in onto.intents if i.intent_id != "UNKNOWN"]
+    assert len(real) == 70
+
+
+def test_onto2_coloring_example_owned_by_worksheet() -> None:
+    """색칠도안 예시는 활동지 의도 소유 — image_generate에 남으면 골드 라벨 모순."""
+    onto = load_ontology()
+    by_id = {i.intent_id: i for i in onto.intents}
+    moved = "우주 주제 색칠도안 하나 생성해줘"
+    assert moved in by_id["studio_worksheet_generate"].positive_examples
+    assert moved not in by_id["visual_image_generate"].positive_examples
+
+
+def test_onto2_new_intents_wired_into_confusion_graph() -> None:
+    """신설 의도는 혼동 그래프에 배선돼야 훈련 가능하다 — 동기가 된 충돌쌍 최소 검증."""
+    onto = load_ontology()
+    by_id = {i.intent_id: i for i in onto.intents}
+    assert "visual_image_generate" in by_id["studio_worksheet_generate"].confusable_with
+    assert "studio_worksheet_generate" in by_id["studio_game_generate"].confusable_with
+    assert "studio_external_resource_search" in by_id["studio_video_generate"].confusable_with
 
 
 # --- ontology_versions 기록 ---

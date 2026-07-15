@@ -1,8 +1,9 @@
 /**
- * D. 확장 스토리 — "63개가 끝이 아니다"를 실데이터로만 증명 (신뢰 요구의 직접 응답).
+ * D. 확장 스토리 — "지금 수가 끝이 아니다"를 실데이터로만 증명 (신뢰 요구의 직접 응답).
  *
  * 원천: 온톨로지(의도·예시 수), UNKNOWN pool, atlas 확장 큐(PENDING), 온톨로지 버전 이력.
- * 과거 수치를 날조하지 않는다 — 버전 행 + 현재 값만.
+ * 과거 수치를 날조하지 않는다 — 버전 행 + 현재 값만. 헤더 수치는 API가 준 intent_count
+ * (onto-2.0에서 63→70처럼 자라므로 하드코딩 금지).
  */
 import type { Dashboard } from '../api/dashboard'
 import { CountUp } from './viz/CountUp'
@@ -14,7 +15,7 @@ export function ExpansionStory({ data }: { data: Dashboard }) {
   return (
     <section className="dash-card" aria-label="확장 스토리">
       <h2 className="dash-section-title dash-section-title-inset">
-        EXPANSION <span>확장 — 63개가 끝이 아니에요</span>
+        EXPANSION <span>확장 — {e.intent_count}개가 끝이 아니에요</span>
       </h2>
       <div className="dash-expansion-row">
         <div className="dash-stat">

@@ -12,7 +12,7 @@ import { layoutNodes, MIN_SEP } from './layout'
 import { makeMockNodes } from './mockNodes'
 import { REGIONS, REGION_BY_ID } from './regions'
 
-const seeds = makeMockNodes() // 7 region × 15 = 105 ≥ 100 (AC 기준)
+const seeds = makeMockNodes() // 8 region × 15 = 120 ≥ 100 (AC 기준, onto-2.0)
 
 describe('layoutNodes — 결정론적 배치', () => {
   it('AC: 100개 이상 노드가 전부 배치된다 (유실·중복 없음)', () => {
@@ -82,9 +82,9 @@ describe('layoutNodes — 결정론적 배치', () => {
 })
 
 describe('makeMockNodes — Observatory API 전까지의 임시 데이터', () => {
-  it('7개 region 전부를 커버한다', () => {
+  it('전체 region을 전부 커버한다 (onto-2.0: 8)', () => {
     const covered = new Set(seeds.map((s) => s.region))
-    expect(covered.size).toBe(7)
+    expect(covered.size).toBe(REGIONS.length)
   })
 
   it('nodeId는 전역 유일하다', () => {

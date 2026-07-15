@@ -20,7 +20,7 @@ from app.arena.ktib import (
     load_items,
 )
 from app.core.config import get_config
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import CanonicalScenario
@@ -32,7 +32,7 @@ CFG = get_config()
 @pytest.fixture(autouse=True)
 def _empty(db_session):
     """빈 슬레이트 — 실 DB 뱅크(TRAIN 합성)가 자격 판정을 흐리지 않게 세이브포인트 안에서 비운다."""
-    for model in (KtibItem, KtibVersion, Exemplar, Evidence, Episode, CanonicalScenario):
+    for model in (ArenaRun, KtibItem, KtibVersion, Exemplar, Evidence, Episode, CanonicalScenario):
         db_session.execute(delete(model))
     db_session.flush()
 

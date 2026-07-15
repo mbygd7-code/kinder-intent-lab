@@ -6,7 +6,7 @@
  * 모든 샘플링은 mulberry32 고정 시드 — Math.random 금지(리로드 불변, brainShape.test.ts로 잠금).
  *
  * 이 레이어는 전부 **장식**이다(§7-5 정보 정직성): 점·웹은 의미 노드가 아니고 상호작용도 없다.
- * 색만 region 로브(최근접 앵커 보로노이)를 따라가 "하나의 뇌 안의 7개 색 영역"을 만든다.
+ * 색만 region 로브(최근접 앵커 보로노이)를 따라가 "하나의 뇌 안의 색 영역들"을 만든다.
  */
 import { mulberry32 } from './hash'
 import { REGIONS, type RegionId } from './regions'

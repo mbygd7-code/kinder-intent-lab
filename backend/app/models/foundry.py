@@ -7,8 +7,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
 
+# onto-2.0: STUDIO 포함 8도메인 — db/migrations 0017과 동기 (CANONICAL_DOMAINS와 1:1)
 DOMAIN_CHECK = (
-    "IN ('PLAY','OBSERVATION','DOCUMENT','VISUAL','COMMUNICATION','OPERATION','REFLECTION')"
+    "IN ('PLAY','OBSERVATION','DOCUMENT','VISUAL','COMMUNICATION','OPERATION','REFLECTION',"
+    "'STUDIO')"
 )
 
 

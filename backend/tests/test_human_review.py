@@ -20,7 +20,7 @@ from app.aggregator.review import (
 )
 from app.core.config import get_config
 from app.core.ontology import load_ontology
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.governance import GovernanceEvent
@@ -32,7 +32,7 @@ CFG = get_config()
 def _empty(db_session):
     # FK 순서: ktib_items → (episodes, ktib_versions) 이므로 KtibItem을 먼저 비운다.
     # (기존엔 KtibItem/KtibVersion 누락 — 벤치마크 episode가 있으면 episodes DELETE가 FK로 실패)
-    for model in (KtibItem, KtibVersion, Exemplar, Evidence, Episode, GovernanceEvent):
+    for model in (ArenaRun, KtibItem, KtibVersion, Exemplar, Evidence, Episode, GovernanceEvent):
         db_session.execute(delete(model))
     db_session.flush()
 

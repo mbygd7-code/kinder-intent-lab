@@ -17,7 +17,7 @@
         "type": "object",
         "required": ["region", "reliability", "node_count", "gold_evidence", "synthetic_evidence", "stage", "stage_name", "measured_count"],
         "properties": {
-          "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+          "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION", "STUDIO"]},
           "reliability": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
           "node_count": {"type": "integer", "minimum": 0},
           "gold_evidence": {"type": "integer", "minimum": 0},
@@ -36,7 +36,7 @@
         "properties": {
           "node_id": {"type": "string"},
           "intent_id": {"type": "string"},
-          "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+          "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION", "STUDIO"]},
           "evidence_total": {"type": "integer", "minimum": 0},
           "evidence_diversity": {"type": "number", "minimum": 0, "maximum": 1},
           "gold_count": {"type": "integer", "minimum": 0},

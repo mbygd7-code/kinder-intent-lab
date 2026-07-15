@@ -14,8 +14,11 @@ from sqlalchemy.orm import Session
 from app.core.config import ExperimentsConfig, get_config
 from app.models.governance import OntologyVersion
 
+# onto-2.0 (마스터 문서 v1.5, §5-10 v2): STUDIO(자료 만들기) 신설 — 8번째가 마지막 원소.
+# 순서는 프론트 regions.ts·3D 좌표계와 1:1이므로 재배열 금지.
 CANONICAL_DOMAINS = (
-    "PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"
+    "PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION",
+    "STUDIO",
 )
 UNKNOWN_INTENT_ID = "UNKNOWN"
 
@@ -45,7 +48,7 @@ class Ontology(BaseModel):
     @model_validator(mode="after")
     def _structural(self) -> "Ontology":
         if tuple(self.domains) != CANONICAL_DOMAINS:
-            raise ValueError("domains는 정본 7개 도메인이어야 한다 (§5-9)")
+            raise ValueError("domains는 정본 도메인 집합·순서여야 한다 (§5-9·§5-10)")
 
         ids = [i.intent_id for i in self.intents]
         dups = sorted({x for x in ids if ids.count(x) > 1})

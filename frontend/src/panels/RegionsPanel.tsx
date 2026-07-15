@@ -18,10 +18,11 @@ const SUBTITLE: Record<RegionId, string> = {
   PLAY: '상상 · 놀이 확장',
   OBSERVATION: '아이 관찰 · 알아차림',
   DOCUMENT: '기록 · 글쓰기',
-  VISUAL: '사진 · 이미지',
+  VISUAL: '사진 · 꾸미기',
   COMMUNICATION: '학부모 · 소통',
   OPERATION: '학급 운영 · 실행',
   REFLECTION: '되돌아보기 · 성장',
+  STUDIO: '자료 · 콘텐츠 만들기',
 }
 
 const TOP_WEAK_N = 4
@@ -70,7 +71,7 @@ export function RegionsPanel() {
       <section className="panel-card">
         <div className="panel-head">
           <span className="panel-eyebrow">뇌 영역</span>
-          <span className="panel-count">7개</span>
+          <span className="panel-count">{REGIONS.length}개</span>
         </div>
         <ul className="region-list">
           {REGIONS.map((r) => {

@@ -150,18 +150,29 @@ def test_bad_json_does_not_kill_run_nor_score_as_correct(db_session) -> None:
 
 
 def test_baseline_does_not_touch_brightness(db_session) -> None:
-    """절대 규칙 3: 베이스라인 run은 brain_nodes를 건드리지 않는다."""
+    """절대 규칙 3: 베이스라인 run은 brain_nodes를 건드리지 않는다.
+
+    실 DB에 채점된(밝은) 노드가 생긴 뒤에도 유효하도록 '전부 어둡다'가 아니라
+    '베이스라인 전후로 밝기가 1비트도 안 변한다'를 단언한다(불변식 그대로).
+    """
     from app.brain.backfill import bootstrap_nodes
     from app.models.brain import BrainNode
 
     bootstrap_nodes(db_session, approved_by="lab")
     db_session.flush()
+    before = {
+        n.node_id: (n.heldout_accuracy, n.calibration_ece, n.last_arena_run)
+        for n in db_session.scalars(select(BrainNode))
+    }
     ktib, a, b = _three_item_ktib(db_session)
     client = zero_shot_client({"발화-EP_1": (a, 0.9)})
     run_zero_shot_baseline(db_session, client, CFG, model="m")
 
-    nodes = db_session.scalars(select(BrainNode)).all()
-    assert all(n.heldout_accuracy is None and n.last_arena_run is None for n in nodes)
+    after = {
+        n.node_id: (n.heldout_accuracy, n.calibration_ece, n.last_arena_run)
+        for n in db_session.scalars(select(BrainNode))
+    }
+    assert after == before
 
 
 def test_no_ktib_raises(db_session) -> None:

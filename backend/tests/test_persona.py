@@ -8,6 +8,7 @@
 import pytest
 
 from app.core.config import get_config
+from app.core.ontology import CANONICAL_DOMAINS
 from app.foundry.persona import (
     HYPOTHESIS_AXES,
     Interaction,
@@ -55,8 +56,9 @@ def test_build_behavior_vectors() -> None:
     vectors = build_behavior_vectors(_group_interactions("tp_", "PLAY", 3))
     assert set(vectors) == {"tp_0", "tp_1", "tp_2"}
     v = vectors["tp_0"]
-    assert len(v) == 9  # 7 domain + correction_frac + confirmation_frac
-    assert abs(sum(v[:7]) - 1.0) <= 0.01  # domain 분포 합 = 1
+    n_domains = len(CANONICAL_DOMAINS)
+    assert len(v) == n_domains + 2  # domain 분포 + correction_frac + confirmation_frac
+    assert abs(sum(v[:n_domains]) - 1.0) <= 0.01  # domain 분포 합 = 1
 
 
 def test_empty_interactions() -> None:

@@ -12,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.core.config import ExperimentsConfig
-from app.core.ontology import load_ontology
+from app.core.ontology import CANONICAL_DOMAINS, load_ontology
 from app.foundry.episode_builder import generate_episode
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
 from app.foundry.stages.s2_governance import govern_source, store_raw_document
@@ -290,8 +290,7 @@ def _run_pilot_body(
         frame = build_situation_frame(
             session,
             FrameInput(
-                domain=["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION",
-                        "OPERATION", "REFLECTION"][si % 7],
+                domain=CANONICAL_DOMAINS[si % len(CANONICAL_DOMAINS)],
                 summary=f"소스 {si}에서 추출한 상황 프레임",
                 teacher_concern="개입 시점과 방식",
                 extraction_confidence=0.8,

@@ -2,7 +2,7 @@
  * 해부학적 실루엣 불변식 — 장식 레이어의 구조 정직성 + 결정론.
  *
  * - 샘플 점(셸·볼륨)은 전부 뇌 합집합 안(셸은 지터 여유 내)에 있다
- * - region 앵커 7개가 모두 실루엣 내부에 있다 (로브 = 뇌 안의 영역)
+ * - 전체 region 앵커가 모두 실루엣 내부에 있다 (로브 = 뇌 안의 영역)
  * - 샘플링·웹은 결정론(고정 시드) — 리로드마다 같은 뇌
  */
 import { describe, expect, it } from 'vitest'
@@ -20,7 +20,7 @@ import {
 import { REGIONS } from './regions'
 
 describe('brainShape — 실루엣·샘플러', () => {
-  it('7개 region 앵커가 모두 뇌 실루엣 내부에 있다', () => {
+  it('전체 region 앵커가 모두 뇌 실루엣 내부에 있다 (onto-2.0: 8)', () => {
     for (const r of REGIONS) {
       expect(insideBrain(r.center), r.id).toBe(true)
     }

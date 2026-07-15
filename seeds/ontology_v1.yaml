@@ -1,9 +1,11 @@
-# Intent Ontology v1 시드 — domain → intent 2계층 (설계 문서 §5-9)
-# 정본 intent 7종(play_expand 등)은 설계 문서 출처, 나머지 56종은 2026-07-08 멀티에이전트 저작.
+# Intent Ontology 시드 — domain → intent 2계층 (설계 문서 §5-9)
+# 정본 intent 7종(play_expand 등)은 설계 문서 출처, 56종은 2026-07-08 멀티에이전트 저작.
+# onto-2.0 (2026-07-15, 마스터 문서 v1.5 §5-10 v2 — 사용자 승인): STUDIO(자료 만들기) region
+# 신설 + studio_* 6종·refl_child_guidance_consult 저작 + visual_image_generate STUDIO 이동(B안).
 # UNKNOWN은 domain 없음 (§5-8 미분류 pool). 수정 시 버전 규칙(minor/major)을 따를 것.
 # positive_examples는 seeds/ontology_examples_draft.csv가 원본 — 수정은 시트를 고치고 scripts/apply_ontology_examples.py --write (직접 편집 금지)
-version: onto-1.1
-change_type: minor
+version: onto-2.0
+change_type: major
 domains:
 - PLAY
 - OBSERVATION
@@ -12,6 +14,7 @@ domains:
 - COMMUNICATION
 - OPERATION
 - REFLECTION
+- STUDIO
 intents:
 - intent_id: play_expand
   domain: PLAY
@@ -30,6 +33,7 @@ intents:
   - play_transition_next_step
   - play_revive_stalled
   - doc_expand_text
+  - studio_topic_web_generate
 - intent_id: play_transition_next_step
   domain: PLAY
   definition: 현재 진행 중인 놀이의 흐름과 도달 지점을 입력으로 받아, 그 놀이에서 이어서 전개할 다음 단계 활동을 제안한다.
@@ -391,6 +395,7 @@ intents:
   confusable_with:
   - op_schedule_update
   - play_transition_next_step
+  - studio_slides_draft
 - intent_id: doc_summarize
   domain: DOCUMENT
   definition: 선택한 긴 기록이나 문서를 입력으로, 핵심 내용만 남긴 더 짧은 요약문을 만든다.
@@ -524,14 +529,15 @@ intents:
   - visual_photo_organize
   - comm_share_media_with_parents
 - intent_id: visual_image_generate
-  domain: VISUAL
+  # onto-2.0 B안: VISUAL → STUDIO 이동 (intent_id 불변 — KTIB 골드 라벨 무손상).
+  # "우주 주제 색칠도안" 예시는 studio_worksheet_generate로 이관(골드 라벨 모순 방지).
+  domain: STUDIO
   definition: 교사가 말한 주제나 설명을 입력으로 활동 자료·알림장·안내문에 쓸 새 삽화나 이미지를 생성한다.
   positive_examples:
   - 다음 주 주제가 가을인데 어울리는 그림 하나 만들어줘
   - 물놀이 안내문에 넣을 귀여운 삽화 하나만
   - 토끼 그림 하나 그려줘
   - 가을 소풍 안내문에 넣을 단풍 일러스트 만들어줘
-  - 우주 주제 색칠도안 하나 생성해줘
   - 생일판에 쓸 케이크 그림 그려줄래?
   negative_examples:
   - 가을 느낌 나게 알림장 글 좀 써줘
@@ -540,6 +546,8 @@ intents:
   - visual_collage_compose
   - visual_decorate
   - play_scenario_generate
+  - studio_worksheet_generate
+  - studio_video_generate
 - intent_id: visual_privacy_mask
   domain: VISUAL
   definition: 선택된 사진에서 공개하면 안 되는 아동 얼굴이나 개인정보가 드러난 영역을 찾아 흐림·스티커 처리한 공유 가능한 사진을 만든다.
@@ -690,6 +698,7 @@ intents:
   confusable_with:
   - comm_share_media_with_parents
   - obs_search_records
+  - studio_slides_draft
 - intent_id: comm_schedule_send
   domain: COMMUNICATION
   definition: 이미 작성된 알림·메시지에 발송 시각을 지정해 예약 발송으로 등록하거나 예약 시각을 변경한다.
@@ -887,6 +896,7 @@ intents:
   confusable_with:
   - obs_search_records
   - visual_photo_pick_best
+  - studio_external_resource_search
 - intent_id: op_workspace_delete
   domain: OPERATION
   definition: 지정되거나 조건에 맞는 워크스페이스 항목을 삭제하거나 휴지통으로 이동해 목록에서 제거한다.
@@ -1052,6 +1062,123 @@ intents:
   - doc_summarize
   - refl_activity_review
   - refl_goal_alignment_check
+# --- STUDIO (자료 만들기) — onto-2.0 신설 (킨더버스 표면 감사 · 싱크 전략 §3-2) ---
+- intent_id: studio_worksheet_generate
+  domain: STUDIO
+  definition: 주제·연령을 입력으로 인쇄해서 쓰는 활동지(색칠 도안·선잇기·미로·오리기·짝맞추기 등)를 생성한다.
+  positive_examples:
+  - 봄꽃 주제로 선잇기 활동지 하나 만들어줘
+  - 공룡 미로 찾기 워크시트 뽑아줘
+  - 만 3세용 색칠 도안 준비해줘
+  - 우주 주제 색칠도안 하나 생성해줘
+  - 가위질 연습할 오리기 자료 좀 만들어줄래?
+  - 숫자 따라쓰기 A4 한 장 만들어 줘
+  negative_examples:
+  - 토끼 그림 하나 그려줘
+  - 아이들이 화면 누르면서 하는 짝맞추기 게임 만들어줘
+  confusable_with:
+  - visual_image_generate
+  - studio_game_generate
+  - op_material_prepare
+- intent_id: studio_video_generate
+  domain: STUDIO
+  definition: 주제 설명이나 이미지를 입력으로 활동·수업에 쓸 짧은 영상을 생성한다.
+  positive_examples:
+  - 바다 속 물고기들이 헤엄치는 짧은 영상 만들어줘
+  - 이 그림으로 움직이는 영상 만들어줘
+  - 손 씻기 순서 알려주는 애니메이션 영상 하나 뽑아줘
+  - 공룡이 걸어다니는 영상 생성해줘
+  - 동요에 맞춰 틀어줄 배경 영상 만들어줄래?
+  - 이 캐릭터가 인사하는 영상으로 만들어져?
+  negative_examples:
+  - 상어 가족 율동 유튜브 영상 찾아줘
+  - 어제 찍은 활동 사진 정리해줘
+  confusable_with:
+  - visual_image_generate
+  - studio_external_resource_search
+- intent_id: studio_slides_draft
+  domain: STUDIO
+  definition: 수업 주제나 행사 내용을 입력으로 발표·수업용 슬라이드(장표) 초안을 생성한다.
+  positive_examples:
+  - 교통안전 수업용 슬라이드 만들어줘
+  - 봄 프로젝트 발표 장표 초안 잡아줘
+  - 부모참여수업 때 보여줄 PPT 만들어줄래?
+  - 지진 대피 훈련 슬라이드 다섯 장으로 정리해줘
+  - 이 계획안으로 수업 슬라이드 만들어줘
+  - 졸업식 식순 장표 하나 부탁해
+  negative_examples:
+  - 이번 주 주간 놀이계획안 짜줘
+  - 이거 교실 화면에 크게 띄워줘
+  confusable_with:
+  - doc_plan_draft
+  - comm_present_to_children
+  - visual_image_generate
+- intent_id: studio_game_generate
+  domain: STUDIO
+  definition: 주제·연령을 입력으로 아이들이 화면을 조작하며 노는 인터랙티브 게임 콘텐츠를 생성한다.
+  positive_examples:
+  - 동물 짝맞추기 게임 만들어줘
+  - 과일 이름 맞히기 퀴즈 게임 하나 만들어줄래?
+  - 아이들이 태블릿으로 하는 그림자 맞추기 게임 만들어줘
+  - 이 사진들로 카드 뒤집기 게임 만들어줘
+  - 색깔별로 나누는 분류 게임 같은 거 돼?
+  - 공룡 발자국 따라가는 게임 만들어줘
+  negative_examples:
+  - 짝맞추기 활동지 뽑아줘
+  - 바깥놀이로 할 만한 게임 뭐가 좋을까?
+  confusable_with:
+  - studio_worksheet_generate
+  - play_material_suggest
+- intent_id: studio_topic_web_generate
+  domain: STUDIO
+  definition: 주제나 유아 관심사를 입력으로 생각그물·주제망(마인드맵)을 생성한다.
+  positive_examples:
+  - 가을 주제로 마인드맵 그려줘
+  - 곤충 프로젝트 주제망 만들어줘
+  - 아이들 관심사로 생각그물 하나 만들어줄래?
+  - 물 주제 확장맵 짜줘
+  - 이 주제로 브레인스토밍 맵 만들어줘
+  - 동네 탐험 주제망 정리해줘
+  negative_examples:
+  - 이 블록놀이 좀 더 키워볼 만한 거 없을까?
+  - 이번 주 주간 놀이계획안 짜줘
+  confusable_with:
+  - play_expand
+  - doc_plan_draft
+- intent_id: studio_external_resource_search
+  domain: STUDIO
+  definition: 활동 주제에 맞는 외부 자료(유튜브 영상·웹 자료)를 검색해 링크·목록으로 제시한다.
+  positive_examples:
+  - 상어 가족 율동 유튜브 영상 찾아줘
+  - 가을 낙엽 놀이 참고할 만한 자료 검색해줘
+  - 공룡 다큐 영상 링크 좀 찾아줄래?
+  - 종이접기 순서 나온 웹사이트 찾아줘
+  - 이 주제로 아이들이랑 볼만한 동요 영상 추천해줘
+  - 봄 동시 자료 인터넷에서 찾아줘
+  negative_examples:
+  - 지난주에 만든 활동지 어디 있지?
+  - 바다 속 물고기들이 헤엄치는 짧은 영상 만들어줘
+  confusable_with:
+  - op_workspace_search
+  - studio_video_generate
+# --- REFLECTION 추가 — onto-2.0 (아동 지도 상담) ---
+- intent_id: refl_child_guidance_consult
+  domain: REFLECTION
+  definition: 교사가 묘사한 아동의 걱정되는 행동을 입력으로 발달 지식에 기반한 지도 방안을 상담 형식으로 제안한다.
+  positive_examples:
+  - 요즘 지호가 밥을 잘 안 먹는데 어떻게 하면 좋을까?
+  - 친구를 자꾸 무는 아이는 어떻게 지도해야 해?
+  - 낮잠 시간에 유독 우는 아이가 있는데 조언 좀 해줘
+  - 전학 온 아이가 적응을 힘들어하는데 어떻게 도와줄까?
+  - 동생이 생긴 뒤로 아기처럼 구는데 괜찮은 걸까?
+  - 물건을 자꾸 던지는 행동엔 어떻게 반응해야 해?
+  negative_examples:
+  - 지호 행동 변화 기록 좀 요약해줘
+  - 지원이 더 필요한 아이가 있는지 찾아봐줘
+  confusable_with:
+  - obs_detect_behavior_change
+  - refl_support_need_scan
+  - refl_improvement_suggest
 - intent_id: UNKNOWN
   domain: null
   definition: 정의된 어떤 intent로도 분류할 수 없는 발화로, 미분류 pool로 보내 주간 클러스터링 대상이 되게 한다.

@@ -41,11 +41,18 @@ export const INTENT_LABEL_KO: Record<string, string> = {
   visual_layout_refine: '게시물 배치 다듬기',
   visual_photo_organize: '사진 정리',
   visual_photo_pick_best: '베스트 사진 고르기',
-  visual_image_generate: '그림 만들기',
   visual_privacy_mask: '얼굴 모자이크 처리',
   visual_crop_focus: '사진 크롭·확대',
   visual_decorate: '사진 꾸미기',
   visual_collage_compose: '콜라주 만들기',
+  // STUDIO (onto-2.0 — visual_image_generate는 B안으로 여기 이동, id 불변)
+  visual_image_generate: '그림 만들기',
+  studio_worksheet_generate: '활동지 만들기',
+  studio_video_generate: '활동 영상 만들기',
+  studio_slides_draft: '슬라이드 만들기',
+  studio_game_generate: '게임 만들기',
+  studio_topic_web_generate: '주제망 만들기',
+  studio_external_resource_search: '외부 자료 찾기',
   // COMMUNICATION
   comm_draft_parent_notice: '학급 알림장 쓰기',
   comm_message_individual_parent: '개별 학부모 메시지',
@@ -76,6 +83,7 @@ export const INTENT_LABEL_KO: Record<string, string> = {
   refl_improvement_suggest: '개선점 제안',
   refl_support_need_scan: '지원 필요한 아이 찾기',
   refl_period_retrospective: '기간 회고',
+  refl_child_guidance_consult: '아이 지도 상담',
 }
 
 /** 한글 라벨. 미등록 id는 밑줄을 공백으로 바꾼 원 id(날조 없이 그대로) */

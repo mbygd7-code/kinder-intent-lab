@@ -20,18 +20,23 @@ from app.models.arena import (
     KtibItem,
     KtibVersion,
 )
-from app.models.brain import BrainVersion
+from app.models.brain import BrainVersion, Exemplar
+from app.models.episodes import Episode, Evidence
 
 PIN = "2341"  # 기본 PIN — env ARENA_PIN 미설정 시의 계약(오클릭 방지 자물쇠)
 
 
 @pytest.fixture(autouse=True)
 def _reset(db_session, monkeypatch):
-    """모듈 상태·env를 테스트마다 초기화 + 관련 테이블 선삭제(FK: run→ktib)."""
+    """모듈 상태·env를 테스트마다 초기화 + 관련 테이블 선삭제(FK: run→ktib, item→episode).
+
+    Episode·Evidence까지 비운다 — '새 유입 없음' 판정이 실 DB의 최근 활동(즉석 문답 등)에
+    오염되면 테스트가 시간 의존으로 흔들린다(밀폐형 빈 뱅크, 세이브포인트 안 롤백).
+    """
     with arena_ops._lock:
         arena_ops._state.update(running=False, started_at=None, error=None)
     monkeypatch.delenv("ARENA_PIN", raising=False)
-    for model in (ArenaRun, KtibItem, KtibVersion, BrainVersion):
+    for model in (ArenaRun, KtibItem, KtibVersion, BrainVersion, Evidence, Exemplar, Episode):
         db_session.execute(delete(model))
     db_session.flush()
 

@@ -1,8 +1,8 @@
-# Kinder Intent Brain Foundry & Growth System v1.4
+# Kinder Intent Brain Foundry & Growth System v1.5
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | DRAFT v1.4 |
+| 상태 | DRAFT v1.5 |
 | 지위 | **Kinder Intent Lab의 제1 설계 문서** — 킨더버스와 분리된 독립 실험실 설계 |
 | 범위 밖 | 킨더버스 **live rollout** API·서빙 (0%) → PARTIAL HOLD 문서 `/docs/06-runtime-integration/kinder-intent-runtime-spec-v0.1.md`(v0.2). 단, **Shadow 0a(Distribution Capture)/0b(Shadow Inference)는 거버넌스 조건 충족 시 조기 병행 가능**(동 문서 §2) — 실사용 언어가 Atlas·OOD 검증에 조기 공급되는 플라이휠 |
 | 후속 문서 | ② 어노테이션 가이드 · ③ 위험 등급표 + 지표 정의 |
@@ -11,6 +11,7 @@
 
 | 버전 | 일자 | 변경 요약 |
 |---|---|---|
+| v1.5 | 2026-07-15 | **8번째 region STUDIO 신설 — onto-2.0 major (사용자 승인).** 킨더버스 표면 전수 감사(`docs/06-runtime-integration/kinderverse-intent-sync-strategy-v0.1.md`) 결과 "자료 만들기(만들어줘 계열 생성·큐레이션)"가 서비스 핵심 가치이자 독립 니즈 축으로 확인되어 §5-10의 major 경로를 최초 사용. **B안(정합)**: 신설 생성형 6종(`studio_worksheet_generate`·`studio_video_generate`·`studio_slides_draft`·`studio_game_generate`·`studio_topic_web_generate`·`studio_external_resource_search`) + 기존 `visual_image_generate`를 STUDIO로 **이동**(intent_id 불변 — KTIB 골드 라벨 무손상, VISUAL은 사진·꾸미기로 순수화) + 상담형 `refl_child_guidance_consult`(REFLECTION). 63→70 intents. 좌표계: STUDIO 중심 `[0, 0.1, -0.1]`(대뇌 심부 — 여러 영역을 조합하는 연합 기능의 서사, 전 기존 중심과 ≥0.61 거리로 비겹침 불변식 유지), 색 `#f87171`. 물리 반영: `CANONICAL_DOMAINS` 8원소, DB CHECK 마이그레이션 0017, 스키마 region enum, 프론트 `regions.ts`. 신설 intent는 사람 저작 KTIB 문항 생길 때까지 dark(원칙 8) — 헤드라인 FIA는 core-63 슬라이스와 병행 보고(분모 슬라이드 방지). 채점 이력이 막 시작됐고(첫 불꽃, 측정 영역 신뢰도 전부 0%) 축적된 비교축이 사실상 없는 현 시점이 major 단절 비용의 최저점임을 확인하고 단행. 노드 생성·이동은 governance_events 경유(원칙 9, `NODE_REGION_MOVE` 이벤트 신설) |
 | v1.4 | 2026-07-14 | **KTIB 목표 80% → 96% 상향 (운영자 승인).** ktib-2(185문항) 동결 후 §8-2 베이스라인 규칙에 따라 zero-shot(claude-sonnet-5) **88.1%**를 실측 — 베이스라인이 기존 목표를 넘어 목표가 변별력을 잃었다. `config.arena.first_intent_accuracy_target` 0.80→0.96. §7-6 Stage 5는 동일 값을 재사용하므로 동반 상향(목표가 둘이면 안 된다). 표기 갱신: §0-1 개요·범위 선언·§7-6 스테이지 표·§10-2 로드맵·문서 지도. §8-2 베이스라인 규칙 원문은 수치 제거(목표 확정 절차로 일반화) |
 | v1.3 | 2026-07-10 | **Phase 5 게이트 4결정 확정 (사용자 승인).** ① §7-6 Stage 판정을 `highest-satisfied-wins` 단조 사다리로 확정 — Stage 1~3 기준이 상호 배타적이지 않았다. ② §7-6 Stage 4를 **Semantic Cross-Region Flow**로 재정의: "인접 region"이 설계에 정의된 적 없고 공간 인접 그래프를 발명하지 않기로 하여, Arena가 실측하는 유일한 인접 신호인 **`state=confirmed` cross-region confusion edge**로 대체. "주요 confusion edge 감소 추세"는 동일 `ktib_version` 최근 `stages.cross_region_trend_window`개 brain run 윈도에서, **시작 run에 스냅샷된** 주요 다리(rate ≥ `cross_region_major_edge_min`) 평균 rate가 `cross_region_trend_min_drop` 이상 순감소하는 것으로 확정. 인접을 rate가 아니라 state로 잡아 "혼동이 줄면 인접이 사라져 Stage 4가 자기소멸"하는 결함을 제거. Stage 4는 읽기 시점 VIEW이며 `arena_runs`에 저장하지 않는다(run 이력 의존 → replay 비결정). ③ §6-6의 `critical intent`를 **Risk Model rm-1.0**(`seeds/risk_model_v1.yaml`)에서 파생 — 축 E(비가역 외부 유출)/D(비가역 파괴)/R(공식 등록부 오기재), CRITICAL 7종. 위험 등급은 intent의 *의미*가 아니라 *평가 정책*이므로 **온톨로지에 넣지 않는다**(넣으면 등급 개정마다 `arena_runs.ontology_version` replay 축이 churn). ④ §8-2가 문서 ③으로 미룬 지표를 확정: **1-Turn Recovery**(분모=clarify, 분자=gold ∈ top-2), **Persona Lift/Harm**(§5-5의 LLM-외 prior 곱셈을 재사용해 추가 LLM 호출 0; Arena는 persona_state를 변이하지 않고 비활성화를 *제안*만 — KTIB 수치의 추론 상태 역류 차단 §8-2), **CWAR 양방향**(fire = P(오발\|critical 커밋), miss = P(오인식\|정답이 critical)) + **Critical Commit Coverage** 하한. §10-2 부활 트리거를 이 4지표 게이트로 구체화. 네 지표는 전부 run 시점에 계산돼 `arena_runs.metrics`에 **동결**되고 게이트는 저장값만 읽는다(게이트 시점 재계산 시 config 편집만으로 과거 판정이 바뀌어 replay 붕괴). 미측정은 0%가 아니라 null이며, **critical 표면이 존재하는데 지표가 null이면 게이트 FAIL**(측정 못 한 안전은 안전이 아니다) |
 | v1.2 | 2026-07-08 | §3-4에 두 번째 DB constraint `gold_requires_labeled` 추가: `reliability_tier=GOLD ⇒ label_state=LABELED` (§3-3의 스키마 강제). 앱 레벨 가드(promote_tier)를 우회하는 statement 레벨 쓰기가 T1.3 교차 검증에서 실증되어 물리 백스톱으로 승격 — 마이그레이션 0002. 사용자 승인 |
@@ -554,7 +555,12 @@ UNKNOWN·미분류 발화 → unassigned pool
 
 ### 5-10. Brain region은 고정인가, 성장하는가
 
-7개 region은 **v1 고정** — 3D 의미 좌표계의 안정성을 위해서다(노드가 늘어도 PLAY는 항상 같은 자리). region 내부 노드 수는 성장한다. region 신설·개편 = 온톨로지 major 버전.
+region 집합은 **버전 내 고정** — 3D 의미 좌표계의 안정성을 위해서다(노드가 늘어도 PLAY는 항상 같은 자리). region 내부 노드 수는 성장한다. region 신설·개편 = 온톨로지 **major** 버전이며, 반드시 사용자 승인 + Change Log + governance 이벤트를 동반한다.
+
+- **v1 (onto-1.x)**: 7 region — PLAY / OBSERVATION / DOCUMENT / VISUAL / COMMUNICATION / OPERATION / REFLECTION.
+- **v2 (onto-2.0, 2026-07-15 사용자 승인)**: 8 region — **STUDIO(자료 만들기)** 신설. 킨더버스의 "만들어줘" 계열 생성·큐레이션 니즈(활동지·영상·슬라이드·게임·주제망·외부자료)를 독립 축으로 승격하고, 기존 `visual_image_generate`를 STUDIO로 이동(B안 — intent_id 불변)해 VISUAL을 사진·꾸미기로 순수화했다. STUDIO 중심은 대뇌 심부 `[0, 0.1, -0.1]` — 자료 제작이 여러 영역의 재료를 조합하는 연합 기능이라는 의미 배치.
+- **major를 여는 조건(영역 압력 트리거)**: ① 실서비스 표면 감사가 기존 어느 영역에도 정직하게 배정할 수 없는 안정적 니즈 축을 실증하거나(v2가 이 경로), ② 주간 클러스터링의 UNKNOWN 클러스터가 반복적으로 검수자 합의 배정에 실패할 때. 추측만으로는 열지 않는다.
+- major 직후 신설·이동 intent가 KTIB 문항을 갖추기 전까지, 헤드라인 지표는 직전 버전 intent 집합 고정 슬라이스(예: core-63)를 병행 보고한다 — 분모가 조용히 바뀌는 것을 금지(§8-2 replay 규율의 자기 적용).
 
 ### 5-11 ~ 5-13
 

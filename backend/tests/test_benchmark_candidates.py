@@ -16,7 +16,7 @@ from app.core.config import get_config
 from app.core.db import get_session
 from app.core.ontology import load_ontology
 from app.main import app
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.benchmark_candidates import (
     BenchmarkCandidateBatch,
     BenchmarkCandidateItem,
@@ -38,7 +38,7 @@ def api(db_session):
 @pytest.fixture(autouse=True)
 def _empty(db_session):
     for model in (BenchmarkCandidateItem, BenchmarkCandidateBatch,
-                  KtibItem, KtibVersion, Evidence, Episode):
+                  ArenaRun, KtibItem, KtibVersion, Evidence, Episode):
         db_session.execute(delete(model))
     db_session.flush()
 

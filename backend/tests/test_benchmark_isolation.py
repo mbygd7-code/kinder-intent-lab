@@ -19,7 +19,7 @@ from app.brain.version_gate import count_gold, new_gold_since_base
 from app.core.config import get_config
 from app.core.datasets import is_training_gold
 from app.core.ontology import load_ontology
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, BrainVersion, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.foundry import CanonicalScenario
@@ -30,7 +30,7 @@ CFG = get_config()
 
 @pytest.fixture(autouse=True)
 def _empty(db_session):
-    for model in (KtibItem, KtibVersion, Exemplar, Evidence, Episode, CanonicalScenario,
+    for model in (ArenaRun, KtibItem, KtibVersion, Exemplar, Evidence, Episode, CanonicalScenario,
                   BrainVersion, BrainNode):
         db_session.execute(delete(model))
     db_session.flush()

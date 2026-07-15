@@ -1,10 +1,11 @@
 /**
- * 7 Brain Region — v1 고정 의미 좌표계 (§5-10).
+ * 8 Brain Region — 버전 내 고정 의미 좌표계 (§5-10 v2).
  *
- * "7개 region은 v1 고정 — 3D 의미 좌표계의 안정성을 위해서다(노드가 늘어도 PLAY는 항상
- *  같은 자리). region 내부 노드 수는 성장한다. region 신설·개편 = 온톨로지 major 버전."
+ * "region 집합은 버전 내 고정 — 3D 의미 좌표계의 안정성을 위해서다(노드가 늘어도 PLAY는
+ *  항상 같은 자리). region 신설·개편 = 온톨로지 major 버전 + 사용자 승인."
+ * onto-2.0 (2026-07-15, 마스터 문서 v1.5 — 사용자 승인): STUDIO(자료 만들기) 신설.
  *
- * §7-5 3중 인코딩(색약 대응): region 색 7종 + region 라벨 + 위치(고정 좌표계).
+ * §7-5 3중 인코딩(색약 대응): region 색 + region 라벨 + 위치(고정 좌표계).
  * id·순서는 백엔드 app/core/ontology.py CANONICAL_DOMAINS와 1:1 — regions.test.ts가 잠근다.
  * 좌표를 바꾸는 것은 의미 좌표계 변경이므로 설계 승인 없이 수정 금지 (테스트 스냅샷이 막는다).
  */
@@ -17,6 +18,7 @@ export type RegionId =
   | 'COMMUNICATION'
   | 'OPERATION'
   | 'REFLECTION'
+  | 'STUDIO'
 
 export interface BrainRegion {
   id: RegionId
@@ -35,9 +37,11 @@ export interface BrainRegion {
 
 // 해부학적 로브 배치 (brainShape.ts 실루엣 내부, 사시상 뷰 = 레퍼런스 이미지):
 // PLAY=전두상부, DOCUMENT=전두하부, OBSERVATION=두정, VISUAL=후두,
-// COMMUNICATION/OPERATION=좌/우 측두, REFLECTION=소뇌·뇌간.
+// COMMUNICATION/OPERATION=좌/우 측두, REFLECTION=소뇌·뇌간,
+// STUDIO=대뇌 심부(연합 영역 — 자료 만들기는 여러 영역의 재료를 조합하는 연합 기능).
 // 2026-07-09 사용자 승인 리스타일로 1회 이동(분산 셸 → 단일 뇌 내부) — 이후 다시 고정.
-// 쌍거리 최소 0.616(VISUAL–REFLECTION) ≥ 2×radius(0.56) — 비겹침 테스트 유지.
+// 2026-07-15 onto-2.0: STUDIO 신설(사용자 승인). 전 쌍거리 최소 0.611(STUDIO–OBSERVATION)
+// ≥ 2×radius(0.56) — 비겹침 테스트 유지.
 // 제목은 영문(label), 교사용 한글은 ko — 화면에선 "EN 제목 + 한글 서브 카피"로 병기한다
 // (2026-07-12 UI 재정비). id(백엔드 enum)·색·좌표는 불변.
 export const REGIONS: readonly BrainRegion[] = [
@@ -48,6 +52,7 @@ export const REGIONS: readonly BrainRegion[] = [
   { id: 'COMMUNICATION', label: 'COMMUNICATION', ko: '소통', color: '#f472b6', center: [-0.42, -0.1, 0.3], radius: 0.28 },
   { id: 'OPERATION', label: 'OPERATION', ko: '운영', color: '#facc15', center: [0.42, -0.1, 0.3], radius: 0.28 },
   { id: 'REFLECTION', label: 'REFLECTION', ko: '돌아보기', color: '#22d3ee', center: [0.0, -0.48, -0.68], radius: 0.28 },
+  { id: 'STUDIO', label: 'STUDIO', ko: '자료 만들기', color: '#f87171', center: [0, 0.1, -0.1], radius: 0.28 },
 ] as const
 
 export const REGION_BY_ID = Object.fromEntries(

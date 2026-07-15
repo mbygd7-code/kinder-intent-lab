@@ -14,6 +14,7 @@ from app.brain.backfill import (
     bootstrap_nodes,
     run_backfill,
     select_exemplars,
+    sync_node_regions,
 )
 from app.core.config import get_config
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
@@ -124,6 +125,35 @@ def test_bootstrap_does_not_set_brightness(db_session) -> None:
         assert n.heldout_accuracy is None
         assert n.calibration_ece is None
         assert n.last_arena_run is None
+
+
+def test_sync_node_regions_moves_stale_region_with_governance(db_session) -> None:
+    """onto-2.0 B안 AC: 온톨로지 domain과 어긋난 노드는 NODE_REGION_MOVE 이벤트로만 이동.
+
+    intent_id·brightness는 불변, 멱등, 히스토리 재작성 없음(절대 규칙 4의 이동판).
+    """
+    bootstrap_nodes(db_session, approved_by="lab")
+    db_session.flush()
+    node = db_session.scalars(
+        select(BrainNode).where(BrainNode.intent_id == "visual_image_generate")
+    ).one()
+    assert node.region == "STUDIO"  # onto-2.0 부트스트랩은 이미 정위치
+    node.region = "VISUAL"  # onto-1.1 시절 상태 재현 (실DB 이행 시나리오)
+    db_session.flush()
+
+    event_id = sync_node_regions(db_session, approved_by="lab")
+    db_session.flush()
+    assert event_id is not None
+    ev = db_session.get(GovernanceEvent, event_id)
+    assert ev.event_type == "NODE_REGION_MOVE"
+    assert {"intent_id": "visual_image_generate", "from": "VISUAL", "to": "STUDIO"} in (
+        ev.payload["moves"]
+    )
+    db_session.refresh(node)
+    assert node.region == "STUDIO"
+    assert node.intent_id == "visual_image_generate"  # id 불변 — KTIB 라벨 무손상
+    assert node.heldout_accuracy is None  # brightness 불변(규칙 3)
+    assert sync_node_regions(db_session, approved_by="lab") is None  # 멱등
 
 
 # --- exemplar 선정 (§5-7) + 핵심 AC ---

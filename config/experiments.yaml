@@ -152,11 +152,12 @@ campaign:                          # T2.5 10k~30k 생성 캠페인 (§10-2 Phase
   consensus_drop_max: 0.15        # 윈도 합의도가 Pilot 기준선보다 이 값 넘게 떨어지면 악화
   reject_rise_max: 0.15           # 윈도 reject율이 기준선보다 이 값 넘게 오르면 악화
   unit_cost_rise_ratio: 0.25      # 단가(시도당 토큰)가 기준선 대비 이 비율 넘게 오르면 악화
-  domain_weights:                 # 도메인 배분 — DOCUMENT+VISUAL 우선 (합=1.0)
-    DOCUMENT: 0.25
-    VISUAL: 0.25
+  domain_weights:                 # 도메인 배분 — DOCUMENT+VISUAL 우선 (합=1.0, onto-2.0: STUDIO 포함)
+    DOCUMENT: 0.22
+    VISUAL: 0.22
     PLAY: 0.12
     OBSERVATION: 0.12
     COMMUNICATION: 0.10
     OPERATION: 0.08
     REFLECTION: 0.08
+    STUDIO: 0.06

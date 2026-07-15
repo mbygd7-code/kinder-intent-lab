@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
-from app.core.ontology import load_ontology
+from app.core.ontology import CANONICAL_DOMAINS, load_ontology
 from app.foundry.episode_builder import generate_episode
 from app.foundry.pilot import _Deduper, _default_source_specs, _make_variant
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
@@ -29,7 +29,7 @@ from app.llm.client import LLMClient
 from app.models.episodes import Episode
 from app.models.foundry import FailedEpisode
 
-_DOMAINS = ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]
+_DOMAINS = list(CANONICAL_DOMAINS)  # 정본 도메인 순환 (onto-2.0: STUDIO 포함 8)
 _DEFAULT_PERSONAS = ["P_hypo_1", "P_active_2", "P_struct_3"]
 
 Scenario = tuple[str, str, str]  # (scenario_id, frame_id, source_id)

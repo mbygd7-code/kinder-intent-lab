@@ -234,7 +234,7 @@ export function ExamUploadModal({
                 ⭐ CRITICAL 7개 먼저 (권장 · 7×30칸)
               </a>
               <a className="view-toggle help-dl-btn" href="/ktib_exam_template.csv" download>
-                ⬇ 전체 양식 (63×10칸)
+                ⬇ 전체 양식 (70×10칸)
               </a>
             </div>
 

@@ -51,6 +51,7 @@ _SOURCE_CLASS_BY_DOMAIN = {
     "COMMUNICATION": "TEACHER_LANGUAGE",
     "OPERATION": "AUTHORITY",
     "REFLECTION": "TEACHER_LANGUAGE",
+    "STUDIO": "PRACTICE",  # onto-2.0 — 자료 만들기 요청은 현장 실무 발화 계열
 }
 
 
@@ -122,7 +123,7 @@ def _planned_counts_and_allocation(
     """
     weights = config.campaign.domain_weights
     if set(weights) != set(CANONICAL_DOMAINS):
-        raise ValueError(f"campaign.domain_weights 도메인이 정본 7개와 다름: {sorted(weights)}")
+        raise ValueError(f"campaign.domain_weights 도메인이 정본과 다름: {sorted(weights)}")
     counts = _apportion(target_n, weights)
     total = sum(counts.values()) or 1
     allocation = {d: counts.get(d, 0) / total for d in CANONICAL_DOMAINS}

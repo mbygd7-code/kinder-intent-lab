@@ -8,7 +8,7 @@
   "properties": {
     "node_id": {"type": "string", "pattern": "^N_"},
     "intent_id": {"type": "string"},
-    "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION"]},
+    "region": {"type": "string", "enum": ["PLAY", "OBSERVATION", "DOCUMENT", "VISUAL", "COMMUNICATION", "OPERATION", "REFLECTION", "STUDIO"]},
     "definition_ref": {"type": "string"},
     "exemplars": {
       "type": "object",

@@ -127,9 +127,10 @@ def test_empty_bank_is_honest_and_carries_config(api) -> None:
     assert perf["axis"] is None and perf["runs"] == []
     assert perf["attribution_ready"] is False
 
-    # 의도 63행 전부 측정 전(null) — 시험/공부 카운트는 실제 0
+    # 의도 전 행이 측정 전(null) — 시험/공부 카운트는 실제 0 (행 수 = 온톨로지 실 의도 수)
     rows = body["intents"]
-    assert len(rows) == 63
+    real = [i for i in load_ontology().intents if i.intent_id != "UNKNOWN"]
+    assert len(rows) == len(real)
     assert all(r["heldout_accuracy"] is None for r in rows)
     assert all(r["exam_registered"] == 0 and r["train"] == 0 for r in rows)
     # 하한(갭)은 CRITICAL에만 존재한다

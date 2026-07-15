@@ -7,7 +7,7 @@ Situation Frame — 이후 모든 시나리오의 뿌리 — 을 만든다.
 ## 입력 컨텍스트
 - 소스 발췌 텍스트 (ALLOW: 원문 / TRANSFORM_ONLY: 패턴·통계 요약)
 - 소스 클래스 (AUTHORITY / PRACTICE / TEACHER_LANGUAGE)
-- 온톨로지 7 도메인 (PLAY / OBSERVATION / DOCUMENT / VISUAL / COMMUNICATION / OPERATION / REFLECTION)
+- 온톨로지 8 도메인 (PLAY / OBSERVATION / DOCUMENT / VISUAL / COMMUNICATION / OPERATION / REFLECTION / STUDIO)
 
 ## 출력 스키마 (FrameInput)
 ```json

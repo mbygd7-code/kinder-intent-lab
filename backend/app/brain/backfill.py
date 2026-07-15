@@ -87,6 +87,48 @@ def bootstrap_nodes(
     return event_id
 
 
+def sync_node_regions(
+    session: Session, *, approved_by: str, ontology=None
+) -> str | None:
+    """온톨로지 domain과 어긋난 기존 노드의 region을 정렬 — governance_event 근거.
+
+    온톨로지 major에서 intent가 region을 옮길 때(예: onto-2.0 B안
+    visual_image_generate VISUAL→STUDIO)의 유일한 이동 경로다(절대 규칙 4의 이동판).
+    intent_id·측정값(brightness 등)은 건드리지 않는다 — region과 definition_ref만.
+    히스토리(episodes·과거 run)는 재작성하지 않는다. 멱등(어긋남 없으면 None).
+    """
+    onto = ontology or load_ontology()
+    domain_of = {i.intent_id: i.domain for i in onto.intents if i.intent_id != UNKNOWN_INTENT_ID}
+    moves = [
+        (node, domain_of[node.intent_id])
+        for node in session.scalars(select(BrainNode))
+        if node.intent_id in domain_of and node.region != domain_of[node.intent_id]
+    ]
+    if not moves:
+        return None
+    event_id = "GOV_" + uuid.uuid4().hex[:12]
+    session.add(
+        GovernanceEvent(
+            event_id=event_id,
+            event_type="NODE_REGION_MOVE",
+            payload={
+                "moves": [
+                    {"intent_id": n.intent_id, "from": n.region, "to": to}
+                    for n, to in moves
+                ],
+                "ontology_version": onto.version,
+            },
+            approved_by=approved_by,
+        )
+    )
+    session.flush()
+    for node, to in moves:
+        node.region = to
+        node.definition_ref = f"{onto.version}#{node.intent_id}"
+    session.flush()
+    return event_id
+
+
 # --- exemplar 선정 (§5-7) ---
 
 

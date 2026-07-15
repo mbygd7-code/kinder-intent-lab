@@ -1,7 +1,8 @@
 /**
- * T3.4 AC — region 7 고정 좌표계 (§5-10) + 3중 인코딩 (§7-5).
+ * T3.4 AC — region 고정 좌표계 (§5-10 v2) + 3중 인코딩 (§7-5).
  *
- * §5-10: 7개 region은 v1 고정 — 노드가 늘어도 PLAY는 항상 같은 자리.
+ * §5-10: region 집합은 버전 내 고정 — 노드가 늘어도 PLAY는 항상 같은 자리.
+ * onto-2.0 (2026-07-15, 사용자 승인): STUDIO 신설 — 8 region.
  * §7-5: 색약 대응 — 색 + region 라벨 + 위치(고정 좌표계)의 3중 인코딩.
  */
 import { describe, expect, it } from 'vitest'
@@ -11,16 +12,18 @@ import { REGIONS, REGION_BY_ID, type RegionId } from './regions'
 // 백엔드 app/core/ontology.py CANONICAL_DOMAINS와 1:1 (순서 포함)
 const CANONICAL_DOMAINS: RegionId[] = [
   'PLAY', 'OBSERVATION', 'DOCUMENT', 'VISUAL', 'COMMUNICATION', 'OPERATION', 'REFLECTION',
+  'STUDIO',
 ]
 
-describe('regions — 7 고정 region (§5-10)', () => {
-  it('정확히 7개, id·순서가 백엔드 CANONICAL_DOMAINS와 일치한다', () => {
+describe('regions — 고정 region 집합 (§5-10 v2)', () => {
+  it('정확히 8개, id·순서가 백엔드 CANONICAL_DOMAINS와 일치한다', () => {
     expect(REGIONS.map((r) => r.id)).toEqual(CANONICAL_DOMAINS)
   })
 
-  it('좌표는 v1 고정 — 값이 바뀌면 의미 좌표계가 깨진다 (스냅샷 잠금)', () => {
+  it('좌표는 버전 내 고정 — 값이 바뀌면 의미 좌표계가 깨진다 (스냅샷 잠금)', () => {
     // 임의 변경 금지: region 신설·개편 = 온톨로지 major 버전 (§5-10)
     // [2026-07-09] 사용자 승인 리스타일: 분산 셸 → 해부학적 단일 뇌 내부로 1회 이동
+    // [2026-07-15] onto-2.0(사용자 승인): STUDIO 대뇌 심부 추가 — 기존 7좌표 불변
     const centers = Object.fromEntries(REGIONS.map((r) => [r.id, r.center]))
     expect(centers).toEqual({
       PLAY: [0, 0.55, 0.62],
@@ -30,6 +33,7 @@ describe('regions — 7 고정 region (§5-10)', () => {
       COMMUNICATION: [-0.42, -0.1, 0.3],
       OPERATION: [0.42, -0.1, 0.3],
       REFLECTION: [0.0, -0.48, -0.68],
+      STUDIO: [0, 0.1, -0.1],
     })
   })
 
@@ -45,8 +49,13 @@ describe('regions — 7 고정 region (§5-10)', () => {
   it('색과 라벨은 region 간 중복 없다 (인코딩 구분성)', () => {
     const colors = REGIONS.map((r) => r.color.toLowerCase())
     const labels = REGIONS.map((r) => r.label)
-    expect(new Set(colors).size).toBe(7)
-    expect(new Set(labels).size).toBe(7)
+    expect(new Set(colors).size).toBe(REGIONS.length)
+    expect(new Set(labels).size).toBe(REGIONS.length)
+  })
+
+  it('STUDIO 중심은 뇌 실루엣 내부다 (onto-2.0 — 대뇌 심부 연합 배치)', async () => {
+    const { insideBrain } = await import('./brainShape')
+    expect(insideBrain(REGION_BY_ID.STUDIO.center)).toBe(true)
   })
 
   it('위치 인코딩 정직성: 산포 반경이 region 간 최소 중심거리의 절반 미만 — 구름이 겹치지 않는다', () => {

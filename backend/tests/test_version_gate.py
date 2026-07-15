@@ -23,7 +23,7 @@ from app.core.config import get_config
 from app.core.db import get_session
 from app.core.ontology import load_ontology
 from app.main import app
-from app.models.arena import KtibItem, KtibVersion
+from app.models.arena import ArenaRun, KtibItem, KtibVersion
 from app.models.brain import BrainNode, BrainVersion, ConfusionEdge, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.persona import PersonaStateVersion
@@ -34,8 +34,9 @@ CFG = get_config()
 @pytest.fixture(autouse=True)
 def _empty(db_session):
     """빈 뱅크 전제 — brain_versions·GOLD 카운트가 실 DB 잔량에 안 오염되게(FK: 자식 먼저)."""
+    # arena_runs → ktib_versions FK: 실 채점 run이 생긴 뒤로는 ArenaRun을 가장 먼저.
     # ktib_items → episodes FK: KtibItem/KtibVersion을 Episode보다 먼저(벤치마크 episode 대응)
-    for model in (KtibItem, KtibVersion, Evidence, Exemplar, Episode,
+    for model in (ArenaRun, KtibItem, KtibVersion, Evidence, Exemplar, Episode,
                   ConfusionEdge, BrainVersion, PersonaStateVersion):
         db_session.execute(delete(model))
     db_session.flush()
