@@ -166,6 +166,9 @@ def test_onto2_studio_region_and_intent_set() -> None:
         assert by_id[iid].domain == "STUDIO", iid
     # B안: 기존 이미지 생성 의도가 STUDIO로 이동 (intent_id 불변 — KTIB 골드 라벨 무손상)
     assert by_id["visual_image_generate"].domain == "STUDIO"
+    # onto-2.1: 콜라주(합성=새 자료 생성)도 STUDIO — 생성↔합성 혼동쌍 양방향
+    assert by_id["visual_collage_compose"].domain == "STUDIO"
+    assert "visual_image_generate" in by_id["visual_collage_compose"].confusable_with
     assert by_id["refl_child_guidance_consult"].domain == "REFLECTION"
     real = [i for i in onto.intents if i.intent_id != "UNKNOWN"]
     assert len(real) == 70

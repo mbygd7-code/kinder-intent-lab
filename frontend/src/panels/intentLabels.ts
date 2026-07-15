@@ -44,9 +44,9 @@ export const INTENT_LABEL_KO: Record<string, string> = {
   visual_privacy_mask: '얼굴 모자이크 처리',
   visual_crop_focus: '사진 크롭·확대',
   visual_decorate: '사진 꾸미기',
-  visual_collage_compose: '콜라주 만들기',
-  // STUDIO (onto-2.0 — visual_image_generate는 B안으로 여기 이동, id 불변)
+  // STUDIO (onto-2.0 B안: visual_image_generate 이동 · onto-2.1: 콜라주 이동 — id 불변)
   visual_image_generate: '그림 만들기',
+  visual_collage_compose: '콜라주 만들기',
   studio_worksheet_generate: '활동지 만들기',
   studio_video_generate: '활동 영상 만들기',
   studio_slides_draft: '슬라이드 만들기',
