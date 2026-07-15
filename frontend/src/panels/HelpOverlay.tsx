@@ -406,7 +406,7 @@ function ExamGuide() {
       <h3>시험 문항이 뭐예요?</h3>
       <p>
         문항 하나 = <strong>문제(선생님이 실제로 할 법한 말)</strong> +{' '}
-        <strong>정답(63개 의도 중 하나)</strong>. 뇌가 문제만 보고 정답을 맞히면 득점이에요.
+        <strong>정답(70개 의도 중 하나)</strong>. 뇌가 문제만 보고 정답을 맞히면 득점이에요.
       </p>
       <table className="help-table">
         <tbody>
@@ -436,7 +436,7 @@ function ExamGuide() {
           ⭐ CRITICAL 7개 먼저 받기 (권장 · 7×30칸)
         </a>
         <a className="view-toggle help-dl-btn" href="/ktib_exam_template.csv" download>
-          ⬇ 전체 양식 받기 (63×10칸)
+          ⬇ 전체 양식 받기 (70×10칸)
         </a>
         <a className="view-toggle help-dl-btn" href="/시험문항-안내서.pdf" download>
           ⬇ 안내서 PDF
@@ -512,7 +512,7 @@ function ExamGuide() {
 
       <h3>꼭 지킬 규칙 (어기면 자동 거부)</h3>
       <ul>
-        <li><b>의도는 절대 바꾸지 않기</b> — 63개 정답 카테고리는 고정</li>
+        <li><b>의도는 절대 바꾸지 않기</b> — 70개 정답 카테고리는 고정</li>
         <li><b>사람이 쓴 진짜 질문</b> — AI가 지어낸 문장 금지 (점수가 무의미해져요)</li>
         <li><b>검수자는 서로 다른 두 사람</b> (같은 사람 두 번은 무효)</li>
         <li><b>공부용에 이미 있는 질문 금지</b> (겹치면 "암기 측정"이 됨)</li>
@@ -524,7 +524,7 @@ function ExamGuide() {
           <tr><td>⭐ CRITICAL 7개</td><td>의도당 <b>30문항</b> — 안전 게이트가 판정을 시작하는 최소치</td></tr>
           <tr><td>한 노드 측정</td><td>그 의도에 <b>1문항 이상</b> → 어둠에서 벗어남</td></tr>
           <tr><td>점수 안정</td><td>의도당 <b>5~10문항</b> (1문항이면 0/100%로 튐)</td></tr>
-          <tr><td>전 노드 측정</td><td>63개 전부 (<b>권장 ~500문항</b>)</td></tr>
+          <tr><td>전 노드 측정</td><td>70개 전부 (<b>권장 ~500문항</b>)</td></tr>
           <tr><td>혼동선 확정</td><td>같은 혼동 <b>3번 이상</b> → 실선 깜빡임</td></tr>
         </tbody>
       </table>
@@ -614,7 +614,7 @@ function StudyGuide() {
       <h3>의도별 공부 문항 수 {brain && <span className="help-live">(실시간 · 합계 {sum.toLocaleString('ko-KR')})</span>}</h3>
       {rows.length === 0 ? (
         <p className="help-note">
-          뇌 데이터를 불러오지 못했어요(백엔드 미연결). 연결되면 여기서 63개 의도별 개수가
+          뇌 데이터를 불러오지 못했어요(백엔드 미연결). 연결되면 여기서 70개 의도별 개수가
           많은 순으로 표시돼요. 전체 데이터는 위 CSV로 받을 수 있어요.
         </p>
       ) : (
