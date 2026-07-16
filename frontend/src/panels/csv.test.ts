@@ -111,6 +111,21 @@ describe('examSheetToRows (O/X 시트 → kappa 자동)', () => {
     expect(r.kappa).not.toBeNull()
     expect(r.accepted.every((e) => e.agreement_kappa === r.kappa)).toBe(true)
     expect(r.accepted[0].intent).toBe('play_expand')
+    // 관측 일치율 = (둘 다 O 2 + 둘 다 X 1) / judged 4 = 0.75, 채택행에도 부착
+    expect(r.agreementRate).toBe(0.75)
+    expect(r.accepted.every((e) => e.agreement_rate === 0.75)).toBe(true)
+  })
+
+  it('판정이 O로 쏠리면 kappa는 퇴화해도 일치율은 실제 일치를 반영한다 (§3-3 v1.6)', () => {
+    // 10문항 중 9개 (O,O), 1개 (O,X) — 관측 일치 90%인데 쏠림이라 kappa는 낮거나 음수
+    const lines = [H]
+    for (let i = 0; i < 9; i++) lines.push(`play_expand,놀이,${i + 1},질문${i + 1},O,O`)
+    lines.push('obs_record_moment,관찰,10,질문10,O,X')
+    const r = examSheetToRows(lines.join('\n'), '김유아', '이교사')
+    expect(r.judged).toBe(10)
+    expect(r.agreementRate).toBeCloseTo(0.9, 5) // (9 + 0) / 10
+    // kappa는 base-rate 역설로 실제 일치(90%)보다 훨씬 낮다 — 일치율이 진짜 신호다
+    expect(r.kappa === null || r.kappa! < r.agreementRate!).toBe(true)
   })
 
   it('한쪽만 판정한 문항은 kappa 표본·채택에서 빠지고 needJudgment로 센다', () => {

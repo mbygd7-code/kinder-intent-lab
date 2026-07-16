@@ -126,7 +126,9 @@ class ReviewConfig(_Section):
     """§3-3 GOLD 승격 기준 — 인간 검수 2인 이상 일치, kappa 기록."""
 
     min_reviewers: int = Field(ge=2)          # §3-3 "2인 이상" — 1인 확정은 구조적으로 불가능
-    min_agreement_kappa: float = Field(ge=0, le=1)
+    min_agreement_kappa: float = Field(ge=0, le=1)   # 독립 라벨링(blind) 경로의 kappa 하한
+    # O/X 승인 검수의 관측 일치율 하한 — kappa가 base-rate 역설로 퇴화할 때의 대체 인증(§3-3 v1.6)
+    min_expert_agreement: float = Field(ge=0, le=1)
     # 시험지 1~5 평점 검수: 두 검수자가 모두 이 점수 이상이면 그 문항을 등록 대상으로 본다
     min_item_rating: int = Field(ge=1, le=5)
 

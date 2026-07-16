@@ -84,9 +84,11 @@ label_aggregator:
   conflict_max: 0.30
   evidence_type_weights: empirical  # 고정 서열 금지 — 실측 신뢰도로 갱신
 
-review:                            # §3-3 GOLD = "인간 검수 2인 이상 일치(kappa 기록)"
+review:                            # §3-3 GOLD = "인간 검수 2인 이상 일치(일치도 기록)"
   min_reviewers: 2                 # 한 에피소드를 확정하는 데 필요한 서로 다른 검수자 수
-  min_agreement_kappa: 0.65        # 배치 전체의 검수자 간 일치도 하한 (미달 시 배치 전량 거부)
+  min_agreement_kappa: 0.65        # 독립 라벨링 일치도(Cohen's kappa) 하한 — blind 2차 검수 경로
+  min_expert_agreement: 0.80       # O/X 승인 검수의 관측 일치율 하한 — 판정이 쏠려 kappa가
+                                   # base-rate 역설로 퇴화하는 경우의 대체 인증 척도(§3-3 v1.6)
   min_item_rating: 4               # 시험지 1~5 검수: 두 검수자 모두 이 점수↑이면 등록 대상 문항
 
 version_gate:

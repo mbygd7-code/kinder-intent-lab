@@ -126,6 +126,8 @@ export interface ExamSheetResult {
   accepted: KtibRow[]
   /** 자동 계산된 검수 일치도. null = 계산 불가(둘 다 판정한 문항이 없거나 판정이 전부 동일) */
   kappa: number | null
+  /** 관측 일치율 = (둘 다 O + 둘 다 X) / judged. O/X 승인의 인증 척도(§3-3 v1.6). null = judged 0 */
+  agreementRate: number | null
   questionsFilled: number // 질문이 채워진 문항 수
   judged: number          // 두 검수자가 모두 O/X를 매긴 문항 수(kappa 계산 대상)
   bothAgree: number       // 둘 다 O (= accepted)
@@ -196,12 +198,19 @@ export function examSheetToRows(
   if (questionsFilled === 0) throw new Error('작성된 질문이 하나도 없어요')
 
   const kappa = cohensKappa(judgeA, judgeB)
-  // accepted 행에 배치 kappa를 부착(백엔드 계약: 문항별 agreement_kappa)
-  for (const row of accepted) row.agreement_kappa = kappa
+  // 관측 일치율 = 두 검수자가 같은 판정을 낸 비율. O/X 승인은 판정이 O로 쏠려 kappa가
+  // base-rate 역설로 퇴화하므로, 백엔드는 이 값으로도 인증한다(§3-3 v1.6).
+  const agreementRate = judgeA.length ? (bothAgree + bothReject) / judgeA.length : null
+  // accepted 행에 배치 kappa·일치율을 부착(백엔드 계약: 문항별 agreement_kappa·agreement_rate)
+  for (const row of accepted) {
+    row.agreement_kappa = kappa
+    row.agreement_rate = agreementRate
+  }
 
   return {
     accepted,
     kappa,
+    agreementRate,
     questionsFilled,
     judged: judgeA.length,
     bothAgree,

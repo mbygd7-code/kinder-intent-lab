@@ -412,6 +412,7 @@ class KtibEpisodeIn(BaseModel):
     lang: str = "ko"
     reviewers: list[str] = []
     agreement_kappa: float | None = None
+    agreement_rate: float | None = None  # O/X 승인 검수의 관측 일치율(§3-3 v1.6 대체 인증)
 
 
 class KtibUploadIn(BaseModel):
@@ -469,6 +470,7 @@ def _parse_ktib_yaml(text: str) -> tuple[dict, list[ExpertEpisode]]:
             lang=str(e.get("lang", "ko")),
             reviewers=tuple(str(r) for r in (e.get("reviewers") or ())),
             agreement_kappa=e.get("agreement_kappa"),
+            agreement_rate=e.get("agreement_rate"),
         ))
     return doc, episodes
 
@@ -500,6 +502,7 @@ def _episodes_from_rows(payload: KtibUploadIn) -> tuple[dict, list[ExpertEpisode
             episode_id=eid, teacher_prompt=prompt, intent=intent, lang=(e.lang or "ko"),
             reviewers=tuple(str(r).strip() for r in (e.reviewers or []) if str(r).strip()),
             agreement_kappa=e.agreement_kappa,
+            agreement_rate=e.agreement_rate,
         ))
     return doc, episodes
 

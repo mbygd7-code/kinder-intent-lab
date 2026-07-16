@@ -117,6 +117,11 @@ export function ExamUpload() {
   const confirmed = result?.ok && !result.dry_run
   const kappaText =
     summary == null ? '' : summary.kappa === null ? '계산 불가' : summary.kappa.toFixed(2)
+  // 교사가 이해하는 1차 지표는 '일치율(%)'이다 — kappa는 판정이 쏠리면 음수로 퇴화해 오해를 부른다.
+  const agreementText =
+    summary == null || summary.agreementRate === null
+      ? '—'
+      : `${(summary.agreementRate * 100).toFixed(1)}%`
   return (
     <>
       <h3>시험지 업로드</h3>
@@ -168,11 +173,22 @@ export function ExamUpload() {
               <tr><td>⌛ 아직 검수 안 함</td><td>{summary.needJudgment}개</td></tr>
             )}
             <tr>
-              <td>검수 일치도 (kappa · 자동)</td>
-              <td><strong>{kappaText}</strong></td>
+              <td>두 분 판정 일치율 (자동)</td>
+              <td><strong>{agreementText}</strong></td>
+            </tr>
+            <tr>
+              <td className="help-dim">일치도 지표 (kappa · 참고)</td>
+              <td>{kappaText}</td>
             </tr>
           </tbody>
         </table>
+      )}
+      {summary && (
+        <p className="help-note">
+          등록 기준: 두 분의 <strong>판정 일치율이 높으면</strong> 등록돼요. (kappa는 판정이 한쪽으로
+          쏠리면 실제로는 잘 맞아도 낮게 나오는 지표라, 일치율을 함께 봅니다.) 일치율이 낮으면 의견이
+          갈린 문항을 정리해 주세요.
+        </p>
       )}
 
       {busy && <p className="help-note">처리 중…</p>}

@@ -155,6 +155,8 @@ export interface KtibRow {
   teacher_prompt: string
   reviewers: string[]
   agreement_kappa: number | null
+  /** O/X 승인 검수의 관측 일치율(§3-3 v1.6) — kappa가 퇴화해도 이 값으로 인증 가능 */
+  agreement_rate?: number | null
   lang?: string
 }
 

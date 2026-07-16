@@ -76,7 +76,11 @@ class ExpertEpisode:
     intent: str
     lang: str = "ko"
     reviewers: tuple[str, ...] = ()
+    # 검수 신뢰도 — 방식에 맞는 척도 하나만 있어도 인증된다(§3-3 v1.6):
+    #  agreement_kappa: 독립 라벨링(여러 의도 중 선택)의 우연보정 일치도
+    #  agreement_rate:  O/X 승인 검수의 관측 일치율(kappa가 base-rate 역설로 퇴화하는 경우)
     agreement_kappa: float | None = None
+    agreement_rate: float | None = None
 
 
 @dataclass
@@ -97,10 +101,14 @@ def _assert_benchmark_reviewed(
     """벤치마크는 GOLD로 적재된다 → §3-3 기준을 그대로 요구한다 (검수 경로보다 느슨하면 안 된다).
 
     - 정규화된 서로 다른 검수자 `review.min_reviewers`명 이상 (별칭·공백으로 2인 위장 금지)
-    - 기록된 `agreement_kappa ≥ review.min_agreement_kappa` (없으면 미측정 — 통과시키지 않는다)
+    - 검수 신뢰도는 방식에 맞는 척도 하나로 인증한다(§3-3 v1.6, base-rate 역설 회피):
+      독립 라벨링 `agreement_kappa ≥ review.min_agreement_kappa`  **또는**
+      O/X 승인 `agreement_rate ≥ review.min_expert_agreement`.
+      둘 다 미기록이면 통과시키지 않는다 (측정 못 한 일치는 일치가 아니다).
     """
     need = config.review.min_reviewers
-    floor = config.review.min_agreement_kappa
+    kappa_floor = config.review.min_agreement_kappa
+    rate_floor = config.review.min_expert_agreement
 
     thin = [e.episode_id for e in episodes if len(reviewer_set(e.reviewers)) < need]
     if thin:
@@ -108,15 +116,26 @@ def _assert_benchmark_reviewed(
             f"BENCHMARK_HOLDOUT에는 서로 다른 검수자 {need}명 이상이 필요하다 (§3-3). "
             f"미달(공백·대소문자 별칭은 같은 사람): {thin}"
         )
-    unmeasured = [e.episode_id for e in episodes if e.agreement_kappa is None]
+    unmeasured = [
+        e.episode_id for e in episodes
+        if e.agreement_kappa is None and e.agreement_rate is None
+    ]
     if unmeasured:
         raise BenchmarkNeedsReview(
-            f"agreement_kappa 미기록 — 측정하지 않은 일치도는 일치가 아니다 (§3-3): {unmeasured}"
+            "검수 일치도 미기록(kappa·관측 일치율 둘 다 없음) — 측정하지 않은 일치는 "
+            f"일치가 아니다 (§3-3): {unmeasured}"
         )
-    low = [e.episode_id for e in episodes if e.agreement_kappa < floor]
+
+    def _certified(e: ExpertEpisode) -> bool:
+        return (e.agreement_kappa is not None and e.agreement_kappa >= kappa_floor) or (
+            e.agreement_rate is not None and e.agreement_rate >= rate_floor
+        )
+
+    low = [e.episode_id for e in episodes if not _certified(e)]
     if low:
         raise BenchmarkNeedsReview(
-            f"agreement_kappa < 하한 {floor} (§3-3): {low}"
+            f"검수 일치도 하한 미달 — kappa ≥ {kappa_floor} 또는 관측 일치율 ≥ {rate_floor} "
+            f"중 하나를 넘어야 한다 (§3-3): {low}"
         )
 
 
@@ -198,9 +217,11 @@ def ingest_expert_episodes(
             teacher_prompt=e.teacher_prompt,
             label_distribution={e.intent: 1.0},
             human_review=(
-                # 정규화된 신원을 기록한다 — 별칭 두 개로 '2인 검수'를 위장할 수 없게.
+                # 정규화된 신원 + 인증 근거(둘 중 어느 척도로 통과했는지)를 남긴다 —
+                # 별칭 두 개로 '2인 검수'를 위장할 수 없게(§3-3).
                 {"reviewers": sorted(reviewer_set(e.reviewers)),
-                 "agreement_kappa": e.agreement_kappa}
+                 "agreement_kappa": e.agreement_kappa,
+                 "agreement_rate": e.agreement_rate}
                 if reviewer_set(e.reviewers) else None
             ),
             dedup_hash=digest,

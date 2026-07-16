@@ -112,6 +112,50 @@ def test_benchmark_rejects_low_kappa(db_session) -> None:
         _ingest(db_session, eps)
 
 
+# --- §3-3 (v1.6): O/X 승인 검수는 관측 일치율로 인증 (kappa base-rate 역설 회피) ---
+
+
+def test_benchmark_passes_on_agreement_rate_when_kappa_degenerate(db_session) -> None:
+    """★ O/X 승인은 판정이 O로 쏠려 kappa가 음수로 퇴화해도, 관측 일치율이 높으면 GOLD다.
+
+    실측(critical-7 210문항): 두 검수자 관측 일치 95.7%인데 Cohen's kappa≈−0.02였다.
+    kappa 하한만 보면 정상 저작·검수한 벤치마크가 영구 거부된다 — 일치율로 인증한다.
+    """
+    rate = CFG.review.min_expert_agreement + 0.01
+    eps = [ExpertEpisode("EP_R", "사람이 쓴 발화", _intents()[0], reviewers=REVIEWERS,
+                         agreement_kappa=-0.02, agreement_rate=rate)]
+    report = _ingest(db_session, eps)
+    assert report.inserted == 1
+
+
+def test_benchmark_rejects_when_both_metrics_below(db_session) -> None:
+    """★ 두 척도 모두 하한 미달이면 인증 실패 — kappa든 일치율이든 하나는 넘어야 한다."""
+    eps = [ExpertEpisode("EP_LOW", "사람이 쓴 발화", _intents()[0], reviewers=REVIEWERS,
+                         agreement_kappa=CFG.review.min_agreement_kappa - 0.01,
+                         agreement_rate=CFG.review.min_expert_agreement - 0.01)]
+    with pytest.raises(BenchmarkNeedsReview, match="하한"):
+        _ingest(db_session, eps)
+
+
+def test_benchmark_unmeasured_when_both_metrics_none(db_session) -> None:
+    """★ kappa·일치율 둘 다 없으면 미기록 — 측정하지 않은 일치는 일치가 아니다."""
+    eps = [ExpertEpisode("EP_N", "사람이 쓴 발화", _intents()[0], reviewers=REVIEWERS,
+                         agreement_kappa=None, agreement_rate=None)]
+    with pytest.raises(BenchmarkNeedsReview, match="미기록"):
+        _ingest(db_session, eps)
+
+
+def test_agreement_rate_recorded_in_human_review(db_session) -> None:
+    """일치율로 인증한 문항은 그 근거(agreement_rate)가 감사 기록에 남는다."""
+    rate = CFG.review.min_expert_agreement + 0.02
+    eps = [ExpertEpisode("EP_RR", "사람이 쓴 발화", _intents()[0], reviewers=REVIEWERS,
+                         agreement_kappa=None, agreement_rate=rate)]
+    _ingest(db_session, eps)
+    db_session.flush()
+    hr = db_session.get(Episode, "EP_RR").human_review
+    assert hr["agreement_rate"] == rate and hr["agreement_kappa"] is None
+
+
 def test_canonical_reviewers_recorded(db_session) -> None:
     eps = [ExpertEpisode("EP_K", "사람이 쓴 발화", _intents()[0],
                          reviewers=(" HR_Kim ", "hr_lee"), agreement_kappa=1.0)]
@@ -166,7 +210,9 @@ def test_benchmark_episodes_land_as_gold_labeled(db_session) -> None:
     assert ep.episode_creator_type == "HUMAN_ANNOTATOR"
     assert ep.primary_subject_type == "TEACHER"
     # 정규화된 신원으로 기록 — 별칭 두 개가 '2인 검수'를 주장하지 못한다
-    assert ep.human_review == {"reviewers": ["hr_kim", "hr_lee"], "agreement_kappa": 1.0}
+    assert ep.human_review == {
+        "reviewers": ["hr_kim", "hr_lee"], "agreement_kappa": 1.0, "agreement_rate": None,
+    }
 
 
 def test_train_split_lands_unverified_pending_review(db_session) -> None:
