@@ -191,8 +191,51 @@ export function uploadKtibRows(input: {
   approved_by: string
   episodes: KtibRow[]
   commit: boolean
+  /** 올린 파일 원문 — 이력에 보관해 나중에 열람·회수한다(§ 마이그레이션 0018) */
+  source_document?: string
 }): Promise<KtibUploadResult> {
   return postKtibUpload(input)
+}
+
+// --- 시험지 업로드 이력 (기록 + 원문 보관 · 리스트 · 열람) ---
+
+/** 이력 목록 한 줄 — 원문(source_document)은 상세에서만 온다(경량). */
+export interface KtibUploadRecord {
+  upload_id: string
+  created_at: string | null
+  authored_by: string
+  approved_by: string
+  reviewers: string[]
+  origin_channel: string
+  dataset_split: string
+  inserted: number
+  skipped_duplicate: number
+  agreement_rate: number | null
+  agreement_kappa: number | null
+  ktib_version: string | null
+  eligible_total: number
+}
+
+/** 상세 = 목록 + 올린 원문 그대로 */
+export interface KtibUploadDetail extends KtibUploadRecord {
+  source_document: string | null
+}
+
+/** 업로드 이력 목록(최근 순). 등록(commit)된 것만 남는다. */
+export async function fetchKtibUploads(signal?: AbortSignal): Promise<KtibUploadRecord[]> {
+  const res = await fetch('/v1/observatory/ktib/uploads', { signal })
+  if (!res.ok) throw new Error(`ktib uploads ${res.status}`)
+  return ((await res.json()) as { uploads: KtibUploadRecord[] }).uploads
+}
+
+/** 업로드 상세 — 올린 원문까지. */
+export async function fetchKtibUploadDetail(
+  uploadId: string,
+  signal?: AbortSignal,
+): Promise<KtibUploadDetail> {
+  const res = await fetch(`/v1/observatory/ktib/uploads/${encodeURIComponent(uploadId)}`, { signal })
+  if (!res.ok) throw new Error(`ktib upload detail ${res.status}`)
+  return (await res.json()) as KtibUploadDetail
 }
 
 // --- T4.1 Weakness 진단 4축 (§7-3 실계산) ---

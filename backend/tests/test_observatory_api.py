@@ -19,7 +19,7 @@ from app.brain.backfill import aggregate_evidence_stats, bootstrap_nodes
 from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.main import app
-from app.models.arena import RUN_TYPE_BRAIN, ArenaRun, KtibItem, KtibVersion
+from app.models.arena import RUN_TYPE_BRAIN, ArenaRun, KtibItem, KtibUpload, KtibVersion
 from app.models.brain import BrainNode, ConfusionEdge, Exemplar
 from app.models.episodes import Episode, Evidence
 from app.models.guards import arena_brightness_write
@@ -30,6 +30,7 @@ def _empty_bank(db_session):
     """정확 카운트 단언은 빈 뱅크 전제 — 실 DB에 에피소드·evidence가 쌓여도 깨지지 않게
     세이브포인트 안에서 비운다(FK 순서: evidence·exemplar → episode → node. 롤백으로 원복)."""
     db_session.execute(delete(ArenaRun))
+    db_session.execute(delete(KtibUpload))
     db_session.execute(delete(KtibItem))
     db_session.execute(delete(KtibVersion))
     db_session.execute(delete(Evidence))
@@ -361,6 +362,79 @@ def test_ktib_upload_missing_field_400(api) -> None:
     r = client.post("/v1/observatory/ktib/upload",
                     json={"yaml_text": "episodes: []", "commit": False})
     assert r.status_code == 400
+
+
+# --- 업로드 이력(기록 + 원문 보관 · 리스트 · 열람) ---
+
+
+def test_commit_records_upload_history_dry_run_does_not(api) -> None:
+    """★ 등록(commit)만 이력 한 줄을 남긴다 — dry-run은 미리보기라 기록하지 않는다."""
+    client, db = api
+    ints = _seed_brain(db)
+    yaml_text = _upload_yaml(ints[0], "이력 검증 발화 hist1")
+
+    client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": False})
+    assert client.get("/v1/observatory/ktib/uploads").json()["uploads"] == []  # dry-run 미기록
+
+    r = client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True})
+    assert r.json()["ok"] is True
+    uploads = client.get("/v1/observatory/ktib/uploads").json()["uploads"]
+    assert len(uploads) == 1
+    rec = uploads[0]
+    assert rec["authored_by"] == "테스트 전문가" and rec["approved_by"] == "테스트 승인자"
+    assert rec["inserted"] == 1 and rec["ktib_version"]
+    assert rec["reviewers"] == ["검수가", "검수나"]
+    assert "source_document" not in rec  # 목록은 경량 — 원문은 상세에서만
+
+
+def test_upload_history_detail_keeps_source_document(api) -> None:
+    """★ 올린 원문 그대로가 보관돼, 목록에서 열면 확인·회수할 수 있다."""
+    client, db = api
+    ints = _seed_brain(db)
+    yaml_text = _upload_yaml(ints[0], "원문 보관 발화 hist2")
+    client.post("/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True})
+
+    upload_id = client.get("/v1/observatory/ktib/uploads").json()["uploads"][0]["upload_id"]
+    detail = client.get(f"/v1/observatory/ktib/uploads/{upload_id}").json()
+    assert detail["source_document"] and "원문 보관 발화 hist2" in detail["source_document"]
+
+
+def test_upload_history_from_rows_stores_agreement_rate_and_document(api) -> None:
+    """★ 프론트 행 경로: 일치율(§3-3 v1.6)과 올린 파일 원문이 이력에 남는다."""
+    client, db = api
+    ints = _seed_brain(db)
+    csv_text = f"의도 id,질문,검수자A,검수자B\n{ints[0]},행경로 발화 rr,O,O"
+    payload = {
+        "commit": True, "authored_by": "명배영", "approved_by": "조선생",
+        "origin_channel": "EXPERT_AUTHORED", "dataset_split": "BENCHMARK_HOLDOUT",
+        "source_document": csv_text,
+        "episodes": [{
+            "teacher_prompt": "행경로 발화 rr", "intent": ints[0],
+            "reviewers": ["명배영", "조선생"],
+            "agreement_kappa": -0.02, "agreement_rate": 0.957,  # kappa 퇴화 → 일치율로 인증
+        }],
+    }
+    assert client.post("/v1/observatory/ktib/upload", json=payload).json()["ok"] is True
+    rec = client.get("/v1/observatory/ktib/uploads").json()["uploads"][0]
+    assert rec["agreement_rate"] == 0.957 and rec["inserted"] == 1
+    detail = client.get(f"/v1/observatory/ktib/uploads/{rec['upload_id']}").json()
+    assert "행경로 발화 rr" in detail["source_document"]
+
+
+def test_rejected_upload_leaves_no_history(api) -> None:
+    """★ 원자성: 거부(미저장)된 업로드는 이력에도 남지 않는다."""
+    client, db = api
+    _seed_brain(db)
+    yaml_text = _upload_yaml("NOT_A_REAL_INTENT", "거부될 발화 hist3")
+    assert client.post(
+        "/v1/observatory/ktib/upload", json={"yaml_text": yaml_text, "commit": True}
+    ).json()["ok"] is False
+    assert client.get("/v1/observatory/ktib/uploads").json()["uploads"] == []
+
+
+def test_upload_detail_unknown_id_404(api) -> None:
+    client, _ = api
+    assert client.get("/v1/observatory/ktib/uploads/UP_nope").status_code == 404
 
 
 def test_ktib_upload_structured_rows(api) -> None:

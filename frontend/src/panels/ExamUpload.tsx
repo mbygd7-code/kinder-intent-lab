@@ -8,10 +8,27 @@
  * 정직성: 결과 문구·건수는 백엔드 응답 그대로. CSV는 작성자·승인자 필수(감사 추적).
  * BENCHMARK_HOLDOUT 제약(GOLD∧LABELED∧비합성)은 백엔드가 지키며, 여기선 우회하지 않는다.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { uploadKtib, uploadKtibRows, type KtibUploadResult } from '../api/observatory'
+import {
+  fetchKtibUploadDetail,
+  fetchKtibUploads,
+  uploadKtib,
+  uploadKtibRows,
+  type KtibUploadDetail,
+  type KtibUploadRecord,
+  type KtibUploadResult,
+} from '../api/observatory'
 import { canonicalName, examSheetToRows, type ExamSheetResult } from './csv'
+
+/** "2026.07.16 14:30" — 이력 항목의 사람이 읽는 시각 */
+function fmtWhen(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 export function ExamUpload() {
   const [busy, setBusy] = useState(false)
@@ -23,6 +40,18 @@ export function ExamUpload() {
   const [result, setResult] = useState<KtibUploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // 업로드 이력 — 등록(commit)된 것만. 목록은 경량, 원문은 항목을 펼칠 때 상세로 가져온다.
+  const [uploads, setUploads] = useState<KtibUploadRecord[]>([])
+  const [openUpload, setOpenUpload] = useState<KtibUploadDetail | null>(null)
+
+  const loadUploads = () =>
+    fetchKtibUploads()
+      .then(setUploads)
+      .catch(() => {
+        /* 이력 조회 실패는 업로드 폼을 막지 않는다 — 조용히 비워 둔다 */
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => void loadUploads(), [])
 
   const run = async (fn: (commit: boolean) => Promise<KtibUploadResult>, commit: boolean) => {
     setBusy(true)
@@ -31,12 +60,26 @@ export function ExamUpload() {
       const r = await fn(commit)
       setResult(r)
       if (!r.ok) setError(r.message)
+      else if (commit) void loadUploads() // 등록 성공 → 이력 즉시 갱신
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setResult(null)
     } finally {
       setBusy(false)
     }
+  }
+
+  const toggleDetail = (id: string) => {
+    if (openUpload?.upload_id === id) {
+      setOpenUpload(null)
+      return
+    }
+    setOpenUpload(null)
+    fetchKtibUploadDetail(id)
+      .then(setOpenUpload)
+      .catch(() => {
+        /* 상세 조회 실패는 무시 — 목록은 그대로 */
+      })
   }
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,16 +143,13 @@ export function ExamUpload() {
       setError('두 검수자가 모두 O로 통과시킨 질문이 아직 없어요 — 등록할 문항이 없어요.')
       return
     }
-    if (sheet.kappa === null) {
-      setError(
-        '검수 일치도(kappa)를 계산할 수 없어요 — 두 분의 O/X 판정이 전부 똑같아서예요. ' +
-          '서로 독립적으로 검수하면 보통 몇 개는 갈리기 마련이라 자동으로 계산됩니다.',
-      )
-      return
-    }
-    // 최종 통과/거부(kappa 하한 등)는 백엔드가 판정한다 — 임계값은 config 단일 원천(프론트 미하드코딩)
+    // kappa가 null(판정이 전부 동일)이어도 막지 않는다 — 그 경우 관측 일치율로 인증한다(§3-3 v1.6).
+    // 최종 통과/거부는 백엔드가 판정한다(임계값은 config 단일 원천 — 프론트 미하드코딩).
     const fn = (commit: boolean) =>
-      uploadKtibRows({ authored_by: a, approved_by: b, episodes: sheet.accepted, commit })
+      uploadKtibRows({
+        authored_by: a, approved_by: b, episodes: sheet.accepted, commit,
+        source_document: text, // 올린 원문 그대로 — 이력 보관용
+      })
     setSubmit(() => fn)
     await run(fn, false) // 서버 검증(dry-run)
   }
@@ -209,6 +249,55 @@ export function ExamUpload() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 업로드 이력 — 등록된 것만. 항목을 펼치면 올린 원문 그대로 확인·회수 */}
+      {uploads.length > 0 && (
+        <div className="exam-history">
+          <h3>📋 업로드 이력 <span className="help-dim">({uploads.length}건)</span></h3>
+          <ul className="exam-history-list">
+            {uploads.map((u) => {
+              const open = openUpload?.upload_id === u.upload_id
+              const rate = u.agreement_rate == null ? '—' : `${(u.agreement_rate * 100).toFixed(1)}%`
+              return (
+                <li key={u.upload_id} className="exam-history-item">
+                  <button
+                    type="button"
+                    className="exam-history-head"
+                    onClick={() => toggleDetail(u.upload_id)}
+                    aria-expanded={open}
+                  >
+                    <span className="exam-history-when">{fmtWhen(u.created_at)}</span>
+                    <span className="exam-history-meta">
+                      신규 {u.inserted}문항 · 일치율 {rate}
+                      {u.ktib_version ? ` · ${u.ktib_version}` : ''}
+                    </span>
+                    <span className="exam-history-by">{u.authored_by}</span>
+                    <span className="exam-history-caret">{open ? '▾' : '▸'}</span>
+                  </button>
+                  {open && openUpload && openUpload.upload_id === u.upload_id && (
+                    <div className="exam-history-detail">
+                      <p className="help-note">
+                        작성 <strong>{openUpload.authored_by}</strong> · 승인{' '}
+                        <strong>{openUpload.approved_by}</strong> · 검수{' '}
+                        {openUpload.reviewers.join(', ') || '—'} · 중복 제외{' '}
+                        {openUpload.skipped_duplicate} · 등록 후 시험지 {openUpload.eligible_total}문항
+                      </p>
+                      {openUpload.source_document ? (
+                        <>
+                          <p className="help-note help-dim">올린 원문:</p>
+                          <pre className="exam-history-doc">{openUpload.source_document}</pre>
+                        </>
+                      ) : (
+                        <p className="help-note help-dim">이 업로드는 원문이 보관되지 않았어요.</p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
     </>

@@ -85,10 +85,19 @@ def main() -> int:
     ):
         lcur, scur = lc.cursor(), sc.cursor()
         tables = _tables(lcur)
+        supa_tables = set(_tables(scur))  # 대상 표 목록 — 없는 표는 건너뛴다
         inserted: dict[str, int] = {}
+        skipped_missing: list[str] = []
         try:
             scur.execute("SET session_replication_role = replica")  # FK/트리거 off (superuser)
             for t in tables:
+                if t == "alembic_version":
+                    continue  # 마이그레이션 장부는 각 DB가 독립 관리 — 복제하면 다중행 오염
+                if t not in supa_tables:
+                    # 상대가 아직 이 표의 마이그레이션을 안 올렸다(예: 새 표 첫 푸시).
+                    # 스키마를 여기서 만들지 않는다 — 상대가 alembic upgrade 후 다음 동기화에 흐른다.
+                    skipped_missing.append(t)
+                    continue
                 if not _has_pk(scur, t):
                     continue  # PK 없으면 충돌 판정 불가 — 건너뜀(해당 없음)
                 # 로컬 전량을 임시 테이블로 스트리밍 → PK 충돌 없는 행만 본 테이블에 삽입.
@@ -150,6 +159,8 @@ def main() -> int:
     else:
         print("삽입할 신규 행 없음")
     print(f"노드 필드 동기화: {len(node_rows)}건 (pending/evidence_stats/exemplar_stats)")
+    if skipped_missing:
+        print(f"⚠ Supabase에 아직 없는 표 건너뜀(상대가 마이그레이션 적용 후 동기화됨): {skipped_missing}")
     if diverged:
         print("⚠ Supabase가 앞선 테이블(외부 쓰기?) — 건드리지 않음:",
               {t: f"local {a} < supa {b}" for t, (a, b) in diverged.items()})

@@ -821,6 +821,30 @@ body {
 }
 .help-upload-ok { border-color: rgba(74, 222, 128, 0.4); }
 .help-upload-confirm { margin-top: 0.55rem; }
+/* 시험지 업로드 이력 — 등록 목록 + 펼쳐서 원문 확인 */
+.exam-history { margin-top: 1.1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 0.7rem; }
+.exam-history h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.exam-history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.exam-history-item {
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 0.5rem;
+  overflow: hidden; background: rgba(255, 255, 255, 0.03);
+}
+.exam-history-head {
+  width: 100%; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  background: none; border: none; color: inherit; cursor: pointer;
+  padding: 0.55rem 0.7rem; text-align: left; font-size: 0.9rem;
+}
+.exam-history-head:hover { background: rgba(255, 255, 255, 0.05); }
+.exam-history-when { font-variant-numeric: tabular-nums; color: #cbd5e1; }
+.exam-history-meta { color: #93c5fd; font-weight: 600; }
+.exam-history-by { margin-left: auto; color: #94a3b8; }
+.exam-history-caret { color: #64748b; }
+.exam-history-detail { padding: 0.2rem 0.7rem 0.6rem; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.exam-history-doc {
+  max-height: 15rem; overflow: auto; margin: 0.3rem 0 0; padding: 0.6rem;
+  background: rgba(0, 0, 0, 0.3); border-radius: 0.4rem;
+  font-size: 0.8rem; line-height: 1.5; white-space: pre; color: #cbd5e1;
+}
 /* 시험지 업로드 — 작성자/승인자 입력 */
 .help-form { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.5rem 0 0.2rem; }
 .help-field {

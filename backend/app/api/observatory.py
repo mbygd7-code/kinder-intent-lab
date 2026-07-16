@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import math
 import uuid
+from datetime import datetime
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException
@@ -38,6 +39,7 @@ from app.foundry.expert_ingest import (
     UnknownIngestIntent,
     ingest_expert_episodes,
 )
+from app.models.arena import KtibUpload
 from app.models.benchmark_candidates import (
     BenchmarkCandidateBatch,
     BenchmarkCandidateItem,
@@ -425,6 +427,8 @@ class KtibUploadIn(BaseModel):
     origin_channel: str = "EXPERT_AUTHORED"
     dataset_split: str = "BENCHMARK_HOLDOUT"
     episodes: list[KtibEpisodeIn] | None = None
+    # 올린 원문(CSV/YAML) 그대로 — 이력에 보관해 목록에서 다시 열람·회수한다(§ 마이그레이션 0018)
+    source_document: str | None = None
 
 
 class KtibUploadOut(BaseModel):
@@ -540,6 +544,20 @@ def ktib_upload(
             ktib = build_ktib(session, config)
             ktib_version = ktib.ktib_version
             eligible_total = ktib.episode_count
+        # 업로드 이력 한 줄 — 원문·요약을 savepoint 안에서 남긴다. dry-run이면 함께 롤백되고
+        # 실제 등록(commit)만 이력에 남는다(§ 마이그레이션 0018). 요약은 배치 균일값(episodes[0]).
+        first = episodes[0]
+        session.add(KtibUpload(
+            upload_id="UP_" + uuid.uuid4().hex[:12],
+            authored_by=str(doc["authored_by"]), approved_by=str(doc["approved_by"]),
+            reviewers=list(first.reviewers),
+            origin_channel=str(doc["origin_channel"]), dataset_split=str(doc["dataset_split"]),
+            inserted=report.inserted, skipped_duplicate=report.skipped_duplicate,
+            agreement_rate=first.agreement_rate, agreement_kappa=first.agreement_kappa,
+            ktib_version=ktib_version, eligible_total=eligible_total,
+            source_document=payload.source_document or payload.yaml_text,
+        ))
+        session.flush()
     except (SyntheticChannelRejected, BenchmarkNeedsReview, TrainBenchmarkContamination,
             UnknownIngestIntent, EmptyKtib, ValueError) as exc:
         sp.rollback()
@@ -563,6 +581,67 @@ def ktib_upload(
         inserted=report.inserted, skipped_duplicate=report.skipped_duplicate,
         eligible_total=eligible_total, ktib_version=ktib_version, message=msg,
     )
+
+
+# --- 시험지 업로드 이력 (기록 + 원문 보관 · 리스트 · 열람) ---
+
+
+class KtibUploadRecordOut(BaseModel):
+    """목록 한 줄 — 언제·누가·몇 문항·어떤 버전. 원문(source_document)은 상세에서만."""
+
+    upload_id: str
+    created_at: datetime | None
+    authored_by: str
+    approved_by: str
+    reviewers: list[str]
+    origin_channel: str
+    dataset_split: str
+    inserted: int
+    skipped_duplicate: int
+    agreement_rate: float | None
+    agreement_kappa: float | None
+    ktib_version: str | None
+    eligible_total: int
+
+
+class KtibUploadDetailOut(KtibUploadRecordOut):
+    source_document: str | None  # 올린 원문 그대로 — 확인·회수용
+
+
+class KtibUploadListOut(BaseModel):
+    uploads: list[KtibUploadRecordOut]
+
+
+def _upload_record(row: KtibUpload) -> KtibUploadRecordOut:
+    return KtibUploadRecordOut(
+        upload_id=row.upload_id, created_at=row.created_at,
+        authored_by=row.authored_by, approved_by=row.approved_by,
+        reviewers=list(row.reviewers or []),
+        origin_channel=row.origin_channel, dataset_split=row.dataset_split,
+        inserted=row.inserted, skipped_duplicate=row.skipped_duplicate,
+        agreement_rate=row.agreement_rate, agreement_kappa=row.agreement_kappa,
+        ktib_version=row.ktib_version, eligible_total=row.eligible_total,
+    )
+
+
+@router.get("/ktib/uploads", response_model=KtibUploadListOut)
+def ktib_uploads(session: Session = Depends(get_session)) -> KtibUploadListOut:
+    """업로드 이력 목록(최근 순). 등록(commit)된 것만 남는다 — 원문은 상세에서만(경량)."""
+    rows = session.scalars(
+        select(KtibUpload).order_by(KtibUpload.created_at.desc(), KtibUpload.upload_id.desc())
+    ).all()
+    return KtibUploadListOut(uploads=[_upload_record(r) for r in rows])
+
+
+@router.get("/ktib/uploads/{upload_id}", response_model=KtibUploadDetailOut)
+def ktib_upload_detail(
+    upload_id: str, session: Session = Depends(get_session)
+) -> KtibUploadDetailOut:
+    """업로드 상세 — 올린 원문(source_document)까지. 목록에서 열어 확인·회수한다."""
+    row = session.get(KtibUpload, upload_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="업로드 기록을 찾을 수 없어요")
+    return KtibUploadDetailOut(**_upload_record(row).model_dump(), source_document=row.source_document)
 
 
 # --- 시험지 2차 검수 대기열 — 웹 1~5 평점 검수(§3-3·§8-2) ---
