@@ -33,6 +33,14 @@ const BrainCanvas = lazy(() =>
   import('./BrainCanvas').then((m) => ({ default: m.BrainCanvas })),
 )
 
+/**
+ * 초기 연결 실패 시 자동 재조회 간격(ms). dev에선 프론트가 백엔드보다 먼저 떠서
+ * 첫 요청이 프록시 500(ECONNREFUSED)으로 실패하는 기동 레이스가 흔하다 — 그때
+ * 사람이 새로고침하지 않아도 백엔드가 뜨면 스스로 붙게 한다. 실험 임계값이 아니라
+ * UI 재접속 타이밍이라 experiments.yaml이 아니라 여기 둔다(절대 규칙 1의 대상 아님).
+ */
+const RECONNECT_MS = 2000
+
 interface BrainData {
   nodes: PlacedNode[]
   visuals: ReadonlyMap<string, NodeVisual>
@@ -92,6 +100,7 @@ export function BrainScreen() {
   // 훈련된 노드의 size/density/pending ring만 갱신된다(§6-7 [6] 즉시 반영)
   useEffect(() => {
     const ctrl = new AbortController()
+    let reconnect: ReturnType<typeof setTimeout> | undefined
     fetchBrainState(ctrl.signal)
       .then((brain) => {
         setData(fromApi(brain))
@@ -115,10 +124,17 @@ export function BrainScreen() {
           console.warn('brain 재조회 실패 — 기존 라이브 상태 유지:', err)
           return
         }
-        console.warn('observatory API 미연결:', err)
+        // 초기 연결 실패는 대개 dev 프록시 기동 레이스(프론트가 백엔드보다 먼저 뜸)다.
+        // 미연결로 정직히 표시하되, 백엔드가 곧 올라오면 사람이 새로고침하지 않아도
+        // 자동으로 붙도록 재조회를 예약한다. bumpReload는 뇌·성향·혼동 3채널을 함께 되살린다.
+        console.warn(`observatory API 미연결 — ${RECONNECT_MS}ms 후 자동 재시도:`, err)
         setDataSource('error')
+        reconnect = setTimeout(() => useBrainStore.getState().bumpReload(), RECONNECT_MS)
       })
-    return () => ctrl.abort()
+    return () => {
+      ctrl.abort()
+      if (reconnect) clearTimeout(reconnect)
+    }
   }, [reloadNonce, setBrain, setBrainMeta, setDataSource, setRegionScores])
 
   // T5.4 persona-overlay(§7-6·§4-2) — 부가 채널이라 실패해도 dataSource(뇌 화면)는 안 건드린다

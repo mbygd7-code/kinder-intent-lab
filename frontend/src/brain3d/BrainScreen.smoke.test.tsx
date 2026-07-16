@@ -110,6 +110,27 @@ describe('BrainScreen (WebGL 없음 = jsdom → 대시보드 강제)', () => {
     expect(await screen.findByText(/운영실 데이터를 불러오지 못했어요/)).toBeTruthy()
   })
 
+  it('초기 미연결이어도 백엔드가 살아나면 새로고침 없이 자동 재조회로 live가 된다 (기동 레이스 자가치유)', async () => {
+    // dev 기동 레이스 재현: 첫 요청은 프록시 500(백엔드 기동 전) → 이후 백엔드 up
+    let up = false
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (!up) throw new Error('dev 프록시 500 — 백엔드 기동 전')
+      const u = String(url)
+      if (u.includes('persona-overlay')) return { ok: true, json: async () => EMPTY_OVERLAY } as Response
+      if (u.includes('confusion-edges')) return { ok: true, json: async () => FAKE_EDGES } as Response
+      if (u.includes('/dashboard')) return { ok: true, json: async () => FAKE_DASHBOARD } as Response
+      if (u.includes('/arena/status'))
+        return { ok: true, json: async () => ({ running: false, started_at: null, error: null, last_run: null }) } as Response
+      return { ok: true, json: async () => FAKE_BRAIN } as Response
+    }))
+    render(<BrainScreen />)
+    // 처음엔 정직하게 미연결
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('error'))
+    // 백엔드 기동 — 예약된 자동 재조회(RECONNECT_MS)가 사람 개입 없이 live로 붙여야 한다
+    up = true
+    await waitFor(() => expect(useBrainStore.getState().dataSource).toBe('live'), { timeout: 4000 })
+  })
+
   it('Arena 데이터가 오면 KTIB %·스테이지·버전이 그대로 흐른다 (지어내지도 잃지도 않음)', async () => {
     stubFetch(true, ARENA_BRAIN)
     render(<App />)
