@@ -43,16 +43,24 @@ def generate_episode(
     deduper,
     model: str = "foundry",
     dedup_hash: str | None = None,
+    atlas_stats: dict | None = None,
 ) -> GeneratedEpisode:
-    """S6~S11로 에피소드 1건을 만든다. dedup 폐기 시 nonce를 바꿔 재생성한다."""
+    """S6~S11로 에피소드 1건을 만든다. dedup 폐기 시 nonce를 바꿔 재생성한다.
+
+    atlas_stats: Atlas 재보정 통계(§2-3 소비처 1) — 있으면 S6 컨텍스트에 실린다.
+    비었으면 아예 생략한다(0짜리 통계로 Simulator를 오도하지 않는다).
+    """
     max_retries = config.foundry.max_dedup_retries
     base_nonce = index * (max_retries + 1)
 
     utt = None
     for attempt in range(max_retries + 1):
+        context: dict = {"nonce": base_nonce + attempt}
+        if atlas_stats:
+            context["atlas_stats"] = atlas_stats
         candidate = simulate(
             llm_client, scenario_id=scenario_id, persona_lens=persona, model=model,
-            scenario_context={"nonce": base_nonce + attempt},
+            scenario_context=context,
         )
         if not deduper.is_duplicate(candidate.utterance):
             utt = candidate

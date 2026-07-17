@@ -61,6 +61,9 @@ def new_atlas_id() -> str:
     return f"ATL_{uuid.uuid4().hex[:12]}"
 
 
+_ATLAS_EMBED_DIM = 1536  # models.foundry.AtlasEntry.embedding Vector(1536) 스키마 상수
+
+
 def mine_atlas_entry(
     session: Session,
     *,
@@ -69,8 +72,13 @@ def mine_atlas_entry(
     embed_fn: EmbedFn,
     config: ExperimentsConfig,
 ) -> AtlasEntry:
-    """대표형을 Atlas에 적재한다. 원문 유사도 가드 통과 시에만 (원문은 저장 안 함)."""
-    similarity = paraphrase_similarity(raw_text, atlas.representative, embed_fn)
+    """대표형을 Atlas에 적재한다. 원문 유사도 가드 통과 시에만 (원문은 저장 안 함).
+
+    대표형 임베딩은 이미 계산한 벡터를 재사용해 entry.embedding에 저장한다(§5-4[1]
+    retrieval 사전 계산 — 스키마 차원과 다르면 비워 둔다: retrieval에서 제외될 뿐).
+    """
+    raw_vec, rep_vec = embed_fn([raw_text, atlas.representative])
+    similarity = cosine_similarity(raw_vec, rep_vec)
     if similarity > config.foundry.paraphrase_max:
         raise ParaphraseTooSimilar(
             f"대표형 유사도 {similarity:.3f} > paraphrase_max "
@@ -85,6 +93,7 @@ def mine_atlas_entry(
         resolution_signals=atlas.resolution_signals,
         register=atlas.register_info,
         source_class_mix=atlas.source_class_mix,
+        embedding=rep_vec if len(rep_vec) == _ATLAS_EMBED_DIM else None,
     )
     session.add(entry)
     return entry

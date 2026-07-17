@@ -66,15 +66,36 @@ def expand_variants(
         "variants_required": k,
         "domain": domain,
     }
-    out = run_json_agent(client, render_agent_prompt(PROMPT, context), model, SeedExpansionOutput)
-
-    if len(out.variants) != k:
-        raise SeedExpansionError(f"변형 {len(out.variants)}개 ≠ 요구 {k}개 (§1-S5)")
-    for i, ws in enumerate(out.variants):
-        problems = vocabulary_violations(ws, vocabulary) + expansion_unmet(ws)
+    prompt = render_agent_prompt(PROMPT, context)
+    out = run_json_agent(client, prompt, model, SeedExpansionOutput)
+    problems = _violations(out, vocabulary, k)
+    if problems:
+        # 정합 위반 교정 재시도 1회 — 실측(2026-07-17, camp_06f8128c 재개): 실 LLM이 스키마는
+        # 지키면서 정합(선택 수 ≤ 카드 수 등)을 어긴다. 위반 내용을 보여주고 한 번 다시 시킨다.
+        # 재시도도 위반이면 그대로 폭발 — 호출부(variants_for_domain)가 씨드 원본으로 폴백한다.
+        corrective = (
+            f"{prompt}\n\n## 교정 지시 (이전 응답 정합 위반)\n"
+            f"직전 응답이 다음 위반으로 거부됐다: {' / '.join(problems)}\n"
+            "금지사항의 정합 규칙(선택 수 ≤ 해당 카드 수, 사진↔서술 일치, allowed 어휘만, "
+            f"정확히 {k}개)을 지켜 순수 JSON만 다시 출력하라."
+        )
+        out = run_json_agent(client, corrective, model, SeedExpansionOutput)
+        problems = _violations(out, vocabulary, k)
         if problems:
-            raise SeedExpansionError(f"변형 {i} 위반: {' / '.join(problems)}")
+            raise SeedExpansionError(" / ".join(problems))
     return [ws.model_dump(mode="json", exclude_none=True) for ws in out.variants]
+
+
+def _violations(out: SeedExpansionOutput, vocabulary: SeedVocabulary, k: int) -> list[str]:
+    """확장 출력의 계약 위반 목록 — 비면 통과 (§1-S5 변형 수 + 어휘 + 최소기준 정합)."""
+    if len(out.variants) != k:
+        return [f"변형 {len(out.variants)}개 ≠ 요구 {k}개 (§1-S5)"]
+    problems: list[str] = []
+    for i, ws in enumerate(out.variants):
+        found = vocabulary_violations(ws, vocabulary) + expansion_unmet(ws)
+        if found:
+            problems.append(f"변형 {i} 위반: {' / '.join(found)}")
+    return problems
 
 
 def variants_for_domain(

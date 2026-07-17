@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from app.core.config import ExperimentsConfig
 from app.core.ontology import CANONICAL_DOMAINS, load_ontology
 from app.foundry.agents.runner import AgentOutputError
+from app.foundry.atlas import simulator_stats
 from app.foundry.episode_builder import generate_episode
 from app.foundry.situation_seeds import load_situation_seeds, pick_variants
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
@@ -80,6 +81,14 @@ class SyntheticFoundryProvider(LLMProvider):
             runner = self._intents[(h // 7 + 1) % n]
         third = self._intents[(h // 13) % n]
 
+        if "Teacher Language Miner" in prompt:
+            return {
+                "representative": f"이거 어떻게 하면 좋을까 (패턴 {h % 97})",
+                "pattern_cluster": f"PC_{h % 7}",
+                "ambiguity_types": ["TARGET_UNSPECIFIED"],
+                "possible_intents": [top],
+                "resolution_signals": [{"signal": "selection", "note": "화면 선택으로 해소"}],
+            }
         if "Situation Builder" in prompt:
             return self._expand_variants(prompt, h)
         if "Teacher Simulator" in prompt:
@@ -317,6 +326,13 @@ def _run_pilot_body(
         raise ValueError("생성된 시나리오가 없습니다 (source_specs·scenario_variants 확인)")
 
     # --- S6~S11: 에피소드 생성 ---
+    _stats = simulator_stats(session)  # Atlas 재보정(§2-3) — 비면 컨텍스트 생략
+    atlas_stats = (
+        {"sample_count": _stats.sample_count,
+         "mean_word_length": round(_stats.mean_word_length, 2),
+         "deixis_ratio": round(_stats.deixis_ratio, 3)}
+        if _stats.sample_count else None
+    )
     deduper = _Deduper(embed_fn, config.foundry.dedup_similarity)
     episodes: list[Episode] = []
     evidences: list[Evidence] = []
@@ -332,7 +348,8 @@ def _run_pilot_body(
 
         try:
             gen = generate_episode(
-                llm_client, config=config, run_id=run_id, index=i, scenario_id=scenario_id,
+                llm_client, config=config, run_id=run_id, index=i,
+                atlas_stats=atlas_stats, scenario_id=scenario_id,
                 persona=persona, ontology_version=ontology_version, deduper=deduper, model=model,
             )
         except AgentOutputError as exc:

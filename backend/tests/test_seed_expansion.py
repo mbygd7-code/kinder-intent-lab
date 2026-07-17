@@ -219,3 +219,21 @@ def test_campaign_prepare_expands_with_llm(db_session) -> None:
         ws = ScenarioWorkspaceState.model_validate(_strip_nulls(r.workspace_state))
         assert ws.surface_type in sf.vocabulary.surface_types
         assert set(ws.recent_actions) <= set(sf.vocabulary.actions)
+
+
+def test_expand_coherence_violation_recovered_by_corrective_retry() -> None:
+    """★ 실측 유형(2026-07-17): 정합 위반(선택>카드)은 교정 재시도 1회로 구제된다."""
+
+    class _OneShotIncoherent(SyntheticFoundryProvider):
+        def _respond(self, prompt, h):
+            out = super()._respond(prompt, h)
+            if "Situation Builder" in prompt and "교정 지시" not in prompt:
+                out["variants"][0]["selection"] = {"type": "photo", "count": 99}  # 카드보다 많음
+            return out
+
+    sf, anchor = _ready_anchor("PLAY")
+    got = expand_variants(
+        _client(_OneShotIncoherent()), anchor=anchor, vocabulary=sf.vocabulary,
+        k=CFG.foundry.scenario_variants, domain="PLAY", model="s5-test",
+    )
+    assert len(got) == CFG.foundry.scenario_variants  # 재시도가 구제 — 폴백까지 안 감

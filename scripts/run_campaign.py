@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 
 from app.core.config import get_config  # noqa: E402
-from app.foundry.campaign import PilotBaseline, run_campaign  # noqa: E402
+from app.foundry.campaign import PilotBaseline, baseline_from_run, run_campaign  # noqa: E402
 from app.foundry.pilot import SyntheticFoundryProvider, run_pilot  # noqa: E402
 from app.llm.base import EmbeddingRequest  # noqa: E402
 from app.llm.client import LLMClient, get_llm_client  # noqa: E402
@@ -66,20 +66,29 @@ def main() -> int:
     parser.add_argument("--n", type=int, default=1000, help="생성할 에피소드 수 (기본 1000)")
     parser.add_argument("--baseline-n", type=int, default=200, help="기준선 Pilot 규모 (기본 200)")
     parser.add_argument("--commit", action="store_true", help="DB에 커밋 (기본: 롤백 dry-run)")
+    parser.add_argument("--run-id", help="run 식별자 지정 (재개 시 기존 run_id — 완료 슬롯 스킵)")
+    parser.add_argument("--resume", action="store_true",
+                        help="중단 run 재개: Pilot 생략, 이 run의 DB 실측으로 기준선 복원")
     args = parser.parse_args()
+    if args.resume and not args.run_id:
+        raise SystemExit("--resume에는 --run-id가 필요합니다 (중단된 run 식별자)")
 
     config = get_config()
-    run_id = "camp_" + uuid.uuid4().hex[:8]
+    run_id = args.run_id or ("camp_" + uuid.uuid4().hex[:8])
     engine = create_engine(_database_url(), poolclass=NullPool)
 
     with Session(engine) as session:
         client = _completion_client(config)
-        # 1) 기준선 Pilot
-        pilot = run_pilot(
-            session, n=args.baseline_n, llm_client=client, embed_fn=_embed_fn(),
-            config=config, run_id=run_id + "_base",
-        )
-        baseline = PilotBaseline.from_pilot(pilot)
+        if args.resume:
+            baseline = baseline_from_run(session, run_id)
+            print(f"재개 모드: {run_id} — 기준선 복원 {baseline.as_dict()}")
+        else:
+            # 1) 기준선 Pilot
+            pilot = run_pilot(
+                session, n=args.baseline_n, llm_client=client, embed_fn=_embed_fn(),
+                config=config, run_id=run_id + "_base",
+            )
+            baseline = PilotBaseline.from_pilot(pilot)
         # 2) 캠페인 (품질 게이트로 자동 중단 가능)
         report = run_campaign(
             session, run_id=run_id, target_n=args.n, llm_client=client,

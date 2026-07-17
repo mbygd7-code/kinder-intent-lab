@@ -120,7 +120,9 @@ class LabelAggregatorConfig(_Section):
     min_label_functions: int
     aggregate_confidence_min: float
     conflict_max: float
-    evidence_type_weights: str
+    # 'empirical' = 실측(strength×신뢰도)만 | {evidence_type: 배율} = 운영 배율 추가 적용
+    # (절대 규칙 10 — 고정 서열 금지, 가중치는 이 config로만. dict 값은 float로 쓸 것: 2.0)
+    evidence_type_weights: str | dict[str, float]
 
 
 class ReviewConfig(_Section):

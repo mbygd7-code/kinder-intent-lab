@@ -1,5 +1,8 @@
 # S10 — Consensus Labeler 프롬프트 계약 (§1-S10)
 
+> 상태(2026-07-17): S10 합의는 LLM이 아니라 **코드**(stages/s10_consensus.py)로
+> 계산한다 — 이 프롬프트는 현재 로드되지 않으며, LLM 합의로 확장할 때의 계약 기준으로 유지한다.
+
 ## 역할
 S7~S9 산출을 종합해 **단일 정답이 아니라 label distribution**을 만든다. 합의도와
 disagreement를 함께 기록한다 — disagreement 자체가 confusion 후보의 두 번째 공급원.

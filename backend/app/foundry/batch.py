@@ -8,16 +8,18 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import uuid
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
 from app.core.ontology import CANONICAL_DOMAINS, load_ontology
+from app.foundry.atlas import compute_coverage, enqueue_unmapped, simulator_stats
 from app.foundry.episode_builder import generate_episode
 from app.foundry.pilot import _Deduper, _default_source_specs
 from app.foundry.situation_seeds import load_situation_seeds, pick_variants
@@ -28,7 +30,9 @@ from app.foundry.stages.s5_situation_builder import build_scenarios
 from app.foundry.stages.s8_skeptic import record_confusion_edges
 from app.llm.client import LLMClient
 from app.models.episodes import Episode
-from app.models.foundry import FailedEpisode
+from app.models.foundry import AtlasEntry, FailedEpisode
+
+logger = logging.getLogger(__name__)
 
 _DOMAINS = list(CANONICAL_DOMAINS)  # 정본 도메인 순환 (onto-2.0: STUDIO 포함 8)
 _DEFAULT_PERSONAS = ["P_hypo_1", "P_active_2", "P_struct_3"]
@@ -178,6 +182,16 @@ def run_batch(
     batch_size = batch_size or config.foundry.batch_size
     ontology_version = load_ontology().version
 
+    # Atlas 재보정 통계(§2-3) — 비면 None(컨텍스트 생략). 발화는 coverage용으로 수집한다(§2-4)
+    _stats = simulator_stats(session)
+    atlas_stats = (
+        {"sample_count": _stats.sample_count,
+         "mean_word_length": round(_stats.mean_word_length, 2),
+         "deixis_ratio": round(_stats.deixis_ratio, 3)}
+        if _stats.sample_count else None
+    )
+    run_utterances: list[str] = []
+
     slot_hashes = {i: slot_dedup_hash(run_id, i) for i in range(n)}
     existing = existing_slot_hashes(session, run_id, n)
     todo = [i for i in range(n) if slot_hashes[i] not in existing]
@@ -206,7 +220,7 @@ def run_batch(
                         llm_client, config=config, run_id=run_id, index=i,
                         scenario_id=scenario_id, persona=persona,
                         ontology_version=ontology_version, deduper=deduper, model=model,
-                        dedup_hash=slot_hashes[i],
+                        dedup_hash=slot_hashes[i], atlas_stats=atlas_stats,
                     )
                 except Exception as exc:  # noqa: BLE001 — 생성 실패 격리, 배치는 계속
                     session.add(
@@ -227,6 +241,7 @@ def run_batch(
                     report.skipped_existing += 1
                     continue
                 batch_pairs.extend(gen.pairs)
+                run_utterances.append(gen.episode.teacher_prompt)
                 created_here += 1
                 if gen.accepted:
                     consensus_sum_here += gen.consensus_score
@@ -249,6 +264,21 @@ def run_batch(
             report.created += created_here
             if on_checkpoint is not None and on_checkpoint(batch_cost, report) is False:
                 break  # 품질 게이트 자동 중단 — 체크포인트는 커밋됨
+
+        # Atlas coverage(§2-4): 신규 발화 중 미매핑을 확장 큐로. Atlas가 비어 있으면 전량
+        # 미매핑이 되어 큐가 범람하므로 스킵한다(원료 주입 전까지 큐는 의미가 없다).
+        if run_utterances and session.scalar(select(func.count()).select_from(AtlasEntry)):
+            try:
+                cov = compute_coverage(session, run_utterances, embed_fn, config)
+                queued = enqueue_unmapped(session, cov.unmapped, source_run=run_id)
+                session.commit()
+                logger.info(
+                    "Atlas coverage %.2f (%d/%d) — 확장 큐 +%d",
+                    cov.coverage(), cov.mapped, cov.total, len(queued),
+                )
+            except Exception as exc:  # noqa: BLE001 — 부가 지표 실패가 증산을 못 죽인다
+                session.rollback()
+                logger.warning("Atlas coverage 계산 실패(무시하고 계속): %s", exc)
     finally:
         llm_client._recorder = prev_recorder  # noqa: SLF001
 

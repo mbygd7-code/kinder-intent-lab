@@ -49,11 +49,34 @@ def _clamp01(x: float) -> float:
     return min(1.0, max(0.0, x))
 
 
-def _weight(s: EvidenceSignal) -> float:
-    # 실측 신뢰도 기반 (evidence_type 고정 서열 금지 — 절대 규칙 10).
+def _type_factor(evidence_type: str, config: ExperimentsConfig) -> float:
+    """config.label_aggregator.evidence_type_weights 해석 (절대 규칙 10 — 가중치는 config로만).
+
+    'empirical' = 배율 없음(실측만). dict = type별 운영 배율(없는 type은 1.0).
+    그 외 문자열은 조기 폭발 — 오타가 조용히 무시되는 유령 키 재발 방지(2026-07-17 감사).
+    """
+    weights = config.label_aggregator.evidence_type_weights
+    if isinstance(weights, str):
+        if weights != "empirical":
+            raise ValueError(
+                f"label_aggregator.evidence_type_weights 모드 오류: '{weights}' — "
+                "'empirical' 또는 {evidence_type: 배율} 매핑만 허용"
+            )
+        return 1.0
+    factor = float(weights.get(evidence_type, 1.0))
+    if factor < 0:
+        raise ValueError(
+            f"evidence_type_weights[{evidence_type}] 음수({factor}) 금지 — "
+            "부호 반전은 evidence를 정반대로 작동시킨다 (0=무시, 양수=배율)"
+        )
+    return factor
+
+
+def _weight(s: EvidenceSignal, config: ExperimentsConfig) -> float:
+    # 실측 신뢰도 기반 + config 배율 (evidence_type 고정 서열 금지 — 절대 규칙 10).
     # strength·reliability를 [0,1]로 클램프 — 음수 부호반전·과대 가중 방지(DB 밖 입력 대비).
     reliability = s.reliability if s.reliability is not None else 1.0
-    return _clamp01(s.strength) * _clamp01(reliability)
+    return _clamp01(s.strength) * _clamp01(reliability) * _type_factor(s.evidence_type, config)
 
 
 def aggregate(signals: Iterable[EvidenceSignal], config: ExperimentsConfig) -> AggregationResult:
@@ -63,11 +86,11 @@ def aggregate(signals: Iterable[EvidenceSignal], config: ExperimentsConfig) -> A
     excluded = len(all_signals) - len(active)
 
     # 정보량 0(가중치 0)인 신호는 독립 신호로 세지 않는다 — 빈 신호로 게이트를 채우지 못하게
-    signal_count = len({_signal_key(s) for s in active if _weight(s) > 0})
+    signal_count = len({_signal_key(s) for s in active if _weight(s, config) > 0})
 
     net: dict[str, float] = {}
     for s in active:
-        delta = _weight(s) if s.polarity == "supports" else -_weight(s)
+        delta = _weight(s, config) if s.polarity == "supports" else -_weight(s, config)
         net[s.intent_id] = net.get(s.intent_id, 0.0) + delta
 
     positive = {i: w for i, w in net.items() if w > 0}

@@ -324,3 +324,50 @@ def test_gate_uses_config_thresholds() -> None:
     assert evaluate_gate(below, CFG) is False
     at = replace(base, aggregate_confidence=lac.aggregate_confidence_min, conflict_score=0.0)
     assert evaluate_gate(at, CFG) is True
+
+
+# --- evidence_type_weights 실구현 AC (절대 규칙 10 — 가중치는 config, 2026-07-17) ---
+
+
+def _weights_cfg(weights):
+    return CFG.model_copy(update={
+        "label_aggregator": CFG.label_aggregator.model_copy(
+            update={"evidence_type_weights": weights}
+        )
+    })
+
+
+def _wsig(intent, etype, strength=0.8):
+    return EvidenceSignal(
+        intent_id=intent, polarity="supports", strength=strength,
+        evidence_type=etype, actor_type="LLM_ANALYST", reliability=1.0,
+    )
+
+
+def test_weights_empirical_mode_unchanged() -> None:
+    """'empirical'(기본)은 현행 실측 가중 그대로 — 동률 두 신호는 반반."""
+    r = aggregate([_wsig("A", "T1"), _wsig("B", "T2")], CFG)
+    assert abs(r.label_distribution["A"] - 0.5) < 1e-9
+
+
+def test_weights_dict_scales_and_zero_kills_signal() -> None:
+    """dict 모드: type별 배율이 실제로 적용된다 — 0배는 신호 수에서도 빠진다."""
+    cfg = _weights_cfg({"T1": 2.0, "T2": 0.0})
+    r = aggregate([_wsig("A", "T1"), _wsig("B", "T2"), _wsig("B", "T3")], cfg)
+    # A: 0.8×2.0=1.6 / B: T2죽고 T3만 0.8 → A 2/3
+    assert abs(r.label_distribution["A"] - (1.6 / 2.4)) < 1e-9
+    assert r.signal_count == 2  # T2는 정보량 0 — 독립 신호로 안 센다
+
+
+def test_weights_unknown_mode_rejected_early() -> None:
+    """오타 모드 문자열은 조기 폭발 — 조용한 무시(유령 키) 재발 방지."""
+    cfg = _weights_cfg("fixed_rank")
+    with pytest.raises(ValueError, match="empirical"):
+        aggregate([_wsig("A", "T1")], cfg)
+
+
+def test_weights_negative_factor_rejected() -> None:
+    """음수 배율은 조기 폭발 — 부호 반전으로 evidence가 정반대로 작동하는 사고 차단(적대 검증)."""
+    cfg = _weights_cfg({"T1": -1.0})
+    with pytest.raises(ValueError, match="음수"):
+        aggregate([_wsig("A", "T1")], cfg)

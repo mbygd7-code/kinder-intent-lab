@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import ExperimentsConfig
@@ -39,6 +40,7 @@ from app.foundry.stages.s2_governance import govern_source, store_raw_document
 from app.foundry.stages.s3_extractor import FrameInput, build_situation_frame
 from app.foundry.stages.s5_situation_builder import build_scenarios
 from app.llm.client import LLMClient
+from app.models.episodes import Episode
 
 EmbedFn = Callable[[list[str]], list[list[float]]]
 
@@ -86,6 +88,32 @@ class PilotBaseline:
             "unit_tokens": round(self.unit_tokens, 2),
             "unit_cost": round(self.unit_cost, 6),
         }
+
+
+def baseline_from_run(session: Session, run_id: str) -> PilotBaseline:
+    """중단된 캠페인 재개용 기준선 — 이 run이 이미 만든 에피소드의 실측(DB)에서 복원한다.
+
+    2026-07-17 감사: CLI가 매번 새 run_id를 만들어 '재시작 멱등'이 실제로는 불가능했다
+    (camp_06f8128c가 미완으로 남은 원인). 토큰 단가는 DB에 없어 0으로 둔다 —
+    _evaluate_window의 0-기준선 가드가 비용 악화 검사를 건너뛴다(합의도·reject 게이트는 유지).
+    """
+    rows = session.execute(
+        select(Episode.label_state, Episode.consensus).where(
+            Episode.episode_id.like(f"EP_{run_id}\\_%"),
+            # 기준선 파일럿(run_id + '_base')은 캠페인 실측이 아니다 — 오포함 방지(적대 검증)
+            Episode.episode_id.not_like(f"EP_{run_id}\\_base%"),
+        )
+    ).all()
+    if not rows:
+        raise ValueError(f"재개할 run 이력이 없음: {run_id} (에피소드 0건)")
+    total = len(rows)
+    rejected = sum(1 for state, _ in rows if state == "REJECTED")
+    consensus_vals = [c for state, c in rows if state != "REJECTED" and c is not None]
+    mean_consensus = sum(consensus_vals) / len(consensus_vals) if consensus_vals else 0.0
+    return PilotBaseline(
+        mean_consensus=mean_consensus, reject_rate=rejected / total,
+        unit_tokens=0.0, unit_cost=0.0,
+    )
 
 
 # --- 도메인 배분 스케줄 ---

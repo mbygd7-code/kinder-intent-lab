@@ -245,3 +245,50 @@ def test_campaign_restart_creates_no_duplicates(db_session) -> None:
     assert db_session.query(Source).count() == sources_after_first
     assert report2.degraded is False  # no-op 리포트도 정상 신호
     assert report2.allocation  # 배분은 DB 없이도 보고된다
+
+
+def test_baseline_from_run_restores_from_db(db_session) -> None:
+    """★ 재개 기준선: run의 DB 실측(합의도·reject율) 복원 — 없는 run은 거부 (감사 후속)."""
+    from app.foundry.campaign import baseline_from_run
+    from app.models.episodes import Episode
+
+    cases = [("LABEL_CANDIDATE", 0.8), ("LABEL_CANDIDATE", 0.6), ("REJECTED", None)]
+    for i, (state, cons) in enumerate(cases):
+        db_session.add(Episode(
+            episode_id=f"EP_run_resume_x_{i:05d}", ontology_version="onto-test", lang="ko",
+            dataset_split="TRAIN", origin_channel="FOUNDRY_SYNTHETIC",
+            episode_creator_type="FOUNDRY_PIPELINE", primary_subject_type="TEACHER",
+            teacher_prompt=f"재개 발화 {i}", label_distribution={}, consensus=cons,
+            label_state=state, reliability_tier="SILVER" if state != "REJECTED" else "BRONZE",
+        ))
+    db_session.flush()
+
+    b = baseline_from_run(db_session, "run_resume_x")
+    assert abs(b.mean_consensus - 0.7) < 1e-9
+    assert abs(b.reject_rate - 1 / 3) < 1e-9
+    assert b.unit_tokens == 0.0  # 비용 기준선 없음 — 0 가드로 비용 게이트 스킵
+
+    with pytest.raises(ValueError, match="에피소드 0건"):
+        baseline_from_run(db_session, "run_ghost")
+
+
+def test_baseline_from_run_excludes_pilot_base(db_session) -> None:
+    """재개 기준선은 캠페인 실측만 — 파일럿(run_id_base) 에피소드는 오포함 금지(적대 검증)."""
+    from app.foundry.campaign import baseline_from_run
+    from app.models.episodes import Episode
+
+    cases = [
+        ("EP_run_rsx2_00000", 0.8),
+        ("EP_run_rsx2_base_00000", 0.0),  # 파일럿 — 섞이면 평균이 왜곡된다
+    ]
+    for eid, cons in cases:
+        db_session.add(Episode(
+            episode_id=eid, ontology_version="onto-test", lang="ko",
+            dataset_split="TRAIN", origin_channel="FOUNDRY_SYNTHETIC",
+            episode_creator_type="FOUNDRY_PIPELINE", primary_subject_type="TEACHER",
+            teacher_prompt=f"기준선 {eid}", label_distribution={}, consensus=cons,
+            label_state="LABEL_CANDIDATE", reliability_tier="SILVER",
+        ))
+    db_session.flush()
+    b = baseline_from_run(db_session, "run_rsx2")
+    assert abs(b.mean_consensus - 0.8) < 1e-9  # base(0.0)가 섞였다면 0.4가 됐을 것
