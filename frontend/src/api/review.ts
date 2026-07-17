@@ -5,11 +5,22 @@
  * (apply_review_batch)이 판정한다 — 프론트는 표만 나른다.
  */
 
+/** 발화가 나온 화면 상황 — 뇌도 추론 때 받는 입력(정답 힌트 아님). 서버 whitelist 통과분만 온다. */
+export interface ReviewSituation {
+  surface_type?: string
+  selection?: { type?: string; count?: number } | null
+  recent_actions?: string[]
+  objects_summary?: Record<string, number>
+}
+
 export interface ReviewQueueItem {
   episode_id: string
   teacher_prompt: string
   lang: string
   origin_channel: string
+  situation: ReviewSituation | null
+  same_text_total: number
+  same_text_index: number
 }
 
 export interface ReviewQueue {

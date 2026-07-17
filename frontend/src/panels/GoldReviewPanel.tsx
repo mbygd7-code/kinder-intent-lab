@@ -15,6 +15,7 @@ import {
   fetchReviewStatus,
   postReviewVote,
   type ReviewQueue,
+  type ReviewSituation,
   type ReviewStatus,
 } from '../api/review'
 import { parseCsv } from './csv'
@@ -22,6 +23,38 @@ import { INTENT_LABEL_KO, labelOf } from './intentLabels'
 import { loadIntentCorpus, rankIntents, type IntentCorpus } from './intentRecommend'
 
 const PAGE = 6 // 추천 한 페이지 크기 — [더 보기]가 이만큼씩 늘린다
+
+// 상황 어휘 한글화 — 모르는 값은 원문 그대로(날조 없이)
+const SURFACE_KO: Record<string, string> = {
+  play_board: '놀이 보드 화면', photo_album: '사진첩 화면', document: '문서 화면',
+  dashboard: '대시보드 화면', chat: '대화 화면',
+}
+const OBJ_KO: Record<string, string> = { photo: '사진', text: '글', video: '영상', audio: '음성' }
+const ACTION_KO: Record<string, string> = {
+  move_object: '물건을 옮김', open_document: '문서를 엶', select_photo: '사진을 고름',
+  upload_photo: '사진을 올림', edit_text: '글을 고침',
+}
+
+/** 상황 요약 줄들 — 없으면 빈 배열(표시부가 '상황 정보 없음' 처리) */
+function situationLines(sit: ReviewSituation | null): string[] {
+  if (!sit) return []
+  const lines: string[] = []
+  if (sit.surface_type) lines.push(`보고 있던 화면: ${SURFACE_KO[sit.surface_type] ?? sit.surface_type}`)
+  if (sit.selection && sit.selection.type) {
+    const t = OBJ_KO[sit.selection.type] ?? sit.selection.type
+    lines.push(`선택 중: ${t} ${sit.selection.count ?? 1}개`)
+  }
+  if (sit.objects_summary && Object.keys(sit.objects_summary).length) {
+    const parts = Object.entries(sit.objects_summary)
+      .map(([k, n]) => `${OBJ_KO[k] ?? k} ${n}`)
+    lines.push(`화면에 있는 것: ${parts.join(' · ')}`)
+  }
+  if (sit.recent_actions && sit.recent_actions.length) {
+    const acts = sit.recent_actions.map((a) => ACTION_KO[a] ?? a)
+    lines.push(`직전 행동: ${acts.join(' → ')}`)
+  }
+  return lines
+}
 
 interface Props {
   onClose: () => void
@@ -189,6 +222,26 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
               {queue.reviewer} · {idx + 1} / {queue.items.length}
               {queue.my_done > 0 && ` (이전에 ${queue.my_done}건 완료)`}
             </p>
+            {current.same_text_total > 1 && (
+              <span className="dash-chip dash-chip-warn review-dup-chip">
+                ⚠ 같은 문장 {current.same_text_index}/{current.same_text_total} — 상황이 서로
+                달라요, 아래 상황을 보고 각각 판단하세요
+              </span>
+            )}
+            <div className="review-situation">
+              {situationLines(current.situation).length > 0 ? (
+                <>
+                  <strong className="review-situation-title">📍 이 말이 나온 상황</strong>
+                  {situationLines(current.situation).map((line) => (
+                    <p key={line} className="dash-card-sub">{line}</p>
+                  ))}
+                </>
+              ) : (
+                <p className="dash-card-sub help-dim">
+                  📍 상황 정보 없음 — 발화만으로 판단하고, 정할 수 없으면 [못 쓰는 발화]로 폐기하세요.
+                </p>
+              )}
+            </div>
             <p className="live-quiz-utterance">"{current.teacher_prompt}"</p>
             {ranked && !searching && (
               <p className="dash-card-sub help-dim">

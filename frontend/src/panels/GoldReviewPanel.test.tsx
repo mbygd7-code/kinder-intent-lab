@@ -13,7 +13,18 @@ const QUEUE = {
   total_reviewable: 2,
   my_done: 0,
   items: [
-    { episode_id: 'EP_1', teacher_prompt: '알림장 지금 보내줘', lang: 'ko', origin_channel: 'FOUNDRY_SYNTHETIC' },
+    {
+      episode_id: 'EP_1', teacher_prompt: '알림장 지금 보내줘', lang: 'ko',
+      origin_channel: 'FOUNDRY_SYNTHETIC',
+      situation: {
+        surface_type: 'play_board',
+        selection: { type: 'photo', count: 1 },
+        recent_actions: ['move_object'],
+        objects_summary: { photo: 2, text: 1 },
+      },
+      same_text_total: 3,
+      same_text_index: 2,
+    },
   ],
 }
 const STATUS = { reviewable_total: 2, ready_total: 0, reviewers: [] }
@@ -115,5 +126,21 @@ describe('GoldReviewPanel', () => {
     expect(await screen.findByText(/확정 3건\(GOLD\)/)).toBeTruthy()
     expect(screen.getByText(/kappa 0.72/)).toBeTruthy()
     expect(onApplied).toHaveBeenCalled()
+  })
+})
+
+describe('GoldReviewPanel — 상황 표시 (A+B)', () => {
+  it('상황 박스: 화면·선택·직전 행동이 한글로 보이고, 같은 문장 배지(k/N)가 뜬다', async () => {
+    stub()
+    render(<GoldReviewPanel onClose={() => {}} onApplied={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText(/예: 명배영/), { target: { value: '명배영' } })
+    fireEvent.click(screen.getByRole('button', { name: '검수 시작' }))
+    await screen.findByText(/"알림장 지금 보내줘"/)
+
+    expect(screen.getByText(/이 말이 나온 상황/)).toBeTruthy()
+    expect(screen.getByText(/보고 있던 화면: 놀이 보드 화면/)).toBeTruthy()
+    expect(screen.getByText(/선택 중: 사진 1개/)).toBeTruthy()
+    expect(screen.getByText(/직전 행동: 물건을 옮김/)).toBeTruthy()
+    expect(screen.getByText(/같은 문장 2\/3/)).toBeTruthy() // 건너뛰지 않고 상황별 판단 안내
   })
 })
