@@ -33,6 +33,7 @@ from app.core.db import get_session
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.llm.client import embed_fn_from_env
 from app.models.episodes import Episode, ReviewVoteRow
+from app.models.foundry import CanonicalScenario
 
 router = APIRouter(prefix="/v1/review", tags=["review"])
 
@@ -55,7 +56,14 @@ def _reviewable_q():
     return select(Episode).where(Episode.label_state.in_(sorted(REVIEWABLE_STATES)))
 
 
-# --- 큐 (blind) ---
+# --- 큐 (blind + 상황) ---
+#
+# blind가 가리는 것은 "정답 힌트"(타인 표·집계 제안·생성 도메인)다. 상황(workspace_state)은
+# 뇌도 추론 때 받는 **입력**이므로 사람 정답도 같은 정보 위에서 정해야 공정하다 — 증산 발화의
+# 상당수가 상황 의존적("음... 이거 이렇게 하면 될까?")이라, 상황 없이는 라벨이 불가능하다.
+# 단 whitelist로만 통과시켜 생성 메타(도메인·persona·라벨)가 새는 것을 구조적으로 막는다.
+
+_SITUATION_KEYS = ("surface_type", "selection", "recent_actions", "objects_summary")
 
 
 class QueueItem(BaseModel):
@@ -63,6 +71,11 @@ class QueueItem(BaseModel):
     teacher_prompt: str
     lang: str
     origin_channel: str
+    # 그 발화가 나온 화면 상황(whitelist 통과분) — 시나리오 없으면 null(지어내지 않음)
+    situation: dict | None = None
+    # 같은 문장이 큐에 여러 번(서로 다른 상황) 있을 때의 배지 정보 — 건너뛰지 않는다
+    same_text_total: int = 1
+    same_text_index: int = 1
 
 
 class QueueOut(BaseModel):
@@ -70,6 +83,14 @@ class QueueOut(BaseModel):
     total_reviewable: int
     my_done: int
     items: list[QueueItem]
+
+
+def _unknown_dominant(episode: Episode) -> bool:
+    """AI 합의(label_distribution)가 UNKNOWN 우세 = 발화만으론 못 정한 것 — 검수 후순위."""
+    ld = episode.label_distribution or {}
+    if not ld:
+        return False
+    return max(ld, key=lambda k: ld[k]) == "UNKNOWN"
 
 
 @router.get("/queue", response_model=QueueOut)
@@ -87,11 +108,42 @@ def review_queue(
         select(ReviewVoteRow.episode_id).where(ReviewVoteRow.reviewer_canonical == canon)
     ))
     rows = session.scalars(_reviewable_q().order_by(Episode.episode_id)).all()
+
+    # 같은 문장 배지 — 검수 대상 전체 기준으로 k/N을 매긴다(상황이 달라 별개 정답일 수 있음)
+    text_total: dict[str, int] = {}
+    for e in rows:
+        text_total[e.teacher_prompt] = text_total.get(e.teacher_prompt, 0) + 1
+    text_seen: dict[str, int] = {}
+    text_index: dict[str, int] = {}
+    for e in rows:  # episode_id 순으로 k 부여
+        text_seen[e.teacher_prompt] = text_seen.get(e.teacher_prompt, 0) + 1
+        text_index[e.episode_id] = text_seen[e.teacher_prompt]
+
+    # 판단 쉬운 것 먼저: UNKNOWN 우세(상황 필수)는 뒤로 — 안정 정렬(그 안에선 episode_id 순)
+    rows.sort(key=lambda e: (_unknown_dominant(e), e.episode_id))
+
+    pick = [e for e in rows if e.episode_id not in my_voted][:limit]
+
+    # 상황 로드(whitelist 통과분만) — 생성 메타 누출 차단
+    scenario_ids = {e.scenario_id for e in pick if e.scenario_id}
+    scenarios: dict[str, dict] = {}
+    if scenario_ids:
+        for s in session.scalars(
+            select(CanonicalScenario).where(CanonicalScenario.scenario_id.in_(scenario_ids))
+        ):
+            ws = s.workspace_state or {}
+            scenarios[s.scenario_id] = {k: ws[k] for k in _SITUATION_KEYS if k in ws}
+
     items = [
-        QueueItem(episode_id=e.episode_id, teacher_prompt=e.teacher_prompt,
-                  lang=e.lang, origin_channel=e.origin_channel)
-        for e in rows if e.episode_id not in my_voted
-    ][:limit]
+        QueueItem(
+            episode_id=e.episode_id, teacher_prompt=e.teacher_prompt,
+            lang=e.lang, origin_channel=e.origin_channel,
+            situation=scenarios.get(e.scenario_id) if e.scenario_id else None,
+            same_text_total=text_total[e.teacher_prompt],
+            same_text_index=text_index[e.episode_id],
+        )
+        for e in pick
+    ]
     my_done = sum(1 for e in rows if e.episode_id in my_voted)
     return QueueOut(reviewer=canon, total_reviewable=total or 0, my_done=my_done, items=items)
 

@@ -1361,3 +1361,11 @@ body {
   max-height: 46vh; overflow-y: auto; padding-right: 0.15rem;
   scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
 }
+/* 공부 검수 — 상황 박스 + 같은 문장 배지 */
+.review-situation {
+  margin: 0.35rem 0 0.5rem; padding: 0.55rem 0.75rem;
+  background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 0.55rem;
+}
+.review-situation-title { display: block; font-size: 0.85rem; color: #93c5fd; margin-bottom: 0.2rem; }
+.review-dup-chip { display: inline-block; margin: 0.2rem 0 0.1rem; }

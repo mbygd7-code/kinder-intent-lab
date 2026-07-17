@@ -50,17 +50,36 @@ def api(db_session):
     app.dependency_overrides.clear()
 
 
-def _episode(db, prompt: str) -> str:
+def _episode(db, prompt: str, *, scenario_id: str | None = None,
+             label_distribution: dict | None = None) -> str:
     eid = "EP_rv_" + uuid.uuid4().hex[:8]
     db.add(Episode(
         episode_id=eid, ontology_version="onto-test", lang="ko",
         dataset_split="TRAIN", origin_channel="FOUNDRY_SYNTHETIC",
         episode_creator_type="FOUNDRY_PIPELINE", primary_subject_type="TEACHER",
-        teacher_prompt=prompt, label_distribution={},
+        teacher_prompt=prompt, label_distribution=label_distribution or {},
         label_state="LABEL_CANDIDATE", reliability_tier="SILVER",
+        scenario_id=scenario_id,
     ))
     db.flush()
     return eid
+
+
+def _scenario(db, *, surface="play_board") -> str:
+    from app.models.foundry import CanonicalScenario
+
+    sid = "CS_rv_" + uuid.uuid4().hex[:8]
+    db.add(CanonicalScenario(
+        scenario_id=sid, frame_id=None,
+        workspace_state={
+            "surface_type": surface,
+            "selection": {"type": "photo", "count": 1},
+            "recent_actions": ["move_object"],
+            "objects_summary": {"photo": 2, "text": 1},
+        },
+    ))
+    db.flush()
+    return sid
 
 
 def _vote(client, reviewer, episode_id, intent):
@@ -80,7 +99,7 @@ def test_queue_is_blind_and_excludes_my_votes(api) -> None:
     assert e1 not in ids and e2 in ids
     assert q["my_done"] == 1 and q["total_reviewable"] == 2
     # blind — 허용 필드만 (suggests/다른 표/집계 힌트가 실리면 실패해야 한다)
-    assert set(q["items"][0].keys()) == {"episode_id", "teacher_prompt", "lang", "origin_channel"}
+    assert set(q["items"][0].keys()) == {"episode_id", "teacher_prompt", "lang", "origin_channel", "situation", "same_text_total", "same_text_index"}
 
     q2 = client.get("/v1/review/queue", params={"reviewer": "조선생"}).json()
     assert len(q2["items"]) == 2  # 다른 검수자는 아직 둘 다 대기
@@ -164,3 +183,52 @@ def test_status_reports_progress(api) -> None:
     assert s["ready_total"] == 1  # 2인 표가 모인 에피소드 수
     names = {r["name"]: r["votes"] for r in s["reviewers"]}
     assert names["명배영"] == 2 and names["조선생"] == 1
+
+
+# --- A+B: 상황 표시(누출 없는 blind) · 판단 쉬운 순 정렬 · 같은 문장 배지 ---
+
+
+def test_queue_includes_situation_without_label_leaks(api) -> None:
+    """★ 상황(workspace_state)은 보여주되, 정답 힌트(도메인·집계 제안·persona)는 절대 싣지 않는다."""
+    client, db = api
+    sid = _scenario(db)
+    _episode(db, "상황 표시 발화 sit1", scenario_id=sid,
+             label_distribution={"UNKNOWN": 0.9, INTENTS[0]: 0.1})
+    q = client.get("/v1/review/queue", params={"reviewer": "명배영"}).json()
+    item = next(i for i in q["items"] if i["teacher_prompt"] == "상황 표시 발화 sit1")
+    sit = item["situation"]
+    assert sit["surface_type"] == "play_board"
+    assert sit["selection"] == {"type": "photo", "count": 1}
+    assert sit["recent_actions"] == ["move_object"]
+    # 누출 금지: 도메인·라벨·persona 계열 키가 상황에 섞이면 안 된다
+    assert not ({"domain", "label", "intent", "persona"} & set(map(str.lower, sit.keys())))
+    # 시나리오 없는 에피소드는 정직하게 null
+    _episode(db, "상황 없는 발화 sit2")
+    q2 = client.get("/v1/review/queue", params={"reviewer": "명배영"}).json()
+    item2 = next(i for i in q2["items"] if i["teacher_prompt"] == "상황 없는 발화 sit2")
+    assert item2["situation"] is None
+
+
+def test_queue_orders_self_contained_first(api) -> None:
+    """★ AI 합의가 UNKNOWN 우세(=발화만으론 못 정함)인 것은 뒤로 — 판단 쉬운 것부터."""
+    client, db = api
+    hard = _episode(db, "가나 애매 발화", label_distribution={"UNKNOWN": 0.9})
+    easy = _episode(db, "하하 명확 발화", label_distribution={INTENTS[0]: 0.9, "UNKNOWN": 0.1})
+    q = client.get("/v1/review/queue", params={"reviewer": "명배영"}).json()
+    ids = [i["episode_id"] for i in q["items"]]
+    assert ids.index(easy) < ids.index(hard)  # episode_id 사전순(가<하)을 정렬이 뒤집는다
+
+
+def test_queue_marks_same_text_duplicates(api) -> None:
+    """★ 같은 문장이 여러 상황으로 존재하면 k/N 배지 정보를 준다(건너뛰지 않음 — 상황별 별개 정답)."""
+    client, db = api
+    s1, s2 = _scenario(db), _scenario(db, surface="photo_album")
+    _episode(db, "같은 문장 발화 dup", scenario_id=s1)
+    _episode(db, "같은 문장 발화 dup", scenario_id=s2)
+    _episode(db, "혼자인 발화 solo")
+    q = client.get("/v1/review/queue", params={"reviewer": "명배영"}).json()
+    dups = [i for i in q["items"] if i["teacher_prompt"] == "같은 문장 발화 dup"]
+    assert [d["same_text_total"] for d in dups] == [2, 2]
+    assert sorted(d["same_text_index"] for d in dups) == [1, 2]
+    solo = next(i for i in q["items"] if i["teacher_prompt"] == "혼자인 발화 solo")
+    assert solo["same_text_total"] == 1 and solo["same_text_index"] == 1
