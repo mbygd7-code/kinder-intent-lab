@@ -11,6 +11,7 @@ import { CountUp } from './viz/CountUp'
 
 export function ExpansionStory({ data }: { data: Dashboard }) {
   const openIntentCatalog = useBrainStore((s) => s.openIntentCatalog)
+  const openSituationSeed = useBrainStore((s) => s.openSituationSeed)
   const e = data.expansion
   const growing = e.unknown_pool + e.atlas_queue_pending
 
@@ -79,6 +80,9 @@ export function ExpansionStory({ data }: { data: Dashboard }) {
       <div className="dash-actions">
         <button type="button" className="dash-btn" onClick={openIntentCatalog}>
           🗂 의도 목록 · 수정 제안
+        </button>
+        <button type="button" className="dash-btn" onClick={openSituationSeed}>
+          🖥 화면 씨드 스튜디오
         </button>
       </div>
     </section>

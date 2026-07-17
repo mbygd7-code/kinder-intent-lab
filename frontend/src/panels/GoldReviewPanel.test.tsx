@@ -129,6 +129,42 @@ describe('GoldReviewPanel', () => {
   })
 })
 
+describe('GoldReviewPanel — 상황 라벨은 씨드 어휘가 원천', () => {
+  it('어휘 관리에서 등록한 새 화면(photo_editor)이 검수 화면에 한글로 보인다', async () => {
+    const queue = {
+      ...QUEUE,
+      items: [{
+        ...QUEUE.items[0],
+        situation: { ...QUEUE.items[0].situation, surface_type: 'photo_editor' },
+      }],
+    }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url)
+      if (u.endsWith('/v1/situation-seeds'))
+        return {
+          ok: true,
+          json: async () => ({
+            vocabulary: {
+              surface_types: { photo_editor: '사진 편집 화면' },
+              object_kinds: {}, actions: {},
+            },
+          }),
+        } as Response
+      if (u.includes('ontology_examples_draft.csv'))
+        return { ok: true, text: async () => CORPUS_CSV } as Response
+      if (u.includes('/review/queue')) return { ok: true, json: async () => queue } as Response
+      if (u.includes('/review/status')) return { ok: true, json: async () => STATUS } as Response
+      return { ok: false, status: 404, json: async () => ({}) } as Response
+    }))
+    render(<GoldReviewPanel onClose={() => {}} onApplied={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText(/예: 명배영/), { target: { value: '명배영' } })
+    fireEvent.click(screen.getByRole('button', { name: '검수 시작' }))
+    await screen.findByText(/"알림장 지금 보내줘"/)
+
+    expect(await screen.findByText(/보고 있던 화면: 사진 편집 화면/)).toBeTruthy()
+  })
+})
+
 describe('GoldReviewPanel — 상황 표시 (A+B)', () => {
   it('상황 박스: 화면·선택·직전 행동이 한글로 보이고, 같은 문장 배지(k/N)가 뜬다', async () => {
     stub()
@@ -140,7 +176,7 @@ describe('GoldReviewPanel — 상황 표시 (A+B)', () => {
     expect(screen.getByText(/이 말이 나온 상황/)).toBeTruthy()
     expect(screen.getByText(/보고 있던 화면: 놀이 보드 화면/)).toBeTruthy()
     expect(screen.getByText(/선택 중: 사진 1개/)).toBeTruthy()
-    expect(screen.getByText(/직전 행동: 물건을 옮김/)).toBeTruthy()
+    expect(screen.getByText(/직전 행동: 카드를 옮김/)).toBeTruthy()
     expect(screen.getByText(/같은 문장 2\/3/)).toBeTruthy() // 건너뛰지 않고 상황별 판단 안내
   })
 })

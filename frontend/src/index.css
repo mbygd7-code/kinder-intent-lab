@@ -1369,3 +1369,88 @@ body {
 }
 .review-situation-title { display: block; font-size: 0.85rem; color: #93c5fd; margin-bottom: 0.2rem; }
 .review-dup-chip { display: inline-block; margin: 0.2rem 0 0.1rem; }
+
+/* --- 화면 씨드 스튜디오 (SituationSeedPanel) — 섹션 카드 + 그리드 정렬 --- */
+.seed-toolbar { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
+.seed-toolbar-note { flex: 1 1 16rem; }
+
+.seed-section {
+  border: 1px solid var(--panel-border, #333); border-radius: 0.7rem;
+  padding: 0.9rem 1rem 1rem; margin: 0.6rem 0; background: rgba(255, 255, 255, 0.02);
+  display: flex; flex-direction: column; gap: 0.85rem;
+}
+.seed-section-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem;
+  border-bottom: 1px solid var(--panel-border, #333); padding-bottom: 0.55rem;
+}
+.seed-section-title { font-size: 0.95rem; }
+.seed-section-sub { font-size: 0.78rem; color: var(--muted); flex: 1 1 18rem; }
+
+.seed-field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--muted); min-width: 0; }
+.seed-field .help-input { width: 100%; box-sizing: border-box; margin: 0; }
+.seed-form-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.6rem 0.8rem; }
+.seed-form-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.5rem 0.7rem; }
+.seed-form-grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.5rem 0.7rem; }
+.seed-form-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.5rem 0.7rem; }
+
+.seed-fieldset { display: flex; flex-direction: column; gap: 0.45rem; }
+.seed-fieldset-title { font-size: 0.8rem; color: var(--fg); font-weight: 600; letter-spacing: 0.02em; }
+.seed-fieldset-title em { font-style: normal; font-weight: 400; color: var(--muted); }
+
+.seed-chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.seed-chip { cursor: pointer; border: 1px solid var(--panel-border, #444); }
+.seed-chip-on { background: rgba(94, 234, 212, 0.16); border-color: #5eead4; color: #5eead4; }
+.seed-action-picker { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.seed-action-pick { max-width: 13rem; }
+
+.seed-vs-block {
+  border: 1px dashed var(--panel-border, #444); border-radius: 0.6rem;
+  padding: 0.6rem 0.7rem 0.7rem; display: flex; flex-direction: column; gap: 0.5rem;
+}
+.seed-vs-block-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.seed-add-inline { align-self: flex-start; }
+.seed-btn-sm { padding: 0.22rem 0.5rem; font-size: 0.75rem; white-space: nowrap; }
+
+.seed-checklist {
+  list-style: none; padding: 0.6rem 0.8rem; margin: 0; display: flex; flex-direction: column;
+  gap: 0.3rem; border: 1px solid var(--panel-border, #333); border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.02); font-size: 0.84rem;
+}
+.seed-check-ok { color: #5eead4; }
+.seed-check-no { color: #fbbf24; }
+.seed-form-actions {
+  display: flex; justify-content: flex-end; gap: 0.5rem;
+  border-top: 1px solid var(--panel-border, #333); padding-top: 0.7rem;
+}
+
+.seed-list { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.7rem; }
+.seed-card { border: 1px solid var(--panel-border, #333); border-radius: 0.7rem; padding: 0.7rem 0.85rem; }
+.seed-card-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem; }
+.seed-card-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+.seed-unmet { color: #fbbf24; font-size: 0.8rem; margin-top: 0.15rem; }
+.seed-preview { margin-top: 0.6rem; border-top: 1px dashed var(--panel-border, #444); padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.seed-preview-variant { border: 1px solid var(--panel-border, #333); border-radius: 0.55rem; padding: 0.45rem 0.6rem; }
+
+/* 어휘 관리 — 표 카드(행: id / 라벨 / 동작 열 정렬) */
+.seed-vocab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr)); gap: 0.7rem; }
+.seed-vocab-card {
+  border: 1px solid var(--panel-border, #333); border-radius: 0.6rem;
+  padding: 0.6rem 0.7rem 0.7rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0;
+}
+.seed-vocab-card-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding-bottom: 0.4rem; border-bottom: 1px solid var(--panel-border, #333); margin-bottom: 0.15rem;
+}
+.seed-vocab-row {
+  display: grid; grid-template-columns: minmax(6rem, max-content) minmax(7rem, 1fr) max-content;
+  gap: 0.4rem; align-items: center;
+}
+.seed-vocab-row .help-input { width: 100%; box-sizing: border-box; margin: 0; }
+.seed-vocab-id {
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 0.4rem; padding: 0.24rem 0.4rem; max-width: 9rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.seed-vocab-actions { display: flex; gap: 0.3rem; justify-content: flex-end; }
+.seed-vocab-add { border-top: 1px dashed var(--panel-border, #444); padding-top: 0.5rem; margin-top: 0.2rem; }

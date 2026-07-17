@@ -20,6 +20,7 @@ import { ExamUploadModal } from './panels/ExamUpload'
 import { KtibReviewModal } from './panels/KtibReviewModal'
 import { GoldReviewPanel } from './panels/GoldReviewPanel'
 import { IntentCatalogPanel } from './panels/IntentCatalogPanel'
+import { SituationSeedPanel } from './panels/SituationSeedPanel'
 import { LiveQuizPanel } from './panels/LiveQuizPanel'
 import { NodePanel } from './panels/NodePanel'
 import { RegionsPanel } from './panels/RegionsPanel'
@@ -39,6 +40,8 @@ function App() {
   const goldReviewOpen = useBrainStore((s) => s.goldReviewOpen)
   const closeGoldReview = useBrainStore((s) => s.closeGoldReview)
   const intentCatalogOpen = useBrainStore((s) => s.intentCatalogOpen)
+  const situationSeedOpen = useBrainStore((s) => s.situationSeedOpen)
+  const closeSituationSeed = useBrainStore((s) => s.closeSituationSeed)
   const closeIntentCatalog = useBrainStore((s) => s.closeIntentCatalog)
   const reviewOpen = useBrainStore((s) => s.reviewOpen)
   const closeReview = useBrainStore((s) => s.closeReview)
@@ -111,6 +114,7 @@ function App() {
         />
       )}
       {intentCatalogOpen && <IntentCatalogPanel onClose={closeIntentCatalog} />}
+      {situationSeedOpen && <SituationSeedPanel onClose={closeSituationSeed} />}
       {goldReviewOpen && (
         <GoldReviewPanel
           onClose={closeGoldReview}
