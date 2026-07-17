@@ -31,7 +31,9 @@ from app.foundry.batch import (
     existing_slot_hashes,
     run_batch,
 )
-from app.foundry.pilot import PilotResult, _make_variant
+from app.foundry.pilot import PilotResult
+from app.foundry.seed_expansion import variants_for_domain
+from app.foundry.situation_seeds import load_situation_seeds
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
 from app.foundry.stages.s2_governance import govern_source, store_raw_document
 from app.foundry.stages.s3_extractor import FrameInput, build_situation_frame
@@ -155,10 +157,16 @@ def _interleave(
 
 def prepare_campaign_scenarios(
     session: Session, *, run_id: str, config: ExperimentsConfig, target_n: int,
+    llm_client: LLMClient | None = None, model: str = "campaign",
 ) -> CampaignSchedule:
-    """7개 도메인 소스·프레임·시나리오를 준비하고, 배분 가중치대로 길이 target_n 스케줄을 만든다."""
+    """7개 도메인 소스·프레임·시나리오를 준비하고, 배분 가중치대로 길이 target_n 스케줄을 만든다.
+
+    llm_client가 있고 config.foundry.seed_expansion_enabled면 씨드를 LLM으로 확장한다
+    (앵커 = 최소기준 충족 씨드, 실패 시 씨드 원본 폴백) — 없으면 씨드 원본 그대로.
+    """
     counts, allocation = _planned_counts_and_allocation(config, target_n)
 
+    seed_file = load_situation_seeds()  # 화면 씨드(수동 작성) — 계약 위반이면 증산 시작 전 실패
     scen_by_domain: dict[str, list[Scenario]] = {}
     for domain in CANONICAL_DOMAINS:
         source = register_source(
@@ -180,7 +188,11 @@ def prepare_campaign_scenarios(
             ),
         )
         session.flush()
-        variants = [_make_variant(v) for v in range(config.foundry.scenario_variants)]
+        variants = variants_for_domain(
+            seed_file, domain=domain, k=config.foundry.scenario_variants,
+            salt=f"{run_id}|{domain}", llm_client=llm_client, model=model,
+            enabled=config.foundry.seed_expansion_enabled,
+        )
         scen_by_domain[domain] = [
             (sc.scenario_id, frame.frame_id, source.source_id)
             for sc in build_scenarios(session, frame, variants, config)
@@ -349,7 +361,8 @@ def run_campaign(
         )
 
     schedule = prepare_campaign_scenarios(
-        session, run_id=run_id, config=config, target_n=target_n
+        session, run_id=run_id, config=config, target_n=target_n,
+        llm_client=llm_client, model=model,
     )
     windows: list[WeeklyReport] = []
     window_batches: list[BatchCost] = []

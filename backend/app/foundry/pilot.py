@@ -16,6 +16,7 @@ from app.core.config import ExperimentsConfig
 from app.core.ontology import CANONICAL_DOMAINS, load_ontology
 from app.foundry.agents.runner import AgentOutputError
 from app.foundry.episode_builder import generate_episode
+from app.foundry.situation_seeds import load_situation_seeds, pick_variants
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
 from app.foundry.stages.s2_governance import govern_source, store_raw_document
 from app.foundry.stages.s3_extractor import FrameInput, build_situation_frame
@@ -79,6 +80,8 @@ class SyntheticFoundryProvider(LLMProvider):
             runner = self._intents[(h // 7 + 1) % n]
         third = self._intents[(h // 13) % n]
 
+        if "Situation Builder" in prompt:
+            return self._expand_variants(prompt, h)
         if "Teacher Simulator" in prompt:
             return {"utterance": f"이거 좀 해줄 수 있어? (변형 {h % 1_000_000})"}
         if "Intent Analyst" in prompt:
@@ -99,6 +102,26 @@ class SyntheticFoundryProvider(LLMProvider):
             return {"verdict": "accept", "reason_code": None, "note": "현장 개연성 충분"}
         # 알 수 없는 stage — 빈 객체 (실행기가 계약 위반으로 잡는다)
         return {}
+
+    def _expand_variants(self, prompt: str, h: int) -> dict:
+        """S5 씨드 확장 응답 — 앵커를 어휘 안에서 결정론 변주(정합 유지: 카드 ≥1·선택 수 1)."""
+        body = prompt.rsplit("```json", 1)[1].split("```", 1)[0]
+        ctx = json.loads(body)
+        anchor = ctx["anchor_workspace_state"]
+        actions = ctx["allowed"]["actions"]
+        variants = []
+        for i in range(ctx["variants_required"]):
+            v = json.loads(json.dumps(anchor))
+            for key in v["objects_summary"]:
+                v["objects_summary"][key] = max(1, v["objects_summary"][key] + (h + i) % 3 - 1)
+            v["recent_actions"] = [
+                actions[(h + i + j) % len(actions)] for j in range(1 + (h + i) % 2)
+            ]
+            sel = v.get("selection") or {}
+            if sel.get("type"):
+                v["selection"] = {} if (h + i) % 2 == 0 else {"type": sel["type"], "count": 1}
+            variants.append(v)
+        return {"variants": variants}
 
 
 # --- Run manifest ---
@@ -204,29 +227,6 @@ def _default_source_specs() -> list[SourceCandidate]:
     ]
 
 
-def _make_variant(nonce: int) -> dict:
-    return {
-        "surface_type": "play_board",
-        "objects_summary": {"photo": 2 + nonce % 3, "text": 1 + nonce % 2},
-        "selection": {"type": "photo", "count": 1 + nonce % 2},
-        "recent_actions": ["move_object", "zoom_in"][: 1 + nonce % 2],
-        "visual_semantics": [
-            {
-                "object_ref": f"photo_{nonce}",
-                "schema_version": "vs-1.0",
-                "extractor_version": "SYNTH_BUILDER_v1",
-                "scene_type": ["INDOOR_CLASSROOM"],
-                "activity_types": ["NATURE_SORTING"],
-                "materials": ["LEAF", "TRAY"],
-                "observed_actions": ["SORT", "COMPARE"],
-                "interaction_pattern": ["PEER_COLLABORATIVE"],
-                "group_size_band": "SMALL_GROUP",
-                "identity_removed": True,
-            }
-        ],
-    }
-
-
 class _Deduper:
     """증분 dedup — 새 발화만 임베딩해 기존 벡터와 최대 유사도를 본다."""
 
@@ -282,6 +282,7 @@ def _run_pilot_body(
     model, ontology_version, manifest, call_log,
 ) -> PilotResult:
     # --- S1~S5: 소스 → 프레임 → 시나리오 ---
+    seed_file = load_situation_seeds()  # 화면 씨드(수동 작성) — 계약 위반이면 여기서 조기 실패
     scenarios: list[tuple[str, str, str]] = []  # (scenario_id, frame_id, source_id)
     for si, spec in enumerate(specs):
         source = register_source(session, spec)
@@ -289,10 +290,11 @@ def _run_pilot_body(
         store_raw_document(session, source.source_id, f"[pilot raw excerpt {si}]")  # S2/S3 입력
         manifest.source_ids.append(source.source_id)
 
+        domain = CANONICAL_DOMAINS[si % len(CANONICAL_DOMAINS)]
         frame = build_situation_frame(
             session,
             FrameInput(
-                domain=CANONICAL_DOMAINS[si % len(CANONICAL_DOMAINS)],
+                domain=domain,
                 summary=f"소스 {si}에서 추출한 상황 프레임",
                 teacher_concern="개입 시점과 방식",
                 extraction_confidence=0.8,
@@ -301,7 +303,10 @@ def _run_pilot_body(
         session.flush()
         manifest.frame_source[frame.frame_id] = source.source_id
 
-        variants = [_make_variant(v) for v in range(config.foundry.scenario_variants)]
+        variants = pick_variants(
+            seed_file, domain=domain, k=config.foundry.scenario_variants,
+            salt=f"{run_id}|{domain}|{si}",
+        )
         built = build_scenarios(session, frame, variants, config)
         session.flush()
         for sc in built:

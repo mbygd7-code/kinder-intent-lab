@@ -1,6 +1,8 @@
 """S5. Situation Builder — situation_frame → canonical scenario (§1-S5).
 
 - 같은 frame에서 workspace 변형 k개 생성 (k = config.foundry.scenario_variants).
+- 변형의 원천은 seeds/situation_seeds_v1.yaml(수동 작성) — foundry/situation_seeds.py가
+  결정론 선택한다. 코드 하드코딩 템플릿 금지(2026-07-17, play_board 단일 어휘 사고 재발 방지).
 - workspace_state의 visual_semantics는 vs-1.0 통제 어휘를 쓴다 (자유 서술 금지) — 실서비스
   Visual Context Gateway와 동일 스키마·어휘 (계약 대칭, runtime §3-1).
 - 합성 생성분은 extractor_version을 SYNTH_BUILDER_*로 표기해 실측 extractor와 구분.
@@ -15,10 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.contracts.visual_semantics import VisualSemantics
 from app.core.config import ExperimentsConfig
-from app.foundry.prompts import load_prompt
 from app.models.foundry import CanonicalScenario, SituationFrame
-
-PROMPT = load_prompt("s5_situation_builder")
 
 SYNTH_EXTRACTOR_PREFIX = "SYNTH_BUILDER_"  # §1-S5: 합성 표기 SYNTH_BUILDER_*
 

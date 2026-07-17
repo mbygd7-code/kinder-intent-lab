@@ -33,6 +33,7 @@ class FoundryConfig(_Section):
     consensus_disagreement_margin: float
     max_dedup_retries: int
     batch_size: int
+    seed_expansion_enabled: bool
 
 
 class BrainConfig(_Section):

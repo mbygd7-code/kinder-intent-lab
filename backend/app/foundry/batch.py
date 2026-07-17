@@ -19,7 +19,8 @@ from sqlalchemy.orm import Session
 from app.core.config import ExperimentsConfig
 from app.core.ontology import CANONICAL_DOMAINS, load_ontology
 from app.foundry.episode_builder import generate_episode
-from app.foundry.pilot import _Deduper, _default_source_specs, _make_variant
+from app.foundry.pilot import _Deduper, _default_source_specs
+from app.foundry.situation_seeds import load_situation_seeds, pick_variants
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
 from app.foundry.stages.s2_governance import govern_source, store_raw_document
 from app.foundry.stages.s3_extractor import FrameInput, build_situation_frame
@@ -52,20 +53,25 @@ def prepare_scenarios(
 ) -> list[Scenario]:
     """S1~S5로 소스·프레임·시나리오를 준비한다 (배치 러너 입력). run_batch와 분리 — 1회 실행."""
     specs = specs or _default_source_specs()
+    seed_file = load_situation_seeds()  # 화면 씨드(수동 작성) — 계약 위반이면 증산 시작 전 실패
     scenarios: list[Scenario] = []
     for si, spec in enumerate(specs):
         source = register_source(session, spec)
         govern_source(session, source.source_id, "ALLOW", reviewed_by="batch")
         store_raw_document(session, source.source_id, f"[batch raw excerpt {run_id} {si}]")
+        domain = _DOMAINS[si % len(_DOMAINS)]
         frame = build_situation_frame(
             session,
             FrameInput(
-                domain=_DOMAINS[si % 7], summary=f"배치 소스 {si} 상황 프레임",
+                domain=domain, summary=f"배치 소스 {si} 상황 프레임",
                 teacher_concern="개입 시점과 방식", extraction_confidence=0.8,
             ),
         )
         session.flush()
-        variants = [_make_variant(v) for v in range(config.foundry.scenario_variants)]
+        variants = pick_variants(
+            seed_file, domain=domain, k=config.foundry.scenario_variants,
+            salt=f"{run_id}|{domain}|{si}",
+        )
         for sc in build_scenarios(session, frame, variants, config):
             scenarios.append((sc.scenario_id, frame.frame_id, source.source_id))
     session.flush()

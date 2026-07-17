@@ -13,6 +13,7 @@ foundry:
   consensus_disagreement_margin: 0.15  # S10 상위 후보 이견 판정 (CONSENSUS_DISAGREEMENT 원천)
   max_dedup_retries: 5            # S6 dedup 폐기 시 발화 재생성 상한 (n개 보장)
   batch_size: 50                  # 배치 러너 체크포인트 입도 (배치마다 commit)
+  seed_expansion_enabled: true    # S5 씨드 LLM 확장 (끄면 씨드 원본만 — 비용 0)
 
 brain:
   retrieval_top_k: 20

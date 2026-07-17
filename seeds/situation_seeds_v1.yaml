@@ -1,0 +1,330 @@
+# 킨더버스 화면 씨드 (situation seeds) — S5 workspace 변형의 유일한 원천 (수동 작성)
+#
+# 왜 있는가: 2026-07-17까지 시나리오 172건 전부가 코드 템플릿 하나(_make_variant)에서 복제돼
+#   play_board · move_object 단일 화면으로 굳었다. "말이 나온 화면"의 기본값은 사람이 여기서 정한다.
+#
+# 편집 방법 (웹 권장: 3D 화면 → 대시보드 → 화면 씨드 스튜디오 — 어휘 관리·씨드 폼·CSV 일괄):
+#   1) 새 화면 어휘(surface/action/object)는 먼저 vocabulary에 {id: 한글 라벨}로 등록한다.
+#      검수 화면·작성 폼·CSV 폼은 이 vocabulary 라벨을 자동으로 쓴다(프론트 정적 맵은 폴백).
+#      ※ 웹 저장 시 seeds 항목 옆 주석은 유지되지 않는다(헤더 주석만 보존).
+#   2) seeds에 화면 상태를 추가한다. workspace_state 5개 키는 전부 필수이며,
+#      visual_semantics는 vs-1.0 통제 어휘만 쓴다(schemas/visual_semantics.schema.json).
+#      선택이 없는 화면은 selection: {}, 사진이 없는 화면은 visual_semantics: [] 로 쓴다.
+#   3) 검증: cd backend && pytest tests/test_situation_seeds.py -q
+#      (어휘 밖 값·vs-1.0 위반·도메인 공백은 증산 시작 전에 로더가 거부한다)
+#
+# 규칙:
+#   - 도메인 8종(PLAY/OBSERVATION/DOCUMENT/VISUAL/COMMUNICATION/OPERATION/REFLECTION/STUDIO)
+#     각각 후보 씨드 ≥ config.foundry.scenario_variants(현 4)를 유지할 것 — 부족하면 순환 재사용된다.
+#   - domains를 비우면([]) 모든 도메인에서 후보가 된다.
+#   - 반영 시점: 다음 증산부터. 이미 만들어진 시나리오는 다시 쓰지 않는다.
+version: ss-1.0
+
+vocabulary:
+  surface_types:
+    play_board: 놀이 보드 화면
+    photo_album: 사진첩 화면
+    document: 문서 화면
+    dashboard: 대시보드 화면
+    chat: 대화 화면
+  object_kinds:
+    document: 문서
+    photo: 사진
+    image: 이미지
+    video: 영상
+    slide: 슬라이드
+    game: 게임
+  actions:
+    move_object: 카드를 옮김(드래그)
+    zoom_in: 화면을 확대함
+    zoom_out: 화면을 축소함
+    open_document: 문서를 엶
+    select_photo: 사진을 고름
+    upload_photo: 사진을 올림
+    edit_text: 글을 고침
+
+seeds:
+  # ── 대화(메신저) 화면 ─────────────────────────────────────────────
+  - seed_id: chat_parent_photo_share
+    domains: [COMMUNICATION]
+    workspace_state:
+      surface_type: chat
+      objects_summary: {document: 5, photo: 1}
+      selection: {}
+      recent_actions: [upload_photo]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [MEAL_SNACK]
+          observed_actions: [SHARE]
+          interaction_pattern: [GROUP_CIRCLE]
+          group_size_band: LARGE_GROUP
+          identity_removed: true
+
+  - seed_id: chat_staff_thread
+    domains: [COMMUNICATION, OPERATION, REFLECTION]
+    workspace_state:
+      surface_type: chat
+      objects_summary: {document: 9}
+      selection: {}
+      recent_actions: [edit_text]
+      visual_semantics: []
+
+  # ── 대시보드 화면 ────────────────────────────────────────────────
+  - seed_id: dashboard_class_overview
+    domains: [OPERATION, OBSERVATION]
+    workspace_state:
+      surface_type: dashboard
+      objects_summary: {document: 4, photo: 2}
+      selection: {type: photo, count: 1}
+      recent_actions: [zoom_out]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [CIRCLE_TIME]
+          observed_actions: [TALK]
+          interaction_pattern: [GROUP_CIRCLE]
+          group_size_band: LARGE_GROUP
+          identity_removed: true
+
+  - seed_id: dashboard_reflection_summary
+    domains: [REFLECTION]
+    workspace_state:
+      surface_type: dashboard
+      objects_summary: {document: 7, photo: 1}
+      selection: {}
+      recent_actions: [open_document, zoom_in]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [FREE_PLAY]
+          observed_actions: [OBSERVE]
+          interaction_pattern: [TEACHER_GUIDED]
+          group_size_band: SMALL_GROUP
+          identity_removed: true
+
+  - seed_id: dashboard_week_plan
+    domains: [OPERATION, REFLECTION, PLAY]
+    workspace_state:
+      surface_type: dashboard
+      objects_summary: {document: 6}
+      selection: {}
+      recent_actions: [open_document]
+      visual_semantics: []
+
+  # ── 문서 화면 ────────────────────────────────────────────────────
+  - seed_id: document_notice_draft
+    domains: [DOCUMENT, COMMUNICATION, OPERATION]
+    workspace_state:
+      surface_type: document
+      objects_summary: {document: 2}
+      selection: {}
+      recent_actions: [open_document, edit_text]
+      visual_semantics: []
+
+  - seed_id: document_observation_note
+    domains: [OBSERVATION, DOCUMENT]
+    workspace_state:
+      surface_type: document
+      objects_summary: {document: 3, photo: 1}
+      selection: {type: document, count: 1}
+      recent_actions: [edit_text]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [FREE_PLAY]
+          observed_actions: [OBSERVE]
+          interaction_pattern: [TEACHER_GUIDED]
+          group_size_band: INDIVIDUAL
+          identity_removed: true
+
+  - seed_id: document_portfolio_page
+    domains: [DOCUMENT, STUDIO]
+    workspace_state:
+      surface_type: document
+      objects_summary: {photo: 4, document: 4}
+      selection: {type: photo, count: 1}
+      recent_actions: [move_object, edit_text]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [READING_CORNER]
+          activity_types: [BOOK_READING]
+          materials: [BOOK]
+          observed_actions: [TALK]
+          interaction_pattern: [PEER_PARALLEL]
+          group_size_band: PAIR
+          identity_removed: true
+
+  # ── 사진첩 화면 ──────────────────────────────────────────────────
+  - seed_id: photo_album_art_review
+    domains: [VISUAL, STUDIO, REFLECTION]
+    workspace_state:
+      surface_type: photo_album
+      objects_summary: {photo: 10}
+      selection: {type: photo, count: 4}
+      recent_actions: [select_photo, zoom_in]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [ART_CORNER]
+          activity_types: [DRAWING_PAINTING]
+          materials: [CRAYON, PAINT, PAPER]
+          observed_actions: [DRAW]
+          interaction_pattern: [SOLO]
+          group_size_band: INDIVIDUAL
+          identity_removed: true
+
+  - seed_id: photo_album_browse_recent
+    domains: [VISUAL, COMMUNICATION]
+    workspace_state:
+      surface_type: photo_album
+      objects_summary: {photo: 8}
+      selection: {}
+      recent_actions: [upload_photo]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [OUTDOOR_YARD]
+          activity_types: [FREE_PLAY]
+          observed_actions: [TALK]
+          interaction_pattern: [PEER_COLLABORATIVE]
+          group_size_band: SMALL_GROUP
+          identity_removed: true
+        - object_ref: photo_2
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [GYM_ROOM]
+          activity_types: [MUSIC_MOVEMENT]
+          observed_actions: [TALK]
+          interaction_pattern: [GROUP_CIRCLE]
+          group_size_band: LARGE_GROUP
+          identity_removed: true
+
+  - seed_id: photo_album_nature_select
+    domains: [VISUAL, OBSERVATION, DOCUMENT]
+    workspace_state:
+      surface_type: photo_album
+      objects_summary: {photo: 12}
+      selection: {type: photo, count: 3}
+      recent_actions: [select_photo, zoom_in]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [OUTDOOR_YARD]
+          activity_types: [NATURE_SORTING]
+          materials: [LEAF, TRAY]
+          observed_actions: [SORT, COMPARE]
+          interaction_pattern: [PEER_COLLABORATIVE]
+          group_size_band: SMALL_GROUP
+          spatial_pattern: [OBJECT_GROUPING]
+          identity_removed: true
+
+  - seed_id: observation_snapshot_zoom
+    domains: [OBSERVATION, PLAY]
+    workspace_state:
+      surface_type: photo_album
+      objects_summary: {photo: 6, document: 1}
+      selection: {type: photo, count: 1}
+      recent_actions: [zoom_in, zoom_in]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [BOARD_GAME]
+          materials: [TOY_FIGURE]
+          observed_actions: [SHARE, TALK]
+          interaction_pattern: [PEER_PARALLEL]
+          group_size_band: PAIR
+          identity_removed: true
+
+  # ── 놀이 보드 화면 ───────────────────────────────────────────────
+  - seed_id: play_board_block_arrange
+    domains: [PLAY, VISUAL]
+    workspace_state:
+      surface_type: play_board
+      objects_summary: {photo: 4, document: 2}
+      selection: {type: photo, count: 2}
+      recent_actions: [move_object, zoom_in]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [BLOCK_PLAY]
+          materials: [BLOCK]
+          observed_actions: [STACK, BUILD]
+          interaction_pattern: [PEER_COLLABORATIVE]
+          group_size_band: SMALL_GROUP
+          spatial_pattern: [OBJECT_GROUPING]
+          identity_removed: true
+
+  - seed_id: play_board_fresh_start
+    domains: [PLAY, STUDIO]
+    workspace_state:
+      surface_type: play_board
+      objects_summary: {photo: 1}
+      selection: {}
+      recent_actions: [upload_photo]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [FREE_PLAY]
+          observed_actions: [OBSERVE]
+          interaction_pattern: [SOLO]
+          group_size_band: INDIVIDUAL
+          identity_removed: true
+
+  - seed_id: play_board_role_play_zone
+    domains: [PLAY, OBSERVATION]
+    workspace_state:
+      surface_type: play_board
+      objects_summary: {photo: 3, document: 3}
+      selection: {type: document, count: 2}
+      recent_actions: [move_object, edit_text]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [INDOOR_CLASSROOM]
+          activity_types: [ROLE_PLAY]
+          materials: [FABRIC, TOY_FIGURE]
+          observed_actions: [PRETEND, TALK]
+          interaction_pattern: [PEER_COLLABORATIVE]
+          group_size_band: SMALL_GROUP
+          spatial_pattern: [SCATTERED]
+          identity_removed: true
+
+  - seed_id: studio_material_board
+    domains: [STUDIO, PLAY]
+    workspace_state:
+      surface_type: play_board
+      objects_summary: {photo: 2, document: 5}
+      selection: {type: document, count: 3}
+      recent_actions: [move_object, move_object]
+      visual_semantics:
+        - object_ref: photo_1
+          schema_version: vs-1.0
+          extractor_version: SYNTH_BUILDER_v1
+          scene_type: [ART_CORNER]
+          activity_types: [DRAWING_PAINTING]
+          materials: [PAPER, RECYCLED]
+          observed_actions: [CUT, DRAW]
+          interaction_pattern: [TEACHER_GUIDED]
+          group_size_band: SMALL_GROUP
+          identity_removed: true
