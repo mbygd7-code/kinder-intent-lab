@@ -32,6 +32,7 @@ from app.core.db import get_session, open_session
 from app.llm.base import EmbeddingRequest
 from app.llm.client import get_embedding_client, get_llm_client
 from app.models.arena import RUN_TYPE_BRAIN, ArenaRun
+from app.models.brain import Exemplar
 from app.models.episodes import Episode, Evidence
 
 router = APIRouter(prefix="/v1/observatory", tags=["observatory"])
@@ -75,6 +76,13 @@ def _blocked_reason(session: Session) -> str | None:
     ktib = latest_ktib(session)
     if ktib is None:
         return "동결된 시험지가 아직 없어요 — 시험지 검수에서 문항을 등록하면 채점할 수 있어요."
+    # 대표 예문 0개면 뇌가 전 문항 '모르겠음' → 0%가 예정돼 있다(2026-07-14 실측: 2회 연속 0.0%).
+    # 호출 비용만 나가는 채점을 버튼 단계에서 막는다 — 공부 검수로 GOLD가 생기면 자동으로 켜진다.
+    if not session.scalar(select(func.count()).select_from(Exemplar)):
+        return (
+            "아직 대표 예문이 0개라 지금 채점하면 전부 '모르겠음'(0%)이 나와요 — "
+            "공부 검수(2인 → GOLD)를 거치면 대표 예문이 생기고 버튼이 켜져요."
+        )
     # 같은 시험지·같은 뇌로 그 사이 배운 것이 없으면 점수는 그대로다 — 호출 비용만 나간다
     # (2026-07-14 실측: 유입 0 재채점 → 동일 0.0%). 시험지가 바뀌었으면 다시 잴 가치가 있다.
     last = _latest_brain_run(session)

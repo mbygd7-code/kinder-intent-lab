@@ -95,7 +95,7 @@ export function RunTimeline({ data }: { data: Dashboard }) {
         <h2 className="dash-section-title">
           PERFORMANCE <span>시험 점수 변화 — 무엇을 배워서 얼마나 올랐나</span>
         </h2>
-        {perf.runs.length > 0 && <ArenaRunButton />}
+        {/* 채점 실행 버튼은 시험지 카드(INFLOW)로 이동 — 시험지를 쓰는 행동이라 (2026-07-17) */}
       </div>
 
       {perf.runs.length === 0 ? (

@@ -6,6 +6,7 @@
  */
 import type { Dashboard, Stream } from '../api/dashboard'
 import { useBrainStore } from '../brain3d/store'
+import { ArenaRunButton } from './ArenaRunButton'
 import { CountUp } from './viz/CountUp'
 import { FlowDots } from './viz/FlowDots'
 import { Sparkline } from './viz/Sparkline'
@@ -126,9 +127,9 @@ export function InflowStreams({ data }: { data: Dashboard }) {
           <button type="button" className="dash-btn dash-btn-primary" onClick={openExamUpload}>
             ⬆ 시험지 업로드
           </button>
-          <button type="button" className="dash-btn" onClick={() => openHelp('exam')}>
-            양식 · 만들기 안내
-          </button>
+          {/* 채점은 시험지를 쓰는 행동이라 여기로 이동(2026-07-17 사용자 결정) —
+              양식 안내는 도움말·업로드 모달 내 링크로 접근 */}
+          <ArenaRunButton />
         </StreamCard>
 
         <StreamCard

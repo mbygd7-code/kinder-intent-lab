@@ -20,7 +20,7 @@ from app.models.arena import (
     KtibItem,
     KtibVersion,
 )
-from app.models.brain import BrainVersion, Exemplar
+from app.models.brain import BrainVersion, Exemplar, Exemplar
 from app.models.episodes import Episode, Evidence
 
 PIN = "2341"  # 기본 PIN — env ARENA_PIN 미설정 시의 계약(오클릭 방지 자물쇠)
@@ -54,6 +54,30 @@ def _freeze_ktib(db) -> None:
     db.add(KtibVersion(ktib_version=f"ktib-{uuid.uuid4().hex[:6]}", seq=1,
                        extractor_versions={}, episode_count=1,
                        content_hash=f"h-{uuid.uuid4().hex}"))
+    db.flush()
+
+
+def _seed_exemplar(db) -> None:
+    """대표 예문 1개 — '0% 예정' 가드 통과용. 유입 판정을 안 건드리게 과거 시각으로 심는다."""
+    from datetime import timedelta
+
+    from app.brain.backfill import bootstrap_nodes
+    from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
+    from app.models.episodes import Episode
+
+    bootstrap_nodes(db, approved_by="test")
+    intent = next(i.intent_id for i in load_ontology().intents if i.intent_id != UNKNOWN_INTENT_ID)
+    eid = f"EP_ex_{uuid.uuid4().hex[:8]}"
+    db.add(Episode(
+        episode_id=eid, ontology_version="onto-test", lang="ko",
+        dataset_split="TRAIN", origin_channel="GYM_HUMAN",
+        episode_creator_type="GYM_SESSION", primary_subject_type="TEACHER",
+        teacher_prompt="예문 시드", label_distribution={},
+        created_at=datetime.now(UTC) - timedelta(hours=2),
+    ))
+    db.flush()
+    db.add(Exemplar(exemplar_id=f"EX_{uuid.uuid4().hex[:8]}", node_id=f"N_{intent}",
+                    intent_id=intent, episode_id=eid, embedding=[0.0] * 1536))
     db.flush()
 
 
@@ -103,6 +127,7 @@ def test_status_runnable_with_real_provider_and_ktib(api, monkeypatch) -> None:
     client, db = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     _freeze_ktib(db)
+    _seed_exemplar(db)
     status = client.get("/v1/observatory/arena/status").json()
     assert status["runnable"] is True and status["blocked_reason"] is None
 
@@ -130,6 +155,7 @@ def test_blocked_when_nothing_new_since_last_run(api, monkeypatch) -> None:
     db.add(KV(ktib_version="ktib-same", seq=1, extractor_versions={},
               episode_count=1, content_hash=f"h-{uuid.uuid4().hex}"))
     db.flush()
+    _seed_exemplar(db)
     _brain_run(db, ktib_version="ktib-same")
 
     status = client.get("/v1/observatory/arena/status").json()
@@ -147,6 +173,7 @@ def test_new_training_data_reenables_grading(api, monkeypatch) -> None:
     db.add(KV(ktib_version="ktib-same", seq=1, extractor_versions={},
               episode_count=1, content_hash=f"h-{uuid.uuid4().hex}"))
     db.flush()
+    _seed_exemplar(db)
     _brain_run(db, ktib_version="ktib-same")
     # run 이후 새 공부 데이터 1건 — 다시 잴 이유가 생겼다
     db.add(Episode(
@@ -170,6 +197,7 @@ def test_new_frozen_exam_reenables_grading(api, monkeypatch) -> None:
     db.add(KV(ktib_version="ktib-old", seq=1, extractor_versions={},
               episode_count=1, content_hash=f"h-{uuid.uuid4().hex}"))
     db.flush()
+    _seed_exemplar(db)
     _brain_run(db, ktib_version="ktib-old")
     db.add(KV(ktib_version="ktib-new", seq=2, extractor_versions={},
               episode_count=2, content_hash=f"h-{uuid.uuid4().hex}"))
@@ -183,6 +211,7 @@ def test_start_runs_job_and_clears_state(api, monkeypatch) -> None:
     client, db = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     _freeze_ktib(db)  # 사전 판정: 동결 시험지 필요
+    _seed_exemplar(db)
     calls: list[str] = []
 
     def fake_execute() -> None:  # 실 채점 대신 — 완료 상태 전이만 재현
@@ -203,6 +232,7 @@ def test_double_start_conflicts(api, monkeypatch) -> None:
     client, db = api
     monkeypatch.setenv("LLM_PROVIDER", "anthropic")
     _freeze_ktib(db)  # 사전 판정 통과 후 '이미 실행 중' 가드가 잡혀야 한다
+    _seed_exemplar(db)
     with arena_ops._lock:
         arena_ops._state.update(running=True, started_at=datetime.now(UTC).isoformat())
     res = client.post("/v1/observatory/arena/run", json={"pin": PIN})
@@ -228,3 +258,14 @@ def test_status_reports_last_brain_run_from_db(api) -> None:
     assert status["last_run"]["run_id"] == "AR_OPS"
     assert status["last_run"]["accuracy"] == 0.62
     assert status["last_run"]["item_count"] == 185
+
+
+def test_blocked_when_zero_exemplars(api, monkeypatch) -> None:
+    """대표 예문 0 = 전 문항 abstain(0%)이 예정된 채점 — 비용만 나가므로 회색+안내로 막는다."""
+    client, db = api
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    _freeze_ktib(db)  # 시험지는 있지만 대표 예문이 없다
+    status = client.get("/v1/observatory/arena/status").json()
+    assert status["runnable"] is False and "대표 예문" in status["blocked_reason"]
+    res = client.post("/v1/observatory/arena/run", json={"pin": PIN})
+    assert res.status_code == 409 and "대표 예문" in res.json()["detail"]

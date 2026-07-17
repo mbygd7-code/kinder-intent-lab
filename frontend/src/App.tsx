@@ -9,11 +9,10 @@
  * Arena 미실행이면 null → "—" 표기 — 값을 지어내지 않는다(원칙 8). 캡션이
  * "어두운 게 정상"을 함께 전달한다(§7-6 Dormant는 실패가 아니다 — 구 범례 상태줄 통합).
  *
- * 즉석 문답(§6-7 [4])은 교사의 핵심 학습 행동이라 톱바 CTA로 승격 — 라이브 추론이
- * 필요하므로 실데이터(live)에서만 활성.
+ * 톱바 우측 CTA는 📋 할 일(TODO) 하나로 통합(2026-07-17 사용자 결정) — 시험지 작성·즉석
+ * 문답은 대시보드 카드와 TODO 안내에서 진입한다. TODO는 실데이터로 "지금 뭘 하면 목표에
+ * 가장 빨리 가는가"를 단계별로 안내한다(todoSteps.ts).
  */
-import { useEffect, useState } from 'react'
-
 import { BrainScreen } from './brain3d/BrainScreen'
 import { effectiveViewMode, useBrainStore } from './brain3d/store'
 import { HelpOverlay } from './panels/HelpOverlay'
@@ -25,13 +24,13 @@ import { LiveQuizPanel } from './panels/LiveQuizPanel'
 import { NodePanel } from './panels/NodePanel'
 import { RegionsPanel } from './panels/RegionsPanel'
 import { stageWithNumber } from './panels/terms'
+import { TodoPanel } from './panels/TodoPanel'
 
 function App() {
   const ktib = useBrainStore((s) => s.ktibGlobal)
   const brainVersion = useBrainStore((s) => s.brainVersion)
   const brainStage = useBrainStore((s) => s.brainStage)
   const brainStageName = useBrainStore((s) => s.brainStageName)
-  const dataSource = useBrainStore((s) => s.dataSource)
   const bumpReload = useBrainStore((s) => s.bumpReload)
   // 모달 상태는 store — 톱바와 대시보드 액션 버튼이 같은 진입점을 공유한다
   const helpOpen = useBrainStore((s) => s.helpOpen)
@@ -42,30 +41,19 @@ function App() {
   const intentCatalogOpen = useBrainStore((s) => s.intentCatalogOpen)
   const closeIntentCatalog = useBrainStore((s) => s.closeIntentCatalog)
   const reviewOpen = useBrainStore((s) => s.reviewOpen)
-  const openReview = useBrainStore((s) => s.openReview)
   const closeReview = useBrainStore((s) => s.closeReview)
   const examUploadOpen = useBrainStore((s) => s.examUploadOpen)
   const closeExamUpload = useBrainStore((s) => s.closeExamUpload)
-  const openLiveQuiz = useBrainStore((s) => s.openLiveQuiz)
   const closeLiveQuiz = useBrainStore((s) => s.closeLiveQuiz)
+  const todoOpen = useBrainStore((s) => s.todoOpen)
+  const openTodo = useBrainStore((s) => s.openTodo)
+  const closeTodo = useBrainStore((s) => s.closeTodo)
   const openHelp = useBrainStore((s) => s.openHelp)
   const closeHelp = useBrainStore((s) => s.closeHelp)
   // 대시보드 모드면 좌우 패널을 걷는다 — 대시보드가 전폭 스크롤 페이지가 된다
   const viewMode = useBrainStore((s) => s.viewMode)
   const webglOk = useBrainStore((s) => s.webglOk)
   const dashboardMode = effectiveViewMode({ viewMode, webglOk }) === 'dashboard'
-  const [showExamHint, setShowExamHint] = useState(false)
-  // 라이브인데 아직 채점 점수가 없으면 "시험지부터"를 5초 말풍선으로 안내(온보딩 갭). 시험이
-  // 채점되면 ktib != null → 안 뜬다. 훈련≠채점 원칙 자체는 유지 — 밝기와 무관한 안내일 뿐.
-  useEffect(() => {
-    if (dataSource !== 'live' || ktib != null) {
-      setShowExamHint(false)
-      return
-    }
-    setShowExamHint(true)
-    const t = setTimeout(() => setShowExamHint(false), 5000)
-    return () => clearTimeout(t)
-  }, [dataSource, ktib])
   // §7-6 스테이지 — 값은 Arena 산출 그대로, 표시만 교사용 한글(terms.ts)
   const stageLabel = stageWithNumber(brainStage, brainStageName)
   return (
@@ -98,25 +86,11 @@ function App() {
         </div>
 
         <div className="topbar-actions">
-          {/* 시험지 작성 — 즉석 문답 왼쪽. 웹에서 문항 작성 + 1~5 평점 2차 검수 흐름.
-              데이터 상태와 무관하게 항상 노출 */}
-          <span className="cta-upload-wrap">
-            <button type="button" className="cta-upload" onClick={openReview}>
-              📝 시험지 작성
-            </button>
-            {showExamHint && (
-              <div className="exam-hint-bubble" role="status">
-                🧭 아직 시험 점수가 없어요 — <strong>시험 문항</strong>부터 만들면 뇌를 밝힐 수
-                있어요.
-              </div>
-            )}
-          </span>
-          {/* 즉석 문답 — 라이브 추론 필요: 실데이터(live)에서만 (§6-7 [4]) */}
-          {dataSource === 'live' && (
-            <button type="button" className="cta-live" onClick={openLiveQuiz}>
-              💬 즉석 문답
-            </button>
-          )}
+          {/* 📋 할 일 — 실데이터 기반 "지금 뭘 하면 목표에 빨리 가는가" 안내(2026-07-17).
+              시험지 작성·즉석 문답 진입은 이 안내와 대시보드 카드가 담당한다 */}
+          <button type="button" className="cta-live" onClick={openTodo}>
+            📋 TODO
+          </button>
           <button type="button" className="header-help" onClick={() => openHelp('service')}>
             ❔ 도움말
           </button>
@@ -129,6 +103,7 @@ function App() {
         {!dashboardMode && <NodePanel />}
       </div>
 
+      {todoOpen && <TodoPanel onClose={closeTodo} />}
       {liveQuizOpen && (
         <LiveQuizPanel
           onClose={closeLiveQuiz}

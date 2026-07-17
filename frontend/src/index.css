@@ -1325,3 +1325,34 @@ body {
 /* 의도 목록 헤더 — 액션 그룹을 오른쪽 끝으로(✕가 최우측) */
 .intent-head-actions { margin-left: auto; }
 .intent-head-actions .gym-close { margin-left: 0.4rem; }
+/* 📋 할 일(TODO) 패널 — 단계 체크리스트 */
+.todo-list { list-style: none; margin: 0.4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.todo-step {
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem; background: rgba(255, 255, 255, 0.02);
+}
+.todo-step-current {
+  border-color: rgba(53, 224, 210, 0.55);
+  background: rgba(53, 224, 210, 0.06);
+  box-shadow: 0 0 18px rgba(53, 224, 210, 0.12);
+}
+.todo-step-locked { opacity: 0.55; }
+.todo-step-head { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+.todo-num {
+  width: 1.5rem; height: 1.5rem; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 700;
+  background: rgba(255, 255, 255, 0.08); color: var(--muted);
+}
+.todo-step-done .todo-num { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+.todo-step-current .todo-num { background: rgba(53, 224, 210, 0.25); color: var(--accent); }
+.todo-title { font-size: 0.95rem; }
+.todo-step-done .todo-title { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(74,222,128,0.5); }
+.todo-now { font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.todo-detail { margin: 0.15rem 0 0 2.05rem; }
+.todo-why {
+  margin: 0.4rem 0 0 2.05rem; font-size: 0.88rem; line-height: 1.5; color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.1); border-left: 3px solid rgba(96, 165, 250, 0.5);
+  border-radius: 0.3rem; padding: 0.4rem 0.6rem;
+}
+.todo-step .dash-actions { margin: 0.5rem 0 0 2.05rem; }

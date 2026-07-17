@@ -65,6 +65,7 @@ interface BrainViewState {
   examUploadOpen: boolean
   goldReviewOpen: boolean
   intentCatalogOpen: boolean
+  todoOpen: boolean
   liveQuizOpen: boolean
   helpOpen: boolean
   helpTab: HelpTab
@@ -97,6 +98,8 @@ interface BrainViewState {
   closeGoldReview: () => void
   openIntentCatalog: () => void
   closeIntentCatalog: () => void
+  openTodo: () => void
+  closeTodo: () => void
   openLiveQuiz: () => void
   closeLiveQuiz: () => void
   openHelp: (tab?: HelpTab) => void
@@ -128,6 +131,7 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   examUploadOpen: false,
   goldReviewOpen: false,
   intentCatalogOpen: false,
+  todoOpen: false,
   liveQuizOpen: false,
   helpOpen: false,
   helpTab: 'service',
@@ -181,6 +185,8 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   closeGoldReview: () => set({ goldReviewOpen: false }),
   openIntentCatalog: () => set({ intentCatalogOpen: true }),
   closeIntentCatalog: () => set({ intentCatalogOpen: false }),
+  openTodo: () => set({ todoOpen: true }),
+  closeTodo: () => set({ todoOpen: false }),
   openLiveQuiz: () => set({ liveQuizOpen: true }),
   closeLiveQuiz: () => set({ liveQuizOpen: false }),
   openHelp: (tab) => set((s) => ({ helpOpen: true, helpTab: tab ?? s.helpTab })),
