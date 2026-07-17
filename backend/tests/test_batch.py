@@ -147,11 +147,20 @@ def test_all_failed_batch_unit_cost_not_zero(db_session) -> None:
 
 
 class _FlakyProvider(SyntheticFoundryProvider):
-    """Intent Analyst에서 계약 위반 JSON을 내 특정 슬롯을 실패시킨다."""
+    """Intent Analyst에서 계약 위반 JSON을 내 특정 슬롯을 **지속** 실패시킨다.
+
+    run_json_agent가 교정 재시도 1회를 갖게 되면서(2026-07-17), 1회성 실패는 구제된다 —
+    격리 테스트의 의도는 '구제 불가능한 슬롯이 배치를 죽이지 않는다'이므로, 재시도
+    프롬프트(원문 + 교정 지시)에서도 같은 판정이 나오도록 원문 기준 해시로 실패를 고정한다.
+    """
 
     def _respond(self, prompt, h):
-        if "Intent Analyst" in prompt and h % 5 == 0:
-            return {"candidates": []}  # min_length=1 위반 → AgentOutputError
+        if "Intent Analyst" in prompt:
+            import hashlib
+
+            base = prompt.split("\n\n## 교정 지시")[0]  # 재시도여도 원문 부분은 동일
+            if int(hashlib.md5(base.encode()).hexdigest(), 16) % 5 == 0:
+                return {"candidates": []}  # min_length=1 위반 → AgentOutputError (재시도도 동일)
         return super()._respond(prompt, h)
 
 

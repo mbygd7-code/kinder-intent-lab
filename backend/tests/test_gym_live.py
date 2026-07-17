@@ -13,7 +13,7 @@ import uuid
 import pytest
 import yaml
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from app.brain.backfill import bootstrap_nodes, select_exemplars
 from app.core.config import get_config
@@ -405,3 +405,74 @@ def test_blind_same_reviewer_alias_rejected(api) -> None:
 
     with pytest.raises(BlindReviewerInvalid):
         apply_blind_review(blind, CFG, queue_path=qpath)
+
+
+# --- §5-6: 교정 → 혼동 edge (GYM_CORRECTION 가설) 자동 기록 ---
+
+
+def _clear_pair(db, a: str, b: str) -> None:
+    from app.models.brain import ConfusionEdge
+
+    db.execute(delete(ConfusionEdge).where(
+        ConfusionEdge.from_true.in_([a, b]), ConfusionEdge.to_predicted.in_([a, b])
+    ))
+    db.flush()
+
+
+def test_correction_records_gym_correction_edge(db_session) -> None:
+    """★ 교정(정답≠뇌 추측)은 방향성 가설 edge(정답→추측)를 남긴다 — rate는 null(Arena만 실측, 규칙 3)."""
+    from app.gym.live import record_training_feedback
+    from app.models.brain import ConfusionEdge
+
+    a, b = _intent(0), _intent(1)
+    _clear_pair(db_session, a, b)
+    record_training_feedback(
+        db_session, feedback_id=uuid.uuid4().hex[:12], trainer_ref="TR_EDGE",
+        utterance="교정 엣지 검증 발화 ce1", chosen_intent=a, brain_top_intent=b, config=CFG,
+    )
+    edge = db_session.scalar(select(ConfusionEdge).where(
+        ConfusionEdge.from_true == a, ConfusionEdge.to_predicted == b))
+    assert edge is not None
+    assert edge.origin == "GYM_CORRECTION" and edge.state == "hypothesized"
+    assert edge.confusion_rate is None  # 실측은 Arena만 — 지어내지 않는다
+    # 역방향(추측→정답)은 만들지 않는다 — 방향성 보존
+    assert db_session.scalar(select(ConfusionEdge).where(
+        ConfusionEdge.from_true == b, ConfusionEdge.to_predicted == a)) is None
+
+
+def test_confirmation_or_no_guess_creates_no_edge(db_session) -> None:
+    """확인(정답=추측)·뇌 무추측(None)·UNKNOWN 추측은 혼동쌍이 아니다 — edge 미생성."""
+    from app.gym.live import record_training_feedback
+    from app.models.brain import ConfusionEdge
+
+    a = _intent(2)
+    _clear_pair(db_session, a, a)
+    before = db_session.scalar(select(func.count()).select_from(ConfusionEdge))
+    for guess in (a, None, UNKNOWN_INTENT_ID):  # 확인 / 무추측 / UNKNOWN
+        record_training_feedback(
+            db_session, feedback_id=uuid.uuid4().hex[:12], trainer_ref="TR_EDGE",
+            utterance=f"엣지 미생성 발화 {guess}", chosen_intent=a, brain_top_intent=guess,
+            config=CFG,
+        )
+    after = db_session.scalar(select(func.count()).select_from(ConfusionEdge))
+    assert after == before
+
+
+def test_correction_edge_does_not_clobber_existing_skeptic(db_session) -> None:
+    """이미 있는 (정답→추측) 쌍은 건너뛴다 — SKEPTIC 가설의 origin·상태를 덮지 않는다."""
+    from app.gym.live import record_training_feedback
+    from app.models.brain import ConfusionEdge
+
+    a, b = _intent(3), _intent(4)
+    _clear_pair(db_session, a, b)
+    db_session.add(ConfusionEdge(edge_id="CE_pre_" + uuid.uuid4().hex[:8],
+                                 from_true=a, to_predicted=b,
+                                 state="hypothesized", origin="SKEPTIC"))
+    db_session.flush()
+    record_training_feedback(
+        db_session, feedback_id=uuid.uuid4().hex[:12], trainer_ref="TR_EDGE",
+        utterance="기존 엣지 보존 발화", chosen_intent=a, brain_top_intent=b, config=CFG,
+    )
+    edges = db_session.scalars(select(ConfusionEdge).where(
+        ConfusionEdge.from_true == a, ConfusionEdge.to_predicted == b)).all()
+    assert len(edges) == 1 and edges[0].origin == "SKEPTIC"  # 중복 없음·원 origin 유지

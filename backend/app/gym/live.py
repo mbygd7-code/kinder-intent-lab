@@ -29,6 +29,7 @@ from app.core.config import ExperimentsConfig
 from app.core.datasets import BENCHMARK_SPLIT
 from app.core.ontology import UNKNOWN_INTENT_ID, load_ontology
 from app.foundry.expert_ingest import TrainBenchmarkContamination
+from app.foundry.stages.s8_skeptic import ConfusionPair, record_confusion_edges
 from app.gym.evidence import GYM_ACTOR_TYPE
 from app.gym.session import _open_episode_for
 from app.models.brain import BrainNode
@@ -137,6 +138,19 @@ def record_training_feedback(
             "inference_request_id": inference_request_id,
         },
     ))
+
+    # §5-6: 교정은 방향성 혼동 가설을 남긴다 — "정답(from_true)인데 추측(to_predicted)으로
+    # 헷갈렸다". 기존 쌍(SKEPTIC 등)은 record_confusion_edges가 건너뛰어 origin을 덮지 않고,
+    # rate는 null 유지(실측은 Arena만 — 규칙 3). UNKNOWN·무추측은 혼동쌍이 아니다.
+    if (not confirmed and brain_top_intent
+            and brain_top_intent != UNKNOWN_INTENT_ID
+            and brain_top_intent in real_intent_ids()):
+        record_confusion_edges(
+            session,
+            [ConfusionPair(from_true=chosen_intent, to_predicted=brain_top_intent,
+                           note=f"gym live 교정 (feedback {feedback_id})")],
+            origin="GYM_CORRECTION",
+        )
     session.flush()
 
     # §6-7 [5] 집계: 최소 신호 수 도달분만 전이 — 미달은 다음 트레이너 신호를 기다린다(§3-6)
