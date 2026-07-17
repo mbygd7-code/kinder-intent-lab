@@ -7,7 +7,7 @@
  *       확정 시 대표 예문 자동 생성(backfill 체인) 결과 표시.
  * 정직성: 결과 수치·거부 사유는 백엔드 응답 그대로. 프론트는 승격 규칙을 판정하지 않는다.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   applyReview,
@@ -41,6 +41,12 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
   // 추천 코퍼스(정적 예문 사전) — blind 유지: 뇌·집계·타인 표가 아니라 글자 유사도만.
   const [corpus, setCorpus] = useState<IntentCorpus | null>(null)
   const [shown, setShown] = useState(PAGE)
+  const listRef = useRef<HTMLDivElement>(null) // 추천 스크롤 컨테이너 — 발화 넘어가면 맨 위로
+
+  useEffect(() => {
+    // scrollTo는 jsdom에 없다 — scrollTop 할당이 브라우저·테스트 양쪽에서 안전
+    if (listRef.current) listRef.current.scrollTop = 0
+  }, [idx])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -87,9 +93,8 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
     const q = query.trim().toLowerCase()
     const ids = Object.keys(INTENT_LABEL_KO)
     if (q) {
-      return ids
-        .filter((id) => id.toLowerCase().includes(q) || labelOf(id).toLowerCase().includes(q))
-        .slice(0, 8)
+      // 검색은 전체 일치를 다 준다 — 목록이 길어도 스크롤로 계속 볼 수 있다(최대 70)
+      return ids.filter((id) => id.toLowerCase().includes(q) || labelOf(id).toLowerCase().includes(q))
     }
     if (ranked) return ranked.slice(0, shown) // 검색 없이 바로 고르는 추천 모드
     return ids.slice(0, 8)
@@ -198,7 +203,18 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="의도 검색 (추천에 없을 때 — 예: 알림장, 출결)"
               />
-              <div className="gym-options">
+              <div
+                ref={listRef}
+                className="gym-options gold-options-scroll"
+                onScroll={(e) => {
+                  // 무한 스크롤: 바닥 근처에 닿으면 다음 페이지 자동 로드(추천 모드에서만)
+                  if (searching || !ranked || shown >= ranked.length) return
+                  const el = e.currentTarget
+                  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
+                    setShown((n) => Math.min(n + PAGE, ranked.length))
+                  }
+                }}
+              >
                 {options.map((id) => (
                   <button
                     key={id}
@@ -217,8 +233,7 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
                     disabled={busy}
                     onClick={() => setShown((n) => n + PAGE)}
                   >
-                    ⌄ 더 보기 ({Math.min(PAGE, ranked.length - shown)}개 추가 · 남은{' '}
-                    {ranked.length - shown}개)
+                    ⌄ 더 보기 — 스크롤해도 자동으로 이어져요 (남은 {ranked.length - shown}개)
                   </button>
                 )}
               </div>

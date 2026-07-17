@@ -1356,3 +1356,8 @@ body {
   border-radius: 0.3rem; padding: 0.4rem 0.6rem;
 }
 .todo-step .dash-actions { margin: 0.5rem 0 0 2.05rem; }
+/* 공부 검수 — 추천 목록 무한 스크롤 컨테이너 */
+.gold-options-scroll {
+  max-height: 46vh; overflow-y: auto; padding-right: 0.15rem;
+  scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
