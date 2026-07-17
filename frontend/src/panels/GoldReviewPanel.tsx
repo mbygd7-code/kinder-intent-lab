@@ -19,8 +19,9 @@ import {
   type ReviewStatus,
 } from '../api/review'
 import { parseCsv } from './csv'
-import { INTENT_LABEL_KO, labelOf } from './intentLabels'
-import { loadIntentCorpus, rankIntents, type IntentCorpus } from './intentRecommend'
+import { labelOf } from './intentLabels'
+import { buildCorpus, loadIntentExampleRows, rankIntents } from './intentRecommend'
+import { useIntentCatalog } from './intentSync'
 
 const PAGE = 6 // 추천 한 페이지 크기 — [더 보기]가 이만큼씩 늘린다
 
@@ -91,6 +92,10 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
       .catch(() => {}) // 실패 시 정적 폴백 유지
   }, [])
 
+  // 의도 우주·이름 = 서버 카탈로그(의도 목록에서 고친 이름·승격된 새 의도 즉시 반영).
+  // 조회 실패 시 정적 사전 폴백 — 검수는 멈추지 않는다.
+  const intentIds = useIntentCatalog()
+
   const [reviewer, setReviewer] = useState('')
   const [queue, setQueue] = useState<ReviewQueue | null>(null)
   const [idx, setIdx] = useState(0)
@@ -100,8 +105,8 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
   const [status, setStatus] = useState<ReviewStatus | null>(null)
   const [approver, setApprover] = useState('')
   const [applied, setApplied] = useState<string | null>(null)
-  // 추천 코퍼스(정적 예문 사전) — blind 유지: 뇌·집계·타인 표가 아니라 글자 유사도만.
-  const [corpus, setCorpus] = useState<IntentCorpus | null>(null)
+  // 추천 예문 행(정적 예문 사전) — blind 유지: 뇌·집계·타인 표가 아니라 글자 유사도만.
+  const [exampleRows, setExampleRows] = useState<string[][] | null>(null)
   const [shown, setShown] = useState(PAGE)
   const listRef = useRef<HTMLDivElement>(null) // 추천 스크롤 컨테이너 — 발화 넘어가면 맨 위로
 
@@ -112,9 +117,15 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
 
   useEffect(() => {
     const ctrl = new AbortController()
-    void loadIntentCorpus(parseCsv, ctrl.signal).then(setCorpus)
+    void loadIntentExampleRows(parseCsv, ctrl.signal).then(setExampleRows)
     return () => ctrl.abort()
   }, [])
+
+  // 코퍼스는 행 × 서버 id 목록으로 조립 — 카탈로그가 늦게 와도(또는 폴백이어도) 재조립된다
+  const corpus = useMemo(
+    () => (exampleRows ? buildCorpus(exampleRows, intentIds) : null),
+    [exampleRows, intentIds],
+  )
 
   const loadStatus = () =>
     fetchReviewStatus()
@@ -144,23 +155,24 @@ export function GoldReviewPanel({ onClose, onApplied }: Props) {
 
   const current = queue && idx < queue.items.length ? queue.items[idx] : null
 
-  // 발화별 추천 랭킹(전체 70개 — 더보기로 끝까지 도달 가능). 코퍼스 미로드면 null.
+  // 발화별 추천 랭킹(서버 의도 우주 전체 — 더보기로 끝까지 도달 가능). 코퍼스 미로드면 null.
   const ranked = useMemo(
-    () => (current && corpus ? rankIntents(current.teacher_prompt, corpus) : null),
-    [current, corpus],
+    () => (current && corpus ? rankIntents(current.teacher_prompt, corpus, intentIds) : null),
+    [current, corpus, intentIds],
   )
 
   const searching = query.trim().length > 0
   const options = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const ids = Object.keys(INTENT_LABEL_KO)
     if (q) {
-      // 검색은 전체 일치를 다 준다 — 목록이 길어도 스크롤로 계속 볼 수 있다(최대 70)
-      return ids.filter((id) => id.toLowerCase().includes(q) || labelOf(id).toLowerCase().includes(q))
+      // 검색은 전체 일치를 다 준다 — 목록이 길어도 스크롤로 계속 볼 수 있다
+      return intentIds.filter(
+        (id) => id.toLowerCase().includes(q) || labelOf(id).toLowerCase().includes(q),
+      )
     }
     if (ranked) return ranked.slice(0, shown) // 검색 없이 바로 고르는 추천 모드
-    return ids.slice(0, 8)
-  }, [query, ranked, shown])
+    return intentIds.slice(0, 8)
+  }, [query, ranked, shown, intentIds])
 
   const vote = async (intent: string | null) => {
     if (!queue || !current) return

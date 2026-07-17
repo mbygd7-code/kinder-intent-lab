@@ -23,7 +23,8 @@ import {
   type LivePurpose,
 } from '../api/live'
 import { useBrainStore } from '../brain3d/store'
-import { INTENT_LABEL_KO, labelOf } from './intentLabels'
+import { labelOf } from './intentLabels'
+import { useIntentCatalog } from './intentSync'
 
 interface Props {
   onClose: () => void
@@ -47,13 +48,13 @@ export function LiveQuizPanel({ onClose, onComplete }: Props) {
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // 의도 검색 우주: 실데이터(노드 목록)가 있으면 그것을, 없으면 라벨 사전 키를 쓴다(날조 아님)
+  // 의도 검색 우주: 노드(실데이터) ∪ 서버 카탈로그(온톨로지) — 노드가 아직 없는 새 의도도
+  // 정답으로 고를 수 있다(서버가 chosen_intent를 온톨로지로 검증). 카탈로그 실패 시 정적 폴백.
+  const catalogIds = useIntentCatalog()
   const allIntents = useMemo(() => {
-    const ids = brain?.nodes?.length
-      ? brain.nodes.map((n) => n.intent_id)
-      : Object.keys(INTENT_LABEL_KO)
+    const ids = [...(brain?.nodes?.map((n) => n.intent_id) ?? []), ...catalogIds]
     return [...new Set(ids)].sort()
-  }, [brain])
+  }, [brain, catalogIds])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

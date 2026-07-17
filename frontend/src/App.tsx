@@ -20,6 +20,7 @@ import { ExamUploadModal } from './panels/ExamUpload'
 import { KtibReviewModal } from './panels/KtibReviewModal'
 import { GoldReviewPanel } from './panels/GoldReviewPanel'
 import { IntentCatalogPanel } from './panels/IntentCatalogPanel'
+import { useIntentCatalog } from './panels/intentSync'
 import { SituationSeedPanel } from './panels/SituationSeedPanel'
 import { LiveQuizPanel } from './panels/LiveQuizPanel'
 import { NodePanel } from './panels/NodePanel'
@@ -28,6 +29,10 @@ import { stageWithNumber } from './panels/terms'
 import { TodoPanel } from './panels/TodoPanel'
 
 function App() {
+  // 앱 시작 시 의도 카탈로그 1회 동기화 — 의도 목록에서 고친 이름이 어느 화면을 먼저
+  // 열든(검수·훈련·즉석 문답·3D) 같은 라벨로 보인다. 실패는 정적 사전 폴백.
+  useIntentCatalog()
+
   const ktib = useBrainStore((s) => s.ktibGlobal)
   const brainVersion = useBrainStore((s) => s.brainVersion)
   const brainStage = useBrainStore((s) => s.brainStage)

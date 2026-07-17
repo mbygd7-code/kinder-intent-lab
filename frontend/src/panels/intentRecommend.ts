@@ -20,12 +20,17 @@ export function bigrams(text: string): Set<string> {
   return out
 }
 
-/** CSV(의도 id, 의도, 뜻, 구분, 예시 문장, …) → 의도별 코퍼스. parseCsv 산출 행을 받는다. */
-export function buildCorpus(rows: string[][]): IntentCorpus {
+/** CSV(의도 id, 의도, 뜻, 구분, 예시 문장, …) → 의도별 코퍼스. parseCsv 산출 행을 받는다.
+ *  known = 인정하는 의도 우주 — 서버 카탈로그 id를 주면 그것이 기준(정적 사전은 폴백). */
+export function buildCorpus(
+  rows: string[][],
+  known: Iterable<string> = Object.keys(INTENT_LABEL_KO),
+): IntentCorpus {
+  const real = new Set(known)
   const corpus: IntentCorpus = new Map()
   for (const row of rows.slice(1)) {
     const id = (row[0] ?? '').replace(/^﻿/, '').trim()
-    if (!id || !(id in INTENT_LABEL_KO)) continue
+    if (!id || !real.has(id)) continue
     const parts = [row[1] ?? '', row[2] ?? '', row[4] ?? ''].join(' ')
     corpus.set(id, `${corpus.get(id) ?? labelOf(id)} ${parts}`)
   }
@@ -36,8 +41,13 @@ export function buildCorpus(rows: string[][]): IntentCorpus {
  * 발화와의 2-gram 겹침 순으로 **전체 의도**를 랭킹한다(코퍼스에 없는 의도는 라벨만으로
  * 점수 후 후미 배치). 동점은 intent_id 사전순 — 결정론(두 검수자가 같은 순서를 본다는
  * 사실 자체는 검색과 동일 조건이며, 순서에 정답 신호가 없다는 것이 불변식이다).
+ * ids = 랭킹할 의도 우주 — 서버 카탈로그가 원천, 미지정 시 정적 사전 폴백.
  */
-export function rankIntents(utterance: string, corpus: IntentCorpus): string[] {
+export function rankIntents(
+  utterance: string,
+  corpus: IntentCorpus,
+  ids: readonly string[] = Object.keys(INTENT_LABEL_KO),
+): string[] {
   const u = bigrams(utterance)
   const score = (id: string): number => {
     const text = corpus.get(id) ?? labelOf(id)
@@ -45,21 +55,23 @@ export function rankIntents(utterance: string, corpus: IntentCorpus): string[] {
     for (const g of bigrams(text)) if (u.has(g)) hit += 1
     return hit
   }
-  return Object.keys(INTENT_LABEL_KO)
+  return ids
     .map((id) => [id, score(id)] as const)
     .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
     .map(([id]) => id)
 }
 
-/** public/ontology_examples_draft.csv 로드 — 실패하면 null(추천 없이 검색만, 기능 저하 없음) */
-export async function loadIntentCorpus(
+/** public/ontology_examples_draft.csv 원본 행 로드 — 실패하면 null(추천 없이 검색만, 기능
+ *  저하 없음). 코퍼스는 호출부가 buildCorpus(rows, 서버 id 목록)로 조립한다 — 서버 카탈로그가
+ *  늦게 도착해도 재조립되도록 행과 조립을 분리(2026-07-18). */
+export async function loadIntentExampleRows(
   parse: (text: string) => string[][],
   signal?: AbortSignal,
-): Promise<IntentCorpus | null> {
+): Promise<string[][] | null> {
   try {
     const res = await fetch('/ontology_examples_draft.csv', { signal })
     if (!res.ok) return null
-    return buildCorpus(parse(await res.text()))
+    return parse(await res.text())
   } catch {
     return null
   }

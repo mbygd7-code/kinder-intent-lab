@@ -7,6 +7,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GoldReviewPanel } from './GoldReviewPanel'
+import { setIntentLabelOverrides } from './intentLabels'
 
 const QUEUE = {
   reviewer: '명배영',
@@ -64,6 +65,7 @@ function stub(overrides: Record<string, unknown> = {}) {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  setIntentLabelOverrides({}) // 전역 라벨 오버레이 누수 방지 — 테스트 간 격리
 })
 
 describe('GoldReviewPanel', () => {
@@ -162,6 +164,67 @@ describe('GoldReviewPanel — 상황 라벨은 씨드 어휘가 원천', () => {
     await screen.findByText(/"알림장 지금 보내줘"/)
 
     expect(await screen.findByText(/보고 있던 화면: 사진 편집 화면/)).toBeTruthy()
+  })
+})
+
+describe('GoldReviewPanel — 의도 선택지는 서버 카탈로그가 원천 (2026-07-18)', () => {
+  /** 온톨로지에 새로 승격된 의도 + 의도 목록에서 고친 한글 이름이 검수에 그대로 보인다 */
+  const CATALOG = {
+    ontology_version: 'onto-2.1',
+    total: 3,
+    items: [
+      { intent_id: 'op_notice_send', domain: 'OPERATION', definition: '', example_count: 2, name_ko: '알림장 발송(수정)', description_ko: null },
+      { intent_id: 'visual_naturalize', domain: 'VISUAL', definition: '', example_count: 2, name_ko: null, description_ko: null },
+      { intent_id: 'comm_new_thing', domain: 'COMMUNICATION', definition: '', example_count: 2, name_ko: '새 소통 의도', description_ko: null },
+    ],
+  }
+
+  function stubWithCatalog() {
+    const calls = stub()
+    const base = globalThis.fetch
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/v1/ontology/intents'))
+        return { ok: true, json: async () => CATALOG } as Response
+      return base(url, init)
+    }))
+    return calls
+  }
+
+  it('카탈로그의 새 의도(정적 사전 밖)가 검색에 나오고, 표로 저장된다', async () => {
+    const calls = stubWithCatalog()
+    render(<GoldReviewPanel onClose={() => {}} onApplied={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText(/예: 명배영/), { target: { value: '명배영' } })
+    fireEvent.click(screen.getByRole('button', { name: '검수 시작' }))
+    await screen.findByText(/"알림장 지금 보내줘"/)
+
+    fireEvent.change(screen.getByPlaceholderText(/의도 검색/), { target: { value: '새 소통' } })
+    fireEvent.click(await screen.findByRole('button', { name: /새 소통 의도/ }))
+    await waitFor(() => {
+      const vote = calls.find((c) => c.url.includes('/review/vote'))
+      expect((vote?.body as { chosen_intent: string } | undefined)?.chosen_intent).toBe('comm_new_thing')
+    })
+  })
+
+  it('의도 목록에서 고친 이름(name_ko)이 검수 선택지 라벨에 반영된다', async () => {
+    stubWithCatalog()
+    render(<GoldReviewPanel onClose={() => {}} onApplied={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText(/예: 명배영/), { target: { value: '명배영' } })
+    fireEvent.click(screen.getByRole('button', { name: '검수 시작' }))
+    await screen.findByText(/"알림장 지금 보내줘"/)
+
+    fireEvent.change(screen.getByPlaceholderText(/의도 검색/), { target: { value: '알림장 발송' } })
+    expect(await screen.findByRole('button', { name: /알림장 발송\(수정\)/ })).toBeTruthy()
+  })
+
+  it('카탈로그 조회가 실패하면 정적 사전으로 폴백 — 검수가 멈추지 않는다', async () => {
+    stub() // /v1/ontology/intents → 404
+    render(<GoldReviewPanel onClose={() => {}} onApplied={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText(/예: 명배영/), { target: { value: '명배영' } })
+    fireEvent.click(screen.getByRole('button', { name: '검수 시작' }))
+    await screen.findByText(/"알림장 지금 보내줘"/)
+
+    fireEvent.change(screen.getByPlaceholderText(/의도 검색/), { target: { value: '알림' } })
+    expect(await screen.findByRole('button', { name: /알림 보내기/ })).toBeTruthy()
   })
 })
 

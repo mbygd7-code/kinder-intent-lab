@@ -24,6 +24,23 @@ describe('intentRecommend', () => {
     expect(corpus.has('NOT_REAL_INTENT')).toBe(false)
   })
 
+  it('buildCorpus: 서버 카탈로그 id를 주면 그 목록이 기준 — 새 의도 행도 산다', () => {
+    // 운영 경로로 온톨로지에 추가된 의도(comm_new_thing)는 정적 라벨 사전에 없어도
+    // 서버 id 목록이 원천이므로 예문이 버려지면 안 된다(2026-07-18 연결 점검).
+    const rows = [...ROWS, ['comm_new_thing', '새 소통', '', '기존1', '새로 생긴 의도 예문', '']]
+    const corpus = buildCorpus(rows, ['visual_naturalize', 'comm_new_thing'])
+    expect(corpus.has('comm_new_thing')).toBe(true)
+    expect(corpus.has('op_notice_send')).toBe(false) // 준 목록 밖은 버린다
+  })
+
+  it('rankIntents: 서버 id 목록을 주면 그 우주 전체를 랭킹한다(정적 사전 밖 포함)', () => {
+    const ids = ['comm_new_thing', 'visual_naturalize', 'op_notice_send']
+    const rows = [...ROWS, ['comm_new_thing', '새 소통', '', '기존1', '새로 생긴 의도 예문', '']]
+    const ranked = rankIntents('새로 생긴 의도 예문이랑 겹치는 말', buildCorpus(rows, ids), ids)
+    expect(ranked[0]).toBe('comm_new_thing')
+    expect(new Set(ranked)).toEqual(new Set(ids))
+  })
+
   it('발화와 예문이 겹치는 의도가 1순위 — 전체 의도가 랭킹에 포함(더보기로 끝까지 도달)', () => {
     const corpus = buildCorpus(ROWS)
     const ranked = rankIntents('역광이라 얼굴이 어두운데 살려줄래?', corpus)

@@ -19,6 +19,8 @@ SCHEMAS = ROOT / "schemas"
 EXAMPLES = ROOT / "examples"
 CONFIG = ROOT / "config" / "experiments.yaml"
 RISK_MODEL = ROOT / "seeds" / "risk_model_v1.yaml"
+ONTOLOGY_SEED = ROOT / "seeds" / "ontology_v1.yaml"
+INTENT_LABELS_TS = ROOT / "frontend" / "src" / "panels" / "intentLabels.ts"
 
 
 def check_risk_model_coherence() -> int:
@@ -51,6 +53,43 @@ def check_risk_model_coherence() -> int:
         return 0
     except Exception as e:  # noqa: BLE001
         print(f"FAIL risk model 정합 검사: {e}", file=sys.stderr)
+        return 1
+
+
+def check_intent_label_coherence() -> int:
+    """온톨로지 intent ↔ 프론트 한글 라벨(INTENT_LABEL_KO) 정합 (drift 차단).
+
+    검수·훈련·즉석 문답의 의도 원천은 서버 카탈로그(2026-07-18)지만, 정적 라벨은 서버
+    미연결 폴백이다 — 운영 경로로 의도를 추가하면 라벨도 함께 넣어야 새 의도가 기계 id로
+    노출되지 않는다. 반대로 온톨로지에 없는 유령 라벨 키도 여기서 잡는다.
+    """
+    import re
+
+    try:
+        import yaml
+    except ImportError:
+        print("pyyaml 미설치 — 의도 라벨 정합 검사 생략", file=sys.stderr)
+        return 1
+    try:
+        onto = yaml.safe_load(ONTOLOGY_SEED.read_text(encoding="utf-8"))
+        yaml_ids = {i["intent_id"] for i in onto["intents"]} - {"UNKNOWN"}
+        src = INTENT_LABELS_TS.read_text(encoding="utf-8")
+        block = re.search(r"INTENT_LABEL_KO[^{]*\{(.*?)\n\}", src, re.S)
+        assert block, "INTENT_LABEL_KO 블록을 찾지 못함"
+        keys = set(re.findall(r"^\s+([a-z][a-z0-9_]*):", block.group(1), re.M))
+        missing = sorted(yaml_ids - keys)
+        ghost = sorted(keys - yaml_ids)
+        if missing or ghost:
+            if missing:
+                print(f"FAIL 의도 라벨 정합: 온톨로지 의도에 한글 라벨 없음 {missing} — "
+                      "intentLabels.ts에 추가하세요", file=sys.stderr)
+            if ghost:
+                print(f"FAIL 의도 라벨 정합: 온톨로지에 없는 유령 라벨 {ghost}", file=sys.stderr)
+            return 1
+        print(f"OK   ontology {onto.get('version', '?')} ↔ INTENT_LABEL_KO ({len(yaml_ids)} intents)")
+        return 0
+    except Exception as e:  # noqa: BLE001
+        print(f"FAIL 의도 라벨 정합 검사: {e}", file=sys.stderr)
         return 1
 
 
@@ -122,6 +161,7 @@ def main() -> int:
             print(f"FAIL examples/{path.name}: {first_line}", file=sys.stderr)
 
     errors += check_risk_model_coherence()
+    errors += check_intent_label_coherence()
     return 1 if errors else 0
 
 

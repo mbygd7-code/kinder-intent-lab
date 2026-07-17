@@ -281,7 +281,10 @@ def inflow_report(session: Session, config: ExperimentsConfig) -> dict:
         if stream:
             totals[stream] += int(n)
 
-    day_col = func.date_trunc("day", Episode.created_at).label("day")
+    # date_trunc는 '어느 자정'인지가 전부다 — 세션 타임존(예: KST) 자정으로 자르면 위의
+    # UTC 날짜 키와 어긋나 새벽(UTC 전날)에 오늘 도착분이 창 밖으로 사라진다(2026-07-18 실측).
+    # PG14+ 3-인자 date_trunc로 UTC 자정을 강제하고, 파이썬 쪽 키도 UTC로 정규화한다.
+    day_col = func.date_trunc("day", Episode.created_at, "UTC").label("day")
     daily = {s: {d: 0 for d in days} for s in STREAMS}
     for channel, split, day, n in session.execute(
         select(Episode.origin_channel, Episode.dataset_split, day_col, func.count())
@@ -290,7 +293,10 @@ def inflow_report(session: Session, config: ExperimentsConfig) -> dict:
         .order_by(day_col)
     ).all():
         stream = _stream_of(channel, split)
-        key = day.date() if hasattr(day, "date") else day
+        if isinstance(day, datetime):
+            key = (day.astimezone(UTC) if day.tzinfo else day).date()
+        else:
+            key = day
         if stream and key in daily[stream]:
             daily[stream][key] += int(n)
 
