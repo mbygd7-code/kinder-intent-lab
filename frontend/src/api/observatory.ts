@@ -238,6 +238,53 @@ export async function fetchKtibUploadDetail(
   return (await res.json()) as KtibUploadDetail
 }
 
+// --- 애매 발화 인사이트 리포트 (투트랙 B′ — 의견서 목표② "의도 분류=현장 인사이트") ---
+
+export interface AmbiguityIntentCount {
+  intent_id: string
+  count: number
+}
+
+/** 출처(mode)별 clarify권 집계 — gym=오픈 전 실험실, live/shadow=오픈 후 실사용 */
+export interface AmbiguitySource {
+  source: string
+  total: number
+  ambiguous: number
+  top_ambiguous_intents: AmbiguityIntentCount[]
+}
+
+export interface AmbiguityCorrection {
+  utterance: string
+  chosen: string
+  guessed: string | null // 뇌의 당시 추측 (evidence.context.brain_guess 원천)
+  origin_channel: string
+  created_at: string | null
+}
+
+export interface UnclassifiedUtterance {
+  utterance: string
+  status: string
+  created_at: string | null
+}
+
+export interface AmbiguityReport {
+  thresholds: Record<string, number> // config 에코 — 판정 기준의 단일 원천 표시
+  sources: AmbiguitySource[]
+  corrections: AmbiguityCorrection[]
+  unclassified: UnclassifiedUtterance[]
+}
+
+export async function fetchAmbiguityReport(signal?: AbortSignal): Promise<AmbiguityReport> {
+  const res = await fetch('/v1/observatory/ambiguity-report', { signal })
+  if (!res.ok) throw new Error(`ambiguity report ${res.status}`)
+  const body = (await res.json()) as AmbiguityReport
+  // 형식 방어 — 다른 응답이 섞이면 부분 렌더로 지어내지 않는다 (dashboard와 동일 원칙)
+  if (!Array.isArray(body?.sources) || !Array.isArray(body?.corrections)) {
+    throw new Error('ambiguity report 형식 아님')
+  }
+  return body
+}
+
 // --- T4.1 Weakness 진단 4축 (§7-3 실계산) ---
 
 export type WeakLevel = 'HIGH' | 'MED' | 'LOW'

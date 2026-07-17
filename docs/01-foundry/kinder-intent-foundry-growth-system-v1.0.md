@@ -1,8 +1,8 @@
-# Kinder Intent Brain Foundry & Growth System v1.6
+# Kinder Intent Brain Foundry & Growth System v1.7
 
 | 항목 | 내용 |
 |---|---|
-| 상태 | DRAFT v1.6 |
+| 상태 | DRAFT v1.7 |
 | 지위 | **Kinder Intent Lab의 제1 설계 문서** — 킨더버스와 분리된 독립 실험실 설계 |
 | 범위 밖 | 킨더버스 **live rollout** API·서빙 (0%) → PARTIAL HOLD 문서 `/docs/06-runtime-integration/kinder-intent-runtime-spec-v0.1.md`(v0.2). 단, **Shadow 0a(Distribution Capture)/0b(Shadow Inference)는 거버넌스 조건 충족 시 조기 병행 가능**(동 문서 §2) — 실사용 언어가 Atlas·OOD 검증에 조기 공급되는 플라이휠 |
 | 후속 문서 | ② 어노테이션 가이드 · ③ 위험 등급표 + 지표 정의 |
@@ -11,6 +11,7 @@
 
 | 버전 | 일자 | 변경 요약 |
 |---|---|---|
+| v1.7 | 2026-07-17 | **투트랙 전략 채택 — 11월 오픈 대비 계약·인사이트 정비 (사용자 승인).** 직원 의견서 점검 + 사용자 제시 투트랙 전략(트랙1=오픈 전 선행 브레인, 트랙2=오픈 후 실사용 고도화) 대조 결과, 아키텍처는 정합하고 갭만 채움: ① **infer 응답 계약 ir-0.2 확장** — 후보 `risk_tier`·`requires_confirmation`을 하드코딩 기본값(LOW/false)에서 **리스크 모델(rm-1.x) 파생으로 배선**(CRITICAL→CRITICAL·ELEVATED→HIGH·STANDARD→LOW, 확인 게이트는 CRITICAL만 — 이중 게이트는 CWAR 희석), top-level `risk_level`(최상위 후보와 일치 validator 강제)·`required_slots`(**예약** — 슬롯 추출은 트랙2, 그전까지 항상 null)·`context_used`(실소비 문맥 에코, 빈 블록 미포함) 추가. ② **애매 발화 인사이트 리포트** 신설(`GET /v1/observatory/ambiguity-report`, 읽기 전용) — clarify권 추론 분포(decision 임계값 config 에코)·사람 교정 사례(evidence.context.brain_guess 원천)·atlas 분류불능 큐를 **출처 분리**(mode: gym=오픈 전 실험실 / live·shadow=오픈 후 실사용)로 집계 + 대시보드 INSIGHT 카드·CSV. ③ 문서 신설: `docs/09-teacher-guide/internal-alignment.md`(직원용 내부 정렬 — 오픈 최소 기준 9항목↔현 장치 매핑, 롤백 런북, 삼각지대 최소대립 문항 가이드), `docs/06-runtime-integration/two-track-launch-plan-v0.1.md`(의도별 적용 등급 A/B/C/HOLD — Arena 산출·rm에서만 파생하는 읽기 전용 VIEW, 연결 준비 일정). live rollout 코드는 불변 HOLD |
 | v1.6 | 2026-07-16 | **§3-3 GOLD 인증에 관측 일치율 척도 추가 (사용자 승인).** 교사 친화 O/X 승인 검수는 두 검수자가 대부분 O로 수렴해(분포 쏠림) Cohen's kappa가 base-rate 역설로 퇴화한다 — 실측: critical-7 210문항, 두 검수자 관측 일치 **95.7%**인데 kappa≈**−0.02**(우연 기대 일치 pe가 관측치를 초과해 음수). kappa 하한만으로는 정상적으로 저작·검수한 벤치마크가 영구 거부된다. → GOLD 신뢰도 인증을 두 척도의 **OR**로 확장: `agreement_kappa ≥ review.min_agreement_kappa`(독립 라벨링 — 여러 의도 중 선택, 우연보정이 유효) **또는** `agreement_rate ≥ review.min_expert_agreement`(O/X 승인 — 관측 일치율, config 0.80). 검수자 2인 이상 요건·비합성 채널·§3-4 DB CHECK·학습 오염 가드(§8-2)는 불변. kappa는 blind 2차 검수 경로에 그대로 유지. 반영: `config.review.min_expert_agreement`, `ExpertEpisode.agreement_rate`, `expert_ingest._assert_benchmark_reviewed` OR 게이트, 프론트 `examSheetToRows` 일치율 자동 계산·표기 |
 | v1.5 | 2026-07-15 | **8번째 region STUDIO 신설 — onto-2.0 major (사용자 승인).** 킨더버스 표면 전수 감사(`docs/06-runtime-integration/kinderverse-intent-sync-strategy-v0.1.md`) 결과 "자료 만들기(만들어줘 계열 생성·큐레이션)"가 서비스 핵심 가치이자 독립 니즈 축으로 확인되어 §5-10의 major 경로를 최초 사용. **B안(정합)**: 신설 생성형 6종(`studio_worksheet_generate`·`studio_video_generate`·`studio_slides_draft`·`studio_game_generate`·`studio_topic_web_generate`·`studio_external_resource_search`) + 기존 `visual_image_generate`를 STUDIO로 **이동**(intent_id 불변 — KTIB 골드 라벨 무손상, VISUAL은 사진·꾸미기로 순수화) + 상담형 `refl_child_guidance_consult`(REFLECTION). 63→70 intents. 좌표계: STUDIO 중심 `[0, 0.1, -0.1]`(대뇌 심부 — 여러 영역을 조합하는 연합 기능의 서사, 전 기존 중심과 ≥0.61 거리로 비겹침 불변식 유지), 색 `#f87171`. 물리 반영: `CANONICAL_DOMAINS` 8원소, DB CHECK 마이그레이션 0017, 스키마 region enum, 프론트 `regions.ts`. 신설 intent는 사람 저작 KTIB 문항 생길 때까지 dark(원칙 8) — 헤드라인 FIA는 core-63 슬라이스와 병행 보고(분모 슬라이드 방지). 채점 이력이 막 시작됐고(첫 불꽃, 측정 영역 신뢰도 전부 0%) 축적된 비교축이 사실상 없는 현 시점이 major 단절 비용의 최저점임을 확인하고 단행. 노드 생성·이동은 governance_events 경유(원칙 9, `NODE_REGION_MOVE` 이벤트 신설) |
 | v1.4 | 2026-07-14 | **KTIB 목표 80% → 96% 상향 (운영자 승인).** ktib-2(185문항) 동결 후 §8-2 베이스라인 규칙에 따라 zero-shot(claude-sonnet-5) **88.1%**를 실측 — 베이스라인이 기존 목표를 넘어 목표가 변별력을 잃었다. `config.arena.first_intent_accuracy_target` 0.80→0.96. §7-6 Stage 5는 동일 값을 재사용하므로 동반 상향(목표가 둘이면 안 된다). 표기 갱신: §0-1 개요·범위 선언·§7-6 스테이지 표·§10-2 로드맵·문서 지도. §8-2 베이스라인 규칙 원문은 수치 제거(목표 확정 절차로 일반화) |

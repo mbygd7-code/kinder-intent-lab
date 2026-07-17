@@ -27,6 +27,7 @@ from app.contracts.infer_response import InferResponse, IntentCandidate
 from app.core.config import ExperimentsConfig, get_config
 from app.core.db import get_session
 from app.core.ontology import load_ontology
+from app.core.risk_model import get_risk_model
 from app.llm.base import EmbeddingRequest
 from app.llm.client import LLMClient, get_embedding_client, get_llm_client
 from app.models.brain import BrainVersion
@@ -36,10 +37,12 @@ logger = logging.getLogger("app.api.infer")
 
 EmbedFn = Callable[[list[str]], list[list[float]]]
 
-# 위험 등급은 아직 노드/온톨로지에 모델링돼 있지 않다(위험 게이팅은 Stage 3 live 소관). gym에선
-# 보수적 기본값 LOW/미확인으로 응답한다 — 고정 서열을 코드에 굳히는 게 아니라 '미모델링' 표시.
-_DEFAULT_RISK_TIER = "LOW"
-_DEFAULT_REQUIRES_CONFIRMATION = False
+# 위험 등급은 리스크 모델(rm-1.x, 온톨로지 밖 평가 정책)에서 파생한다 — 투트랙 채택 D
+# (2026-07-17 사용자 승인, 이전의 하드코딩 기본값 LOW/false를 교체). 응답 계약(runtime §3-1)의
+# 4단 어휘(LOW/MED/HIGH/CRITICAL)로 사상: CRITICAL→CRITICAL(게이트·CWAR 대상),
+# ELEVATED→HIGH(egress 경계에서 이미 게이트된 위험 — UX/telemetry 티어), STANDARD→LOW.
+# MED는 현 리스크 모델에 대응 티어가 없어 비워 둔다(지어내지 않음).
+_RISK_TIER_MAP = {"CRITICAL": "CRITICAL", "ELEVATED": "HIGH", "STANDARD": "LOW"}
 
 
 # --- 주입 seam (테스트가 override) ---
@@ -116,16 +119,31 @@ def infer_endpoint(
         config=config,
     )
 
+    risk_model = get_risk_model()
     candidates = [
         IntentCandidate(
             intent_id=c["intent_id"],
             domain=c["domain"],
             score=c["score"],
-            risk_tier=_DEFAULT_RISK_TIER,
-            requires_confirmation=_DEFAULT_REQUIRES_CONFIRMATION,
+            risk_tier=_RISK_TIER_MAP[risk_model.tier_of(c["intent_id"])],
+            # 확인 게이트는 CRITICAL만 — ELEVATED는 egress 경계에서 이미 게이트됨(이중 게이트는
+            # CWAR를 희석, risk_model_v1.yaml 머리말 원칙)
+            requires_confirmation=risk_model.tier_of(c["intent_id"]) == "CRITICAL",
         )
         for c in served
     ]
+
+    # 추론이 실제 소비한 문맥 블록 에코(투트랙 채택 D) — 빈 블록은 넣지 않는다(정직성).
+    ws = req.workspace_context
+    context_used = ["utterance"]
+    if ws is not None and (ws.objects or ws.selection or ws.derived_summary):
+        context_used.append("workspace_context")
+    if req.recent_actions:
+        context_used.append("recent_actions")
+    if req.teacher_context is not None and req.teacher_context.teacher_ref:
+        context_used.append("teacher_context")
+    if result.persona_state_version:  # persona prior가 실제 적용된 경우만
+        context_used.append("persona_prior")
 
     return InferResponse(
         request_id=req.request_id,
@@ -144,4 +162,8 @@ def infer_endpoint(
         abstain_reason=outcome.abstain_reason,
         persona_state_version=result.persona_state_version or "ps-none",
         fallback_used=result.fallback_used,
+        # 투트랙 채택 D — 킨더버스 연결 계약 3필드
+        risk_level=candidates[0].risk_tier if candidates else None,
+        required_slots=None,  # 예약 — 슬롯 추출은 트랙2(구현 전까지 항상 null)
+        context_used=context_used,
     )

@@ -123,3 +123,49 @@ def test_shadow_mode_not_served_501(api) -> None:
     client, _ = api
     r = client.post("/v1/intent/infer", json=_payload("발화", mode="shadow"))
     assert r.status_code == 501  # live/shadow rollout HOLD (CLAUDE.md)
+
+
+# --- AC: 리스크 모델 배선 + 계약 3필드 (투트랙 채택 D, 2026-07-17 사용자 승인) ---
+
+
+def test_critical_top_intent_wires_risk_model(api) -> None:
+    """CRITICAL intent가 top이면 후보 risk_tier·requires_confirmation과 top-level risk_level이
+    리스크 모델(rm-1.x)에서 파생된다 — 하드코딩 기본값(LOW/false)이면 이 테스트가 깨진다."""
+    from app.core.risk_model import get_risk_model
+
+    client, db = api
+    crit = get_risk_model().critical_intents[0]
+    _seed(db, _embed(), [(crit, "위험 top 발화 rk1")])
+    body = client.post("/v1/intent/infer", json=_payload("위험 top 발화 rk1")).json()
+    assert body["top_intent"] == crit
+    assert body["risk_level"] == "CRITICAL"
+    top = body["intent_candidates"][0]
+    assert top["risk_tier"] == "CRITICAL" and top["requires_confirmation"] is True
+
+
+def test_standard_intent_low_risk_no_confirmation(api) -> None:
+    """등급표에 없는(STANDARD) intent는 LOW·확인 불요 — 리스크를 지어내지 않는다."""
+    from app.core.risk_model import get_risk_model
+
+    client, db = api
+    rm = get_risk_model()
+    std = next(i for i in _real_intents(30) if rm.tier_of(i) == "STANDARD")
+    _seed(db, _embed(), [(std, "일반 발화 rk2")])
+    body = client.post("/v1/intent/infer", json=_payload("일반 발화 rk2")).json()
+    assert body["top_intent"] == std
+    assert body["risk_level"] == "LOW"
+    top = body["intent_candidates"][0]
+    assert top["risk_tier"] == "LOW" and top["requires_confirmation"] is False
+
+
+def test_required_slots_reserved_and_context_echoed(api) -> None:
+    """required_slots는 예약 필드(항상 null → exclude_none으로 미노출) — 슬롯을 지어내지 않는다.
+    context_used는 실제 소비한 블록만 에코 — 빈 workspace/recent_actions는 넣지 않는다(정직성)."""
+    client, db = api
+    ints = _real_intents(1)
+    _seed(db, _embed(), [(ints[0], "문맥 에코 발화 rk3")])
+    body = client.post("/v1/intent/infer", json=_payload("문맥 에코 발화 rk3")).json()
+    assert "required_slots" not in body  # 예약 — 트랙2(슬롯 추출) 전까지 항상 null
+    used = body["context_used"]
+    assert "utterance" in used and "teacher_context" in used
+    assert "workspace_context" not in used and "recent_actions" not in used  # 기본 payload는 빈 값

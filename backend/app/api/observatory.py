@@ -44,8 +44,9 @@ from app.models.benchmark_candidates import (
     BenchmarkCandidateBatch,
     BenchmarkCandidateItem,
 )
-from app.models.brain import BrainNode, BrainVersion, ConfusionEdge, Exemplar
-from app.models.episodes import Episode
+from app.models.brain import BrainNode, BrainVersion, ConfusionEdge, Exemplar, InferenceLog
+from app.models.episodes import Episode, Evidence
+from app.models.foundry import AtlasExpansionEntry
 from app.models.persona import PersonaCluster, PopulationPrior
 from app.observatory import aggregate
 
@@ -642,6 +643,117 @@ def ktib_upload_detail(
     if row is None:
         raise HTTPException(status_code=404, detail="업로드 기록을 찾을 수 없어요")
     return KtibUploadDetailOut(**_upload_record(row).model_dump(), source_document=row.source_document)
+
+
+# --- 애매 발화 인사이트 리포트 (투트랙 채택 B′, 2026-07-17 사용자 승인) ---
+#
+# 의견서 목표② "의도 분류 자체가 현장 인사이트": 어떤 의도가 자주 애매한가(clarify권 분포),
+# 사람이 무엇을 고쳤나(교정 사례), 무엇이 분류 불능인가(atlas 큐). 읽기 전용 집계 — 어떤
+# 테이블에도 쓰지 않는다(brightness 불가침은 자명). 출처 분리: 추론은 mode(gym=오픈 전
+# 실험실, live/shadow=오픈 후 실사용), 교정은 origin_channel — 11월 이후 같은 리포트가 이어진다.
+
+_RECENT_LIMIT = 50  # 목록 상한 — 통계가 아니라 '최근 사례 열람'용 (임계값 아님)
+
+
+class AmbiguousIntentCount(BaseModel):
+    intent_id: str
+    count: int
+
+
+class AmbiguitySource(BaseModel):
+    source: str  # gym | live | shadow — 오픈 전/후 분리 축
+    total: int
+    ambiguous: int
+    top_ambiguous_intents: list[AmbiguousIntentCount]
+
+
+class AmbiguityCorrection(BaseModel):
+    utterance: str
+    chosen: str          # 사람이 고른 정답
+    guessed: str | None  # 뇌의 당시 추측(evidence.context.brain_guess 원천)
+    origin_channel: str
+    created_at: datetime | None
+
+
+class UnclassifiedUtterance(BaseModel):
+    utterance: str
+    status: str
+    created_at: datetime | None
+
+
+class AmbiguityReportOut(BaseModel):
+    thresholds: dict[str, float]  # config 에코 — 판정 기준의 단일 원천 표시(규칙 1)
+    sources: list[AmbiguitySource]
+    corrections: list[AmbiguityCorrection]
+    unclassified: list[UnclassifiedUtterance]
+
+
+@router.get("/ambiguity-report", response_model=AmbiguityReportOut)
+def ambiguity_report(
+    session: Session = Depends(get_session),
+    config: ExperimentsConfig = Depends(_get_experiments),
+) -> AmbiguityReportOut:
+    m = config.decision.clarify_margin
+    c = config.decision.clarify_confidence
+
+    def _is_ambiguous(row: InferenceLog) -> bool:
+        # NULL(미산출)은 확신의 증거가 없다 — 애매로 센다(지어내지 않음)
+        return (row.margin is None or row.margin < m) or (
+            row.confidence is None or row.confidence < c
+        )
+
+    logs = session.scalars(select(InferenceLog)).all()
+    by_source: dict[str, dict] = {}
+    for row in logs:
+        s = by_source.setdefault(row.mode, {"total": 0, "ambiguous": 0, "intents": {}})
+        s["total"] += 1
+        if _is_ambiguous(row):
+            s["ambiguous"] += 1
+            key = row.top_intent or "UNKNOWN"
+            s["intents"][key] = s["intents"].get(key, 0) + 1
+    sources = [
+        AmbiguitySource(
+            source=mode, total=s["total"], ambiguous=s["ambiguous"],
+            top_ambiguous_intents=[
+                AmbiguousIntentCount(intent_id=i, count=n)
+                for i, n in sorted(s["intents"].items(), key=lambda kv: (-kv[1], kv[0]))
+            ],
+        )
+        for mode, s in sorted(by_source.items())
+    ]
+
+    corr_rows = session.execute(
+        select(Evidence, Episode)
+        .join(Episode, Episode.episode_id == Evidence.episode_id)
+        .where(Evidence.evidence_type == "HUMAN_CORRECTION")
+        .order_by(Evidence.created_at.desc())
+        .limit(_RECENT_LIMIT)
+    ).all()
+    corrections = [
+        AmbiguityCorrection(
+            utterance=ep.teacher_prompt,
+            chosen=ev.intent_id,
+            guessed=(ev.context or {}).get("brain_guess"),
+            origin_channel=ep.origin_channel,
+            created_at=ev.created_at,
+        )
+        for ev, ep in corr_rows
+    ]
+
+    queue = session.scalars(
+        select(AtlasExpansionEntry)
+        .order_by(AtlasExpansionEntry.created_at.desc())
+        .limit(_RECENT_LIMIT)
+    ).all()
+    unclassified = [
+        UnclassifiedUtterance(utterance=q.utterance, status=q.status, created_at=q.created_at)
+        for q in queue
+    ]
+
+    return AmbiguityReportOut(
+        thresholds={"clarify_margin": m, "clarify_confidence": c},
+        sources=sources, corrections=corrections, unclassified=unclassified,
+    )
 
 
 # --- 시험지 2차 검수 대기열 — 웹 1~5 평점 검수(§3-3·§8-2) ---

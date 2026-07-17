@@ -49,10 +49,30 @@ def render_agent_prompt(base_prompt: str, context: dict[str, object]) -> str:
     return f"{base_prompt}\n\n## 입력 컨텍스트 (이번 호출)\n```json\n{body}\n```\n"
 
 
-def run_json_agent(client: LLMClient, prompt: str, model: str, schema: type[T]) -> T:
+def _attempt(client: LLMClient, prompt: str, model: str, schema: type[T]) -> T:
     result = client.complete(CompletionRequest(prompt=prompt, model=model))
     data = _extract_json(result.text)
     try:
         return schema.model_validate(data)
     except ValidationError as exc:
         raise AgentOutputError(f"출력이 {schema.__name__} 계약 위반: {exc}") from exc
+
+
+def run_json_agent(client: LLMClient, prompt: str, model: str, schema: type[T]) -> T:
+    """호출 → JSON 파싱 → 스키마 검증. 위반이면 위반 내용을 붙여 **1회 교정 재시도**.
+
+    실측(2026-07-17, 증산 크래시): 실 LLM이 출력에 'notes' 같은 여분 키를 덧붙이는 일이
+    있다(extra=forbid 위반). mock은 이런 짓을 안 해서 실전에서만 드러났다 — 조용히 키를
+    깎아 통과시키지 않고(계약은 계약), 모델에게 위반 사실을 보여주고 한 번 다시 시킨다.
+    재시도도 위반이면 그대로 폭발한다(정직 — 반복 위반을 숨기지 않는다).
+    """
+    try:
+        return _attempt(client, prompt, model, schema)
+    except AgentOutputError as first:
+        corrective = (
+            f"{prompt}\n\n## 교정 지시 (이전 응답 계약 위반)\n"
+            f"직전 응답이 다음 위반으로 거부됐다: {first}\n"
+            f"스키마에 정의된 키 외에는(예: notes·설명·주석) **어떤 키도 추가하지 말고**, "
+            f"코드펜스 없이 순수 JSON만 다시 출력하라."
+        )
+        return _attempt(client, corrective, model, schema)

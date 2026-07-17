@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.core.config import ExperimentsConfig
 from app.core.ontology import CANONICAL_DOMAINS, load_ontology
+from app.foundry.agents.runner import AgentOutputError
 from app.foundry.episode_builder import generate_episode
 from app.foundry.stages.s1_discovery import SourceCandidate, register_source
 from app.foundry.stages.s2_governance import govern_source, store_raw_document
@@ -323,10 +325,20 @@ def _run_pilot_body(
         persona = personas[i % len(personas)]
         log_start = len(call_log)  # dedup 재시도 호출까지 이 에피소드에 귀속 (토큰 유실 방지)
 
-        gen = generate_episode(
-            llm_client, config=config, run_id=run_id, index=i, scenario_id=scenario_id,
-            persona=persona, ontology_version=ontology_version, deduper=deduper, model=model,
-        )
+        try:
+            gen = generate_episode(
+                llm_client, config=config, run_id=run_id, index=i, scenario_id=scenario_id,
+                persona=persona, ontology_version=ontology_version, deduper=deduper, model=model,
+            )
+        except AgentOutputError as exc:
+            # 실 LLM의 반복 계약 위반(교정 재시도까지 실패) — 이 에피소드만 버리고 계속 간다.
+            # 런 전체를 죽이면 배치 체크포인트·비용이 통째로 유실된다(2026-07-17 실측 크래시).
+            # reject_count에 넣지 않는다 — reject_rate는 품질 게이트 신호라 생성 실패와 섞으면
+            # 게이트가 오염된다. 실패는 로그로 정직하게 남긴다.
+            logging.getLogger("app.foundry.pilot").warning(
+                "에피소드 %d 생성 실패(계약 위반 지속) — 건너뜀: %s", i, exc
+            )
+            continue
         episodes.append(gen.episode)
         evidences.extend(gen.evidences)
         all_pairs.extend(gen.pairs)

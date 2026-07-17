@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 
 import { type Dashboard, fetchDashboard } from '../api/dashboard'
 import { useBrainStore } from '../brain3d/store'
+import { AmbiguityCard } from './AmbiguityCard'
 import { ExpansionStory } from './ExpansionStory'
 import { InflowStreams } from './InflowStreams'
 import { IntentTable } from './IntentTable'
@@ -90,6 +91,9 @@ export function DashboardView() {
             <div className="dash-grid dash-grid-2 dash-rise" style={{ animationDelay: '240ms' }}>
               <ExpansionStory data={data} />
               <ReviewInbox data={data} />
+            </div>
+            <div className="dash-rise" style={{ animationDelay: '270ms' }}>
+              <AmbiguityCard />
             </div>
             <div className="dash-rise" style={{ animationDelay: '300ms' }}>
               <IntentTable data={data} />

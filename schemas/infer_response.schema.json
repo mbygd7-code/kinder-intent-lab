@@ -63,7 +63,10 @@
     "remaining_budget_ms": {"type": ["integer", "null"]},
     "persona_state_version": {"type": "string"},
     "persona_snapshot_hash": {"type": "string"},
-    "fallback_used": {"type": "boolean"}
+    "fallback_used": {"type": "boolean"},
+    "risk_level": {"type": ["string", "null"], "enum": ["LOW", "MED", "HIGH", "CRITICAL", null]},
+    "required_slots": {"type": ["array", "null"], "items": {"type": "string"}},
+    "context_used": {"type": ["array", "null"], "items": {"type": "string"}}
   },
   "allOf": [
     {"if": {"properties": {"is_multi_intent": {"const": true}}}, "then": {"properties": {"intent_plan": {"type": "object"}}, "required": ["intent_plan"]}},
