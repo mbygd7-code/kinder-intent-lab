@@ -821,6 +821,15 @@ body {
 }
 .help-upload-ok { border-color: rgba(74, 222, 128, 0.4); }
 .help-upload-confirm { margin-top: 0.55rem; }
+/* 공부 검수 — 추천 더보기 */
+.gym-option-more { opacity: 0.72; border-style: dashed; }
+/* INSIGHT · 애매 발화 카드 (투트랙 B′) */
+.ambig-source { margin-bottom: 0.5rem; }
+.ambig-block-title { margin-top: 0.7rem; }
+.ambig-list {
+  list-style: none; margin: 0.2rem 0 0; padding: 0 0 0 0.4rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
 /* 시험지 업로드 이력 — 등록 목록 + 펼쳐서 원문 확인 */
 .exam-history { margin-top: 1.1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 0.7rem; }
 .exam-history h3 { margin: 0 0 0.5rem; font-size: 1rem; }
@@ -1267,3 +1276,52 @@ body {
     stroke-dashoffset: 0;
   }
 }
+/* 의도 목록 패널 */
+.intent-row { border-top: 1px solid rgba(255,255,255,0.08); padding: 0.45rem 0; }
+.intent-row-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.intent-row-actions { margin-left: auto; display: inline-flex; gap: 0.4rem; }
+.intent-edit { margin-top: 0.4rem; }
+/* 의도 목록 — ID 우선 정렬 행 + 버튼 정돈 (2026-07-17) */
+.intent-toolbar { display: flex; gap: 0.6rem; align-items: center; margin: 0.5rem 0; }
+.intent-toolbar .live-quiz-input { flex: 1; margin: 0; }
+.intent-id-chip {
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 0.4rem; padding: 0.14rem 0.5rem; white-space: nowrap;
+}
+.intent-row-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.intent-btn,
+.intent-row-actions .dash-btn {
+  padding: 0.42rem 1rem; border-radius: 0.55rem; white-space: nowrap;
+  line-height: 1.25; height: auto; align-self: center; min-width: 4.5rem;
+}
+.intent-edit { align-items: flex-end; }
+.intent-edit .help-field { flex: 1 1 14rem; }
+.intent-edit-actions { display: flex; gap: 0.5rem; align-items: center; padding-bottom: 0.1rem; }
+.intent-add {
+  border: 1px dashed rgba(53, 224, 210, 0.4); border-radius: 0.6rem;
+  padding: 0.7rem; margin: 0.5rem 0;
+}
+/* 새 의도 ID 조립 — 고정 접두어 + 이름부분 입력 */
+.intent-id-compose { display: flex; align-items: stretch; gap: 0; }
+.intent-id-prefix {
+  display: flex; align-items: center; padding: 0 0.6rem;
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3); border-right: none;
+  border-radius: 0.5rem 0 0 0.5rem; white-space: nowrap;
+}
+.intent-id-compose .help-input { border-radius: 0 0.5rem 0.5rem 0; }
+.intent-id-preview { margin: 0.15rem 0 0.35rem; }
+/* 인증 미입력 하이라이트 — 비밀번호·이름 빈 칸 안내 */
+.help-input.input-missing {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.35);
+  background: rgba(120, 30, 30, 0.18);
+}
+/* 의도 목록 헤더 액션 (CSV 받기·일괄 변경·닫기) */
+.intent-head-actions { display: inline-flex; align-items: center; gap: 0.5rem; }
+.intent-head-actions .intent-btn { font-size: 0.82rem; padding: 0.35rem 0.7rem; }
+/* 의도 목록 헤더 — 액션 그룹을 오른쪽 끝으로(✕가 최우측) */
+.intent-head-actions { margin-left: auto; }
+.intent-head-actions .gym-close { margin-left: 0.4rem; }

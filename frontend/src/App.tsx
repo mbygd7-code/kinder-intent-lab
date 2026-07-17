@@ -19,6 +19,8 @@ import { effectiveViewMode, useBrainStore } from './brain3d/store'
 import { HelpOverlay } from './panels/HelpOverlay'
 import { ExamUploadModal } from './panels/ExamUpload'
 import { KtibReviewModal } from './panels/KtibReviewModal'
+import { GoldReviewPanel } from './panels/GoldReviewPanel'
+import { IntentCatalogPanel } from './panels/IntentCatalogPanel'
 import { LiveQuizPanel } from './panels/LiveQuizPanel'
 import { NodePanel } from './panels/NodePanel'
 import { RegionsPanel } from './panels/RegionsPanel'
@@ -35,6 +37,10 @@ function App() {
   const helpOpen = useBrainStore((s) => s.helpOpen)
   const helpTab = useBrainStore((s) => s.helpTab)
   const liveQuizOpen = useBrainStore((s) => s.liveQuizOpen)
+  const goldReviewOpen = useBrainStore((s) => s.goldReviewOpen)
+  const closeGoldReview = useBrainStore((s) => s.closeGoldReview)
+  const intentCatalogOpen = useBrainStore((s) => s.intentCatalogOpen)
+  const closeIntentCatalog = useBrainStore((s) => s.closeIntentCatalog)
   const reviewOpen = useBrainStore((s) => s.reviewOpen)
   const openReview = useBrainStore((s) => s.openReview)
   const closeReview = useBrainStore((s) => s.closeReview)
@@ -127,6 +133,13 @@ function App() {
         <LiveQuizPanel
           onClose={closeLiveQuiz}
           onComplete={bumpReload} // 훈련 evidence 저장 시에만 — 노드 size/pending 갱신(§6-7 [6])
+        />
+      )}
+      {intentCatalogOpen && <IntentCatalogPanel onClose={closeIntentCatalog} />}
+      {goldReviewOpen && (
+        <GoldReviewPanel
+          onClose={closeGoldReview}
+          onApplied={bumpReload} // GOLD 확정 성공 시 — 대시보드·뇌 수치 재조회
         />
       )}
       {reviewOpen && (

@@ -12,6 +12,8 @@ from app.api.dashboard import router as dashboard_router
 from app.api.gym import router as gym_router
 from app.api.infer import router as infer_router
 from app.api.observatory import router as observatory_router
+from app.api.ontology_admin import router as ontology_admin_router
+from app.api.review import router as review_router
 
 app = FastAPI(title="Kinder Intent Lab", version="0.1.0")
 
@@ -33,6 +35,8 @@ app.include_router(observatory_router)
 app.include_router(dashboard_router)
 app.include_router(arena_ops_router)
 app.include_router(gym_router)
+app.include_router(review_router)
+app.include_router(ontology_admin_router)
 
 
 @app.get("/healthz")

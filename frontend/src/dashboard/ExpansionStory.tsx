@@ -6,9 +6,11 @@
  * (onto-2.0에서 63→70처럼 자라므로 하드코딩 금지).
  */
 import type { Dashboard } from '../api/dashboard'
+import { useBrainStore } from '../brain3d/store'
 import { CountUp } from './viz/CountUp'
 
 export function ExpansionStory({ data }: { data: Dashboard }) {
+  const openIntentCatalog = useBrainStore((s) => s.openIntentCatalog)
   const e = data.expansion
   const growing = e.unknown_pool + e.atlas_queue_pending
 
@@ -74,6 +76,11 @@ export function ExpansionStory({ data }: { data: Dashboard }) {
         문답의 "새 의도 제안"이 <strong>확장 후보 큐</strong>로 갑니다 — 검토를 거쳐 새 의도로
         승격되면 뇌가 배우는 과목이 늘어나요(자동 등록은 없음 · 사람 승인 필수).
       </p>
+      <div className="dash-actions">
+        <button type="button" className="dash-btn" onClick={openIntentCatalog}>
+          🗂 의도 목록 · 수정 제안
+        </button>
+      </div>
     </section>
   )
 }

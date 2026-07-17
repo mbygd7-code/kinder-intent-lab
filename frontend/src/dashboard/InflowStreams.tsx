@@ -73,6 +73,7 @@ export function InflowStreams({ data }: { data: Dashboard }) {
   const setViewMode = useBrainStore((s) => s.setViewMode)
   const openReview = useBrainStore((s) => s.openReview)
   const openExamUpload = useBrainStore((s) => s.openExamUpload)
+  const openGoldReview = useBrainStore((s) => s.openGoldReview)
   const openLiveQuiz = useBrainStore((s) => s.openLiveQuiz)
   const openHelp = useBrainStore((s) => s.openHelp)
   const { inflow } = data
@@ -88,6 +89,9 @@ export function InflowStreams({ data }: { data: Dashboard }) {
           title="시나리오 공장" sub="컴퓨터 연습문제 · 자동 생성(낮은 등급)"
           tip="컴퓨터가 자동으로 지어낸 연습문제가 지금까지 도착한 총량이에요 — 여러 AI의 교차 검토를 통과해야 저장되고, '컴퓨터 생성' 등급으로 낮게 취급돼요."
         >
+          <button type="button" className="dash-btn dash-btn-primary" onClick={openGoldReview}>
+            🔍 공부 검수 (2인 → GOLD)
+          </button>
           <button type="button" className="dash-btn" onClick={() => openHelp('study')}>
             공부 문항 보기
           </button>

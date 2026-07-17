@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -122,4 +123,29 @@ class Evidence(Base):
         Boolean, nullable=False, server_default=text("FALSE")
     )
     context = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))
+
+
+class ReviewVoteRow(Base):
+    """공부 데이터 2인 검수의 웹 표(votes) — 마이그레이션 0019 (§3-3·§3-6).
+
+    검수자별 판정을 모아 두는 저장소일 뿐, 승격 규칙(2인·만장일치·배치 kappa)은
+    aggregator.review.apply_review_batch(GOLD 유일문)가 강제한다. chosen_intent NULL=폐기 표.
+    """
+
+    __tablename__ = "review_votes"
+    __table_args__ = (
+        UniqueConstraint("episode_id", "reviewer_canonical"),
+        Index("idx_review_votes_episode", "episode_id"),
+        Index("idx_review_votes_reviewer", "reviewer_canonical"),
+    )
+
+    vote_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    episode_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("episodes.episode_id", ondelete="CASCADE"), nullable=False
+    )
+    # 정규화 신원 — 별칭 두 개로 '2인'을 위장 못 하게(review.py canonical_reviewer와 동일 규칙)
+    reviewer_canonical: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewer_ref: Mapped[str] = mapped_column(Text, nullable=False)  # 입력 원문(표시용)
+    chosen_intent: Mapped[str | None] = mapped_column(Text)
     created_at = mapped_column(DateTime(timezone=True), server_default=text("now()"))

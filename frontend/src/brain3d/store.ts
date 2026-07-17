@@ -63,6 +63,8 @@ interface BrainViewState {
   /** 모달 열림 상태 — 톱바·대시보드가 공유하는 단일 진입점 */
   reviewOpen: boolean
   examUploadOpen: boolean
+  goldReviewOpen: boolean
+  intentCatalogOpen: boolean
   liveQuizOpen: boolean
   helpOpen: boolean
   helpTab: HelpTab
@@ -91,6 +93,10 @@ interface BrainViewState {
   closeReview: () => void
   openExamUpload: () => void
   closeExamUpload: () => void
+  openGoldReview: () => void
+  closeGoldReview: () => void
+  openIntentCatalog: () => void
+  closeIntentCatalog: () => void
   openLiveQuiz: () => void
   closeLiveQuiz: () => void
   openHelp: (tab?: HelpTab) => void
@@ -120,6 +126,8 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   edgeDisplayMode: 'focus',
   reviewOpen: false,
   examUploadOpen: false,
+  goldReviewOpen: false,
+  intentCatalogOpen: false,
   liveQuizOpen: false,
   helpOpen: false,
   helpTab: 'service',
@@ -169,6 +177,10 @@ export const useBrainStore = create<BrainViewState>()((set) => ({
   closeReview: () => set({ reviewOpen: false }),
   openExamUpload: () => set({ examUploadOpen: true }),
   closeExamUpload: () => set({ examUploadOpen: false }),
+  openGoldReview: () => set({ goldReviewOpen: true }),
+  closeGoldReview: () => set({ goldReviewOpen: false }),
+  openIntentCatalog: () => set({ intentCatalogOpen: true }),
+  closeIntentCatalog: () => set({ intentCatalogOpen: false }),
   openLiveQuiz: () => set({ liveQuizOpen: true }),
   closeLiveQuiz: () => set({ liveQuizOpen: false }),
   openHelp: (tab) => set((s) => ({ helpOpen: true, helpTab: tab ?? s.helpTab })),

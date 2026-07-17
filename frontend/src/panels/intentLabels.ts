@@ -86,9 +86,18 @@ export const INTENT_LABEL_KO: Record<string, string> = {
   refl_child_guidance_consult: '아이 지도 상담',
 }
 
-/** 한글 라벨. 미등록 id는 밑줄을 공백으로 바꾼 원 id(날조 없이 그대로) */
+/** 운영자가 PIN으로 고친 표시 이름(intent_display 오버레이) — 정적 라벨보다 우선 */
+const LABEL_OVERRIDES: Record<string, string> = {}
+
+/** 서버 오버레이 반영 — 의도 목록 로드 시 호출(이름 수정이 앱 전역에 즉시 보이게) */
+export function setIntentLabelOverrides(overrides: Record<string, string>): void {
+  for (const k of Object.keys(LABEL_OVERRIDES)) delete LABEL_OVERRIDES[k]
+  Object.assign(LABEL_OVERRIDES, overrides)
+}
+
+/** 한글 라벨. 오버레이 > 정적 라벨 > 밑줄을 공백으로 바꾼 원 id(날조 없이 그대로) */
 export function labelOf(intentId: string): string {
-  return INTENT_LABEL_KO[intentId] ?? intentId.replace(/_/g, ' ')
+  return LABEL_OVERRIDES[intentId] ?? INTENT_LABEL_KO[intentId] ?? intentId.replace(/_/g, ' ')
 }
 
 /** Gym 3모드 한글 이름 (유아교사 톤) */
