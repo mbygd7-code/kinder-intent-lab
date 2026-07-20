@@ -237,6 +237,26 @@ CheckConstraint(
 | governance_events | 43 | SOURCE_DECISION 32 · EXPERT_EPISODE_INGEST 3 · NODE_REGION_MOVE 2 · INTENT_DISPLAY_BULK_EDIT 2 · NODE_BOOTSTRAP 2 · MOCK_BANK_CLEANUP 1 · RISK_MODEL_UPDATE 1 |
 | sources · source_documents · situation_frames · canonical_scenarios · challenge_packs · gym_sessions · failed_episodes · persona_* 4종 · foundry_work_queue · benchmark_candidate_* · ontology_versions | 미수집 | 팩트팩 스냅샷에 건수 없음 `UNKNOWN` |
 
+## 5-7. 갱신 스냅샷 — 2026-07-20 수집 (Supabase 활성 DB, 출처 다름 주의)
+
+5-6은 로컬 머신 팩트팩(07-17)이고 이 절은 **Supabase(공유 활성 DB)** 실측이다. append-only 동기화라 두 DB는 완전히 같지 않다 — 특히 상태 전이(REJECTED 등)는 원격에 전파되지 않아 state 분포가 다르게 보이는 것이 정상이다.
+
+| 테이블 | 07-20 실측 | 5-6 대비 비고 |
+|---|---:|---|
+| episodes | 3,139 (TRAIN 2,753 · BENCHMARK 386) | 증산 유입 +410여 건 |
+| 〃 state별 | LABEL_CANDIDATE 2,396 · LABELED 386 · REJECTED 334 · ACCUMULATING 23 | 검수 대기 급증(병목 그대로) — REJECTED 차이는 DB 출처 차이 |
+| evidence | 4,147 (HUMAN_CONFIRMATION 56 · HUMAN_CORRECTION 19) | 사람 확인 +6·교정 +6 |
+| confusion_edges | 2,129 — 전부 hypothesized · **전부 SKEPTIC** | 증산이 계속 추가(G5). GYM_CORRECTION 생성 실적 0 |
+| ktib_versions / items | 3 / 572 (ktib-3 386) | 불변 |
+| arena_runs / brain_versions / exemplars | 4 / 0 / 0 | 불변 — TRAIN GOLD 0 사슬 그대로 |
+| governance_events | 64 | +21 |
+| review_votes · intent_display · intent_change_requests · ktib_uploads | **0 · 0 · 0 · 0** | **이날 Supabase에 테이블 최초 생성**(0018~0020 적용, 17장 C1 해소) — 로컬 데이터(표 10·오버레이 1·업로드 1)는 다음 push 동기화 대상 |
+| atlas_entries / expansion_queue | 0 / 0 | 원료 주입구는 생김(아래) — 원료 대기 |
+
+### 파일 기반 새 원천 — 화면 씨드 (DB 테이블 아님)
+
+합성 증산(S5)의 화면 변형 원천이 코드 템플릿에서 **사람이 작성하는 씨드 파일**로 교체됐다(전 시나리오가 play_board 단일 화면으로 굳었던 사고의 재발 방지): `seeds/situation_seeds_v1.yaml` — 통제 어휘(surface_types·object_kinds·actions) + 씨드 16개. 로드 시점에 어휘 밖 값·vs-1.0 위반·도메인 공백을 거부하고, 자격을 갖춘 씨드만 LLM 확장(`foundry.seed_expansion_enabled`, 위반 변형 하나라도 있으면 전체 거부·씨드 원본 폴백)된다 [근거: backend/app/foundry/situation_seeds.py·seed_expansion.py 모듈 docstring]. 웹 편집기는 씨드 스튜디오([11장](11-operations-guide.md) E-7), 발화 원문이 아니라 화면 상태 정의라 개인정보 축은 없다.
+
 ---
 
 ## 현재 상태

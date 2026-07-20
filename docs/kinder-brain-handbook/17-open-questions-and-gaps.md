@@ -27,8 +27,9 @@
 
 | # | 내용 | 중요도 | 영향 | 근거 | 조치 |
 |---|---|---|---|---|---|
-| C1 | 로컬과 Supabase의 스키마 스큐 — 새 표 4종(review_votes·intent_display·intent_change_requests·ktib_uploads)이 Supabase에 미적용(동기화가 건너뜀), alembic 장부 행수 상이 | ◐ | 2대 운영 혼선 | push 훅 출력 실측 | Windows에서 `alembic upgrade head` 1회 | 운영 |
+| C1 | ~~로컬과 Supabase의 스키마 스큐 — 새 표 4종(review_votes·intent_display·intent_change_requests·ktib_uploads)이 Supabase에 미적용, alembic 장부 행수 상이~~ → **2026-07-20 해결**: Supabase에 `alembic upgrade head`(0017→0020) 적용 + alembic_version 이중 행(0017·0015 동시 잔존 — "overlaps" 에러 원인)을 `stamp --purge`로 단일화. 4테이블 생성 확인 | **잔여**: 데이터 계층 스큐는 구조적 — append-only 동기화라 로컬의 review_votes 10표·display 1건 등은 다음 push 때 유입되고, 상태 전이(REJECTED 등)는 원격에 전파되지 않는다 | ○(잔여) | 해소됨 | 2026-07-20 실측(마이그레이션·테이블 존재 쿼리) | 다음 push에서 동기화 확인 | 운영 |
 | C2 | 역방향 동기화(Supabase→로컬) 스크립트가 scratchpad에만 있고 저장소 미커밋 | ◐ | 2대 운영 재현성 | 세션 이력 | scripts/로 정식 커밋 | 코드(스크립트) |
+| C3 | **주변 상태 의존 테스트 5건** — 스위트를 어느 DB로 돌려도 완전 녹색이 안 되는 원인. ① 실데이터 DB(Supabase)에선 `DELETE FROM episodes` cleanup이 KTIB FK(`ktib_items_episode_id_fkey`)에 막혀 5f+14e — **KTIB 뱅크를 지우는 것은 해법이 아님**. ② 격리 빈 DB에선 789 통과하나 5건 실패: test_promote 4건(형제 파일들과 달리 `bootstrap_nodes` 자가 시드를 안 하고 노드가 이미 있다고 가정), test_batch 1건(md5%5 실패 유도가 주변 데이터 분포 의존) | ◐ | CI 신뢰도 | 2026-07-20 격리 DB 실측(789p/5f) | 5개 테스트를 자가 시드로 수정(코드) — 그때까지 격리 DB 5건 실패는 알려진 상태 | 코드(테스트) |
 
 ## D. 테스트되지 않은 정책 / 데이터 부족으로 미검증
 

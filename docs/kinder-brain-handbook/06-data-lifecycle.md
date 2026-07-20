@@ -35,6 +35,7 @@ flowchart TB
   HJ -->|"목록에 없음"| AQ["atlas_expansion_queue<br/>(새 의도 후보 — 승인 대기)"]
   EV1 --> EP["Episode(TRAIN·GYM_HUMAN)"]
   EV2 --> EP
+  SEED["화면 씨드(사람 작성 YAML)<br/>+ LLM 확장(어휘 검증)"] --> SYN
   SYN["합성 증산 campaign<br/>(생성→분석→회의론→합의)"] --> EP2["Episode(TRAIN·FOUNDRY_SYNTHETIC)<br/>+ SYNTHETIC_CONSENSUS evidence"]
   SYN --> CE["confusion_edges hypothesized<br/>(SKEPTIC·GYM_CORRECTION 가설)"]
   EV2 --> CE
@@ -57,6 +58,8 @@ flowchart TB
   AR2 -->|"§6-6 통과"| PRO["promote — 서빙 교체"]
   AR2 -->|"미달"| RJX["reject — 기록만"]
 ```
+
+흐름도 주(07-20 갱신): 합성 증산의 화면 변형은 코드 템플릿이 아니라 **사람이 작성한 씨드 파일**(`seeds/situation_seeds_v1.yaml`)에서 나온다 — 자격(최소기준 충족) 씨드만 LLM으로 변형 확장되고, 어휘 밖 값이 하나라도 나오면 전체 거부 후 씨드 원본으로 폴백한다(`foundry.seed_expansion_enabled`) [근거: backend/app/foundry/seed_expansion.py docstring]. 씨드 편집은 웹 씨드 스튜디오([11장](11-operations-guide.md) E-7).
 
 ---
 

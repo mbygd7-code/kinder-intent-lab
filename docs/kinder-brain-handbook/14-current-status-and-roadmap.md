@@ -30,6 +30,16 @@
 
 episodes 2,729(TRAIN 2,343 / BENCHMARK 386) · states: REJECTED 2,229(모의 정리 포함)·LABELED 386·LABEL_CANDIDATE 91·ACCUMULATING 23 · GOLD 386(전부 시험지) · evidence 3,529(사람 확인 50·교정 13) · exemplar 0 · KTIB ktib-3 386문항(8/70) · arena 4run(brain 0.0%×3, baseline 88.1%) · confusion 629(전부 hypothesized) · brain_versions 0 · review_votes 10 · atlas 큐 0 · governance 43건.
 
+### 2-b. 갱신 스냅샷 (2026-07-20, Supabase 활성 DB — 출처가 다름에 유의)
+
+07-17 수치는 **다른 머신의 로컬 DB** 팩트팩이고, 아래는 **Supabase(공유 활성 DB)** 실측이다 — append-only 동기화 특성상 두 DB는 완전히 같지 않다([05장](05-data-catalog.md) 5-7 상세):
+
+episodes **3,139**(TRAIN 2,753 / BENCHMARK 386) · states: LABEL_CANDIDATE **2,396**(검수 대기 급증 — 증산 유입)·LABELED 386·REJECTED 334·ACCUMULATING 23 · GOLD 386(**TRAIN GOLD 여전히 0**) · evidence **4,147**(사람 확인 56·교정 19) · exemplar 0 · KTIB 3버전/572문항(최신 ktib-3 386) · arena 4run(변동 없음) · confusion **2,129**(전부 hypothesized·전부 SKEPTIC — GYM_CORRECTION 경로는 배선됐으나 생성 실적 0) · brain_versions 0 · brain_nodes 70 · governance 64건 · **review_votes·intent_display·ktib_uploads는 이날 Supabase에 테이블이 처음 생성되어 0**(로컬 데이터는 다음 push 동기화 대상 — [17장](17-open-questions-and-gaps.md) C1).
+
+인프라: Supabase 마이그레이션 **0020 도달**(C1 해소) · 격리 테스트 DB 도입(`TEST_DATABASE_URL`) — 백엔드 **789 pass**/5 fail(시드 의존, C3) · 프론트 **196 pass**(27파일).
+
+**요지는 불변**: 병목은 여전히 사람 검수(2인→GOLD)다 — 검수 대기가 91→2,396으로 쌓였을 뿐, TRAIN GOLD 0·exemplar 0·유효 점수 0의 사슬은 그대로다.
+
 ## 3. 로드맵
 
 | 시기 | 내용 |
