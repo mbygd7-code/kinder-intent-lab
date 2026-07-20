@@ -866,6 +866,12 @@ body {
   font-family: inherit;
 }
 .help-input:focus { outline: none; border-color: var(--accent); }
+/* select 드롭다운 목록(<option>) — 명시 안 하면 네이티브 팝업이 흰 배경 위 밝은 글씨로
+   깔려 안 보인다. 불투명 다크 배경(=--panel 불투명화) + 밝은 글씨로 가독성 고정. */
+.help-input option,
+.help-input optgroup {
+  background: #0d1426; color: var(--fg);
+}
 
 /* --- 인코딩 범례 + 혼동 edge HUD 칩 (persona-card 규격 공유) --- */
 .legend-rows { list-style: none; display: flex; flex-direction: column; gap: 0.28rem; margin-top: 0.15rem; }
