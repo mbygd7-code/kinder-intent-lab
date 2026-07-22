@@ -156,12 +156,12 @@ campaign:                          # T2.5 10k~30k 생성 캠페인 (§10-2 Phase
   consensus_drop_max: 0.15        # 윈도 합의도가 Pilot 기준선보다 이 값 넘게 떨어지면 악화
   reject_rise_max: 0.15           # 윈도 reject율이 기준선보다 이 값 넘게 오르면 악화
   unit_cost_rise_ratio: 0.25      # 단가(시도당 토큰)가 기준선 대비 이 비율 넘게 오르면 악화
-  domain_weights:                 # 도메인 배분 — DOCUMENT+VISUAL 우선 (합=1.0, onto-2.0: STUDIO 포함)
-    DOCUMENT: 0.22
-    VISUAL: 0.22
-    PLAY: 0.12
-    OBSERVATION: 0.12
-    COMMUNICATION: 0.10
-    OPERATION: 0.08
-    REFLECTION: 0.08
-    STUDIO: 0.06
+  domain_weights:                 # 도메인 배분 — DOCUMENT+VISUAL 우선(설계 §1 AC, 테스트 잠금) · 합=1.0
+    DOCUMENT: 0.21                # 2026-07-22 일시 조정(사용자 승인): 합성 뱅크 2,714건 중 studio_ 정답
+    VISUAL: 0.21                  # 0건 실측 → STUDIO 0.06→0.18 상향(3위). DOC/VISUAL 최상위는 유지.
+    STUDIO: 0.18                  # STUDIO 문제가 검수를 통과해 쌓이면 원배분
+    PLAY: 0.09                    # (0.22/0.22/0.12/0.12/0.10/0.08/0.08/0.06)으로 복원할 것
+    OBSERVATION: 0.09
+    COMMUNICATION: 0.08
+    OPERATION: 0.07
+    REFLECTION: 0.07
