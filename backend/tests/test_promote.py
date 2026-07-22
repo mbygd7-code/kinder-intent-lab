@@ -31,7 +31,14 @@ CFG = get_config()
 @pytest.fixture(autouse=True)
 def _empty(db_session):
     """brain_versions·이벤트·evidence 비우고, 노드 brightness/pending을 알려진 상태로 리셋
-    (세이브포인트 안 — 롤백으로 원복). brain_nodes 자체는 지우지 않는다(brightness 대상)."""
+    (세이브포인트 안 — 롤백으로 원복). brain_nodes 자체는 지우지 않는다(brightness 대상).
+
+    빈 격리 테스트 DB엔 노드가 아예 없으므로(2026-07-22, 17장 C3) 형제 테스트들
+    (test_arena_runner 등)과 동일하게 거버넌스 부트스트랩으로 자가 시드한다 — 멱등이고,
+    GovernanceEvent 삭제 앞에 두어 부트스트랩 이벤트가 각 테스트의 이벤트 검사에 섞이지 않는다.
+    """
+    from app.brain.backfill import bootstrap_nodes
+
     db_session.execute(delete(ArenaRun))
     db_session.execute(delete(KtibItem))
     db_session.execute(delete(KtibVersion))
@@ -39,6 +46,7 @@ def _empty(db_session):
     db_session.execute(delete(Exemplar))
     db_session.execute(delete(Episode))
     db_session.execute(delete(BrainVersion))
+    bootstrap_nodes(db_session, approved_by="lab")
     db_session.execute(delete(GovernanceEvent))
     db_session.execute(update(BrainNode).values(
         heldout_accuracy=None, calibration_ece=None, last_arena_run=None, pending_evaluation=False

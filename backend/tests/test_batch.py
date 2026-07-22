@@ -151,15 +151,23 @@ class _FlakyProvider(SyntheticFoundryProvider):
 
     run_json_agent가 교정 재시도 1회를 갖게 되면서(2026-07-17), 1회성 실패는 구제된다 —
     격리 테스트의 의도는 '구제 불가능한 슬롯이 배치를 죽이지 않는다'이므로, 재시도
-    프롬프트(원문 + 교정 지시)에서도 같은 판정이 나오도록 원문 기준 해시로 실패를 고정한다.
+    프롬프트(원문 + 교정 지시)에서도 같은 판정이 나오도록 원문 단위로 실패를 고정한다.
+
+    2026-07-22: md5%5 확률 방식 폐기 — 주변 DB 데이터 분포에 따라 20슬롯 전부 통과해
+    `failed > 0`이 깨질 수 있었다(빈 격리 DB 실측, 17장 C3). 처음 만나는 서로 다른
+    Analyst 원문 3개를 지속 실패로 지정해 어떤 데이터 분포에서도 결정론적으로 실패한다.
     """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._fail_by_base: dict[str, bool] = {}
 
     def _respond(self, prompt, h):
         if "Intent Analyst" in prompt:
-            import hashlib
-
             base = prompt.split("\n\n## 교정 지시")[0]  # 재시도여도 원문 부분은 동일
-            if int(hashlib.md5(base.encode()).hexdigest(), 16) % 5 == 0:
+            if base not in self._fail_by_base:
+                self._fail_by_base[base] = len(self._fail_by_base) < 3  # 첫 3슬롯 지속 실패
+            if self._fail_by_base[base]:
                 return {"candidates": []}  # min_length=1 위반 → AgentOutputError (재시도도 동일)
         return super()._respond(prompt, h)
 
