@@ -293,6 +293,7 @@ def _run_pilot_body(
     # --- S1~S5: 소스 → 프레임 → 시나리오 ---
     seed_file = load_situation_seeds()  # 화면 씨드(수동 작성) — 계약 위반이면 여기서 조기 실패
     scenarios: list[tuple[str, str, str]] = []  # (scenario_id, frame_id, source_id)
+    workspace_by_scenario: dict[str, dict] = {}  # 화면 상태 — S6·S7 프롬프트 입력
     for si, spec in enumerate(specs):
         source = register_source(session, spec)
         govern_source(session, source.source_id, "ALLOW", reviewed_by="pilot")
@@ -321,6 +322,8 @@ def _run_pilot_body(
         for sc in built:
             manifest.scenario_frame[sc.scenario_id] = frame.frame_id
             scenarios.append((sc.scenario_id, frame.frame_id, source.source_id))
+            # 화면 상태 수집 — S6·S7 프롬프트 입력(§1-S6·S7). domain은 싣지 않는다
+            workspace_by_scenario[sc.scenario_id] = sc.workspace_state
 
     if not scenarios:
         raise ValueError("생성된 시나리오가 없습니다 (source_specs·scenario_variants 확인)")
@@ -351,6 +354,7 @@ def _run_pilot_body(
                 llm_client, config=config, run_id=run_id, index=i,
                 atlas_stats=atlas_stats, scenario_id=scenario_id,
                 persona=persona, ontology_version=ontology_version, deduper=deduper, model=model,
+                workspace_state=workspace_by_scenario.get(scenario_id),
             )
         except AgentOutputError as exc:
             # 실 LLM의 반복 계약 위반(교정 재시도까지 실패) — 이 에피소드만 버리고 계속 간다.

@@ -320,3 +320,85 @@ def test_consensus_records_disagreement() -> None:
                                        to_predicted="play_transition_next_step")],
     )
     assert ["play_expand", "play_transition_next_step"] in result.disagreement_pairs
+
+
+# --- S6·S7 프롬프트 입력 계약 (§1-S6·S7) — camp_1b802fdf 94% UNKNOWN 회귀 방지 ---
+#
+# 2026-07-22 실측: S7 프롬프트에 온톨로지 목록이, S6·S7에 화면(workspace)이 실리지 않아
+# 실 LLM이 유효 id를 모른 채 화면 무관 발화만 분석 → 전량 UNKNOWN 라우팅.
+# mock은 온톨로지에서 뽑아 결함이 가려졌다. 아래 테스트가 프롬프트 조립을 잠근다.
+
+
+class _CapturePayload(_JsonLLM):
+    """지정 payload를 반환하며 렌더된 프롬프트를 캡처한다."""
+
+    def __init__(self, payload: object) -> None:
+        super().__init__(payload)
+        self.prompts: list[str] = []
+
+    def complete(self, request):
+        self.prompts.append(request.prompt)
+        return super().complete(request)
+
+
+def test_s7_prompt_carries_ontology_list_and_workspace() -> None:
+    provider = _CapturePayload(
+        {"candidates": [{"intent_id": "studio_worksheet_generate", "weight": 1.0}]}
+    )
+    analyze(
+        LLMClient(provider, FAST), utterance="활동지 하나 만들어줘", scenario_id="SCN_t",
+        model="m", scenario_context={"workspace": {"surface_type": "studio_editor"}},
+    )
+    prompt = provider.prompts[0]
+    # 온톨로지 목록 — 도메인별 {intent_id, definition}이 전부 실린다 (STUDIO 포함)
+    assert "ontology_intents" in prompt
+    assert "studio_worksheet_generate" in prompt
+    assert "STUDIO" in prompt
+    # 화면 컨텍스트가 실린다
+    assert "studio_editor" in prompt
+
+
+def test_s6_prompt_carries_workspace() -> None:
+    provider = _CapturePayload({"utterance": "이 활동지 이어서 만들어줘"})
+    simulate(
+        LLMClient(provider, FAST), scenario_id="SCN_t", persona_lens="P_hypo_1", model="m",
+        scenario_context={"nonce": 0, "workspace": {"surface_type": "studio_editor"}},
+    )
+    assert "studio_editor" in provider.prompts[0]
+
+
+def test_generate_episode_threads_workspace_without_domain_leak() -> None:
+    """generate_episode(workspace_state=…) → S6·S7 프롬프트 양쪽에 화면이 실리고,
+    생성 메타(도메인)는 실리지 않는다(라벨 순환 방지 — §1-S6 역방향 생성 금지 정신)."""
+    from app.foundry.episode_builder import generate_episode
+    from app.foundry.pilot import SyntheticFoundryProvider
+
+    class _Capture(SyntheticFoundryProvider):
+        def __init__(self):
+            super().__init__()
+            self.prompts: list[str] = []
+
+        def complete(self, request):
+            self.prompts.append(request.prompt)
+            return super().complete(request)
+
+    class _NoDedup:
+        def is_duplicate(self, _u):
+            return False
+
+    provider = _Capture()
+    ws = {"surface_type": "studio_editor", "recent_actions": ["open_template"]}
+    generate_episode(
+        LLMClient(provider, FAST), config=CFG, run_id="wsflow", index=0,
+        scenario_id="SCN_ws", persona="P_hypo_1", ontology_version="onto-t",
+        deduper=_NoDedup(), workspace_state=ws,
+    )
+    s6 = [p for p in provider.prompts if "Teacher Simulator" in p]
+    s7 = [p for p in provider.prompts if "Intent Analyst" in p]
+    assert s6 and s7
+    assert "studio_editor" in s6[0] and "open_template" in s6[0]
+    assert "studio_editor" in s7[0]
+    # 누출 가드: 입력 컨텍스트 JSON에 시나리오의 도메인 키가 없다
+    for p in (s6[0], s7[0]):
+        body = p.rsplit("## 입력 컨텍스트", 1)[1]
+        assert '"domain"' not in body

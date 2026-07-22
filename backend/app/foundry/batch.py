@@ -40,6 +40,24 @@ _DEFAULT_PERSONAS = ["P_hypo_1", "P_active_2", "P_struct_3"]
 Scenario = tuple[str, str, str]  # (scenario_id, frame_id, source_id)
 
 
+def load_scenario_workspaces(session, scenario_ids) -> dict[str, dict]:
+    """scenario_id → workspace_state 일괄 로드 — 슬롯마다 개별 SELECT 하지 않는다.
+
+    화면 상태는 S6(발화 생성)·S7(분석) 프롬프트의 필수 입력이다(§1-S6·S7).
+    도메인은 싣지 않는다 — frame의 domain은 생성 메타라 라벨을 순환시킨다.
+    """
+    from app.models.foundry import CanonicalScenario
+
+    ids = {s for s in scenario_ids if s}
+    if not ids:
+        return {}
+    rows = session.execute(
+        select(CanonicalScenario.scenario_id, CanonicalScenario.workspace_state)
+        .where(CanonicalScenario.scenario_id.in_(ids))
+    ).all()
+    return {sid: ws for sid, ws in rows}
+
+
 def slot_dedup_hash(run_id: str, slot_index: int) -> str:
     """슬롯(run_id, index)의 결정론적 dedup_hash — 재시작 시 완료 슬롯 식별."""
     return "DH_" + hashlib.sha256(f"{run_id}|{slot_index}".encode()).hexdigest()[:38]
@@ -179,6 +197,8 @@ def run_batch(
     if not scenarios:
         raise ValueError("scenarios가 비어 있습니다 (prepare_scenarios 먼저)")
     personas = personas or _DEFAULT_PERSONAS
+    # 화면 상태 일괄 로드 — S6·S7 프롬프트 입력(§1-S6·S7). 없으면 화면 무관 발화가 나온다
+    ws_by_scenario = load_scenario_workspaces(session, (s[0] for s in scenarios))
     batch_size = batch_size or config.foundry.batch_size
     ontology_version = load_ontology().version
 
@@ -221,6 +241,7 @@ def run_batch(
                         scenario_id=scenario_id, persona=persona,
                         ontology_version=ontology_version, deduper=deduper, model=model,
                         dedup_hash=slot_hashes[i], atlas_stats=atlas_stats,
+                        workspace_state=ws_by_scenario.get(scenario_id),
                     )
                 except Exception as exc:  # noqa: BLE001 — 생성 실패 격리, 배치는 계속
                     session.add(
